@@ -13,3 +13,8 @@ yarn.lock
 package-lock.json
 
 .DS_Store
+
+.claude/
+.codex/
+.agents/
+.hermes/

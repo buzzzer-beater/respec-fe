@@ -1,0 +1,11 @@
+enabled: true
+groups:
+  - claude
+overrides:
+  claude/agents/kotlin-convention-validator: false
+  claude/agents/kotlin-test-fixer: false
+  claude/skills/database-schema: false
+  claude/skills/docker: false
+  claude/skills/java-spring-arch: false
+  claude/skills/kotlin-spring-arch: false
+  claude/skills/the-sdk: false

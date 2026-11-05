@@ -12,26 +12,25 @@ interface PinMarkerButtonProps {
   /** 내가 움직일 차례라 빨간 점을 붙이는 핀 */
   alert?: boolean;
   selected?: boolean;
-  /** 요소를 다시 찾지 못한 핀. 저장된 좌표에 흐린 점선 핀으로 그립니다. */
-  needsCheck?: boolean;
-  /** 마우스를 올리면 보여 줄 요청 내용 */
-  preview?: string | null;
+  /** `review`면 배포본의 반영 위치로 그립니다(흰 테두리 + 검정 링). */
+  kind?: 'pin' | 'review';
   onClick?: () => void;
   /** 마커 위치(`left`, `top`). 버튼 왼쪽 아래가 핀이 가리키는 지점입니다. */
   style?: CSSProperties;
   className?: string;
-  /** 마커 옆에 붙일 표시(위치 확인 필요 등) */
   children?: ReactNode;
 }
 
-/** 사이트 위에 그리는 핀 마커 하나. 배포 사이트와 초안 미리보기가 같이 씁니다. */
+/**
+ * 사이트 위에 그리는 핀 마커 하나. 배포 사이트와 초안 미리보기가 같이 씁니다.
+ * 위치가 바뀌면(창 크기, 재배치) 제자리로 미끄러지듯 옮깁니다.
+ */
 const PinMarkerButton = ({
   number,
   tone,
   alert = false,
   selected = false,
-  needsCheck = false,
-  preview,
+  kind = 'pin',
   onClick,
   style,
   className,
@@ -40,33 +39,18 @@ const PinMarkerButton = ({
   return (
     <button
       type="button"
-      aria-label={[`${number}번 핀`, alert && '내 차례', needsCheck && '위치 확인 필요', preview]
-        .filter(Boolean)
-        .join(', ')}
+      aria-label={`핀 ${number}`}
+      title={kind === 'review' ? `핀 ${number} 반영 위치` : undefined}
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
-        'group absolute -translate-y-full text-left hover:z-20 focus-visible:z-20',
+        'group ease-out-soft absolute -translate-y-full text-left transition-[left,top] duration-250 hover:z-20 focus-visible:z-20',
         selected ? 'z-20' : 'z-10',
         className,
       )}
       style={style}
     >
-      <NumberedPin
-        number={number}
-        tone={tone}
-        alert={alert}
-        selected={selected}
-        className={cn(needsCheck && 'border-2 border-dashed border-current opacity-60')}
-      />
-      {preview && (
-        <span
-          aria-hidden
-          className="bg-ink pointer-events-none invisible absolute top-0 left-full ml-2 line-clamp-3 w-max max-w-[240px] rounded-[10px] px-3 py-2 text-[13px] leading-snug font-semibold wrap-anywhere text-white opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
-        >
-          {preview}
-        </span>
-      )}
+      <NumberedPin number={number} tone={tone} alert={alert} selected={selected} kind={kind} />
       {children}
     </button>
   );

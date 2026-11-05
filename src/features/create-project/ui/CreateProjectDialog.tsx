@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from 'react';
 
 import { type Project, usePostProject } from '@/entities/project';
+import { Dialog, DialogTitle } from '@/shared/ui';
 
 const PROJECT_NAME_MAX = 40;
 
@@ -24,22 +25,15 @@ const CreateProjectDialog = ({ onClose, onCreated }: CreateProjectDialogProps) =
   };
 
   return (
-    <dialog
-      ref={(node) => {
-        if (node && !node.open) node.showModal();
-      }}
-      aria-labelledby="create-project-title"
+    <Dialog
       onClose={onClose}
-      // 만드는 중에는 Esc로 닫지 않습니다.
-      onCancel={(event) => {
-        if (postProject.isPending) event.preventDefault();
-      }}
-      className="backdrop:bg-ink/40 m-auto w-full max-w-md rounded-2xl bg-white p-0 shadow-xl"
+      // 만드는 중에는 닫지 않습니다.
+      preventClose={postProject.isPending}
+      closeOnBackdropClick={false}
+      className="w-[448px]"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-7">
-        <h2 id="create-project-title" className="text-xl font-extrabold">
-          새 프로젝트
-        </h2>
+        <DialogTitle className="text-xl">새 프로젝트</DialogTitle>
         <label className="flex flex-col gap-2">
           <span className="text-text text-sm font-semibold">프로젝트 이름</span>
           <input
@@ -76,7 +70,7 @@ const CreateProjectDialog = ({ onClose, onCreated }: CreateProjectDialogProps) =
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 };
 

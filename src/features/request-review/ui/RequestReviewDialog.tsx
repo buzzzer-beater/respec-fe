@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react';
 
 import type { ChangeRequest } from '@/entities/request';
 import { isApiError } from '@/shared/api';
+import { Button, Dialog, DialogDescription, DialogTitle, Input, Textarea } from '@/shared/ui';
 
 import { usePostReviewRequest } from '../api/review-request';
 import {
@@ -28,9 +29,6 @@ const getSubmitErrorMessage = (error: unknown) => {
   return '검수 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
 };
 
-const fieldClassName =
-  'border-field text-ink placeholder:text-faint focus:border-ink aria-invalid:border-warn w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none';
-
 const RequestReviewDialog = ({
   projectId,
   candidates,
@@ -41,11 +39,6 @@ const RequestReviewDialog = ({
   const [deploymentUrl, setDeploymentUrl] = useState(defaultDeploymentUrl);
   const [errors, setErrors] = useState<ReviewRequestFormErrors | null>(null);
   const { mutate, isPending, error } = usePostReviewRequest(projectId);
-
-  // 마운트되면 모달로 엽니다. Esc로 닫으면 `close` 이벤트가 옵니다.
-  const openModal = (node: HTMLDialogElement | null) => {
-    if (node && !node.open) node.showModal();
-  };
 
   const toggle = (id: number) => {
     setNotes((prev) => {
@@ -85,20 +78,13 @@ const RequestReviewDialog = ({
   };
 
   return (
-    <dialog
-      ref={openModal}
-      onClose={onClose}
-      aria-labelledby="request-review-title"
-      className="backdrop:bg-ink/40 m-auto max-h-[85vh] w-[min(560px,calc(100vw-32px))] rounded-2xl bg-white p-0 shadow-[0_12px_32px_rgba(24,24,27,0.14)]"
-    >
+    <Dialog onClose={onClose} closeOnBackdropClick={false} className="max-h-[85vh] w-[560px]">
       <form onSubmit={handleSubmit} noValidate className="flex max-h-[85vh] flex-col">
         <div className="px-6 pt-6 pb-4">
-          <h2 id="request-review-title" className="text-lg font-extrabold">
-            검수 요청
-          </h2>
-          <p className="text-muted mt-1 text-sm">
+          <DialogTitle>검수 요청</DialogTitle>
+          <DialogDescription className="mt-1 text-sm">
             반영한 요청을 고르고 무엇을 바꿨는지 적어 주세요. 고객이 확인하고 해결 처리합니다.
-          </p>
+          </DialogDescription>
         </div>
 
         {candidates.length === 0 ? (
@@ -137,7 +123,7 @@ const RequestReviewDialog = ({
                         <label htmlFor={noteId} className="text-text text-xs font-bold">
                           반영 설명
                         </label>
-                        <textarea
+                        <Textarea
                           id={noteId}
                           rows={2}
                           value={notes.get(candidate.id) ?? ''}
@@ -145,7 +131,7 @@ const RequestReviewDialog = ({
                           placeholder="예: 모바일에서 버튼이 화면 밖으로 나가지 않게 너비를 줄였습니다."
                           aria-invalid={isEmpty || undefined}
                           disabled={isPending}
-                          className={`${fieldClassName} field-sizing-content max-h-40 resize-none`}
+                          className="field-sizing-content max-h-40 py-2.5 text-sm"
                         />
                         {isEmpty && (
                           <p className="text-warn text-xs font-semibold">
@@ -164,7 +150,7 @@ const RequestReviewDialog = ({
               <label htmlFor="review-deployment-url" className="text-sm font-bold">
                 검수할 배포 URL
               </label>
-              <input
+              <Input
                 id="review-deployment-url"
                 type="url"
                 inputMode="url"
@@ -173,7 +159,7 @@ const RequestReviewDialog = ({
                 placeholder="https://"
                 aria-invalid={errors?.deploymentUrl ? true : undefined}
                 disabled={isPending}
-                className={fieldClassName}
+                className="h-auto py-2.5 text-sm"
               />
               {errors?.deploymentUrl && (
                 <p className="text-warn text-xs font-semibold">{errors.deploymentUrl}</p>
@@ -188,28 +174,20 @@ const RequestReviewDialog = ({
           </p>
         )}
 
-        <div className="flex gap-2 px-6 pt-4 pb-6 text-sm font-semibold">
-          <button
-            type="button"
-            onClick={onClose}
-            className="border-divider text-ink hover:bg-hover h-11 flex-1 rounded-xl border"
-          >
+        <div className="flex gap-2 px-6 pt-4 pb-6">
+          <Button variant="secondary" onClick={onClose} className="h-11 flex-1">
             {candidates.length === 0 ? '닫기' : '취소'}
-          </button>
+          </Button>
           {candidates.length > 0 && (
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-ink h-11 flex-1 rounded-xl text-white transition-transform active:scale-95 disabled:opacity-40"
-            >
+            <Button type="submit" disabled={isPending} className="h-11 flex-1">
               {isPending
                 ? '보내는 중…'
                 : `검수 요청 보내기${notes.size > 0 ? ` (${notes.size})` : ''}`}
-            </button>
+            </Button>
           )}
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 };
 

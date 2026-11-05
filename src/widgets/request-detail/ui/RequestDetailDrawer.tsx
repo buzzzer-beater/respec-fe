@@ -1,8 +1,8 @@
 'use client';
 
-import { type ReactNode, type SyntheticEvent, useEffect, useId, useRef } from 'react';
-
 import Link from 'next/link';
+
+import type { ReactNode } from 'react';
 
 import { useGetMessages } from '@/entities/message';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
@@ -15,7 +15,7 @@ import {
 } from '@/entities/request';
 import { ChangeRequestStatusButtons } from '@/features/change-request-status';
 import { ResolveRequestButtons } from '@/features/resolve-request';
-import { PlainTextExplanation } from '@/shared/ui';
+import { Dialog, DialogClose, DialogTitle, PlainTextExplanation } from '@/shared/ui';
 
 import RequestHistoryTimeline from './RequestHistoryTimeline';
 
@@ -34,9 +34,6 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
 
 /** 수정 요청 상세. 오른쪽 드로어로 열리고 Esc와 바깥 클릭으로 닫힙니다. */
 const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDrawerProps) => {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-
   const { data: project } = useGetProject(projectId);
   const { data: members = [] } = useGetProjectMembers(projectId);
   const { data: pins = [] } = useGetPins(projectId);
@@ -48,16 +45,6 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
     projectId,
     request?.pin_id != null && request.source_pin_comment_id !== null ? [request.pin_id] : [],
   );
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
-
-  // 안쪽 다이얼로그 이벤트가 올라와도 드로어 자체 이벤트만 처리합니다.
-  const closeIfSelf = (event: SyntheticEvent<HTMLDialogElement>) => {
-    if (event.target === event.currentTarget) onClose();
-  };
 
   const emails = new Map(members.map((member) => [member.id, member.email]));
   const authorName = (userId: number) => emails.get(userId) ?? '참여자';
@@ -75,32 +62,17 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
       : messages.isPending;
 
   return (
-    <dialog
-      ref={ref}
-      aria-labelledby={titleId}
-      onClose={closeIfSelf}
-      onClick={closeIfSelf}
-      className="fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[480px] max-w-full animate-[slide-in_0.3s_var(--ease-out-soft)] bg-white p-0 shadow-[0_0_0_1px_var(--color-divider),0_12px_32px_rgba(24,24,27,0.14)] backdrop:bg-black/30"
-    >
+    <Dialog side="right" onClose={onClose}>
       <div className="flex h-full flex-col">
         <header className="border-divider flex items-center gap-2.5 border-b px-7 py-5">
-          <h2 id={titleId} className="text-lg font-extrabold">
-            요청 #{requestId}
-          </h2>
+          <DialogTitle>요청 #{requestId}</DialogTitle>
           {request && (
             <RequestStatusBadge
               label={CHANGE_REQUEST_STATUS_LABEL[request.status]}
               status={request.status}
             />
           )}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            className="text-muted hover:bg-hover hover:text-ink ml-auto grid size-9 place-items-center rounded-lg text-xl"
-          >
-            ×
-          </button>
+          <DialogClose className="ml-auto size-9 rounded-lg text-xl" />
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col gap-7 overflow-y-auto px-7 py-6">
@@ -196,7 +168,7 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
           </footer>
         )}
       </div>
-    </dialog>
+    </Dialog>
   );
 };
 

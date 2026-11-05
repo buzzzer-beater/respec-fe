@@ -14,13 +14,12 @@ import { isHiddenByDefault, useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
 import {
   RelocatePinButton,
-  RelocatePinPrompt,
   useRelocatePin,
   useReportPinLocation,
 } from '@/features/check-pin-location';
 import {
   DeploymentEmptyState,
-  PIN_SCRIPT_MISSING_MESSAGE,
+  PIN_SCRIPT_MISSING_TOAST,
   PinScriptMissingNotice,
   toDeploymentHost,
 } from '@/features/connect-deployment';
@@ -39,6 +38,7 @@ import {
   type SiteAddress,
   type SiteHistoryControls,
   SiteViewer,
+  toSitePages,
 } from '@/widgets/site-viewer';
 import { WorkspaceLayout } from '@/widgets/workspace-layout';
 
@@ -49,7 +49,6 @@ import {
   toMessages,
   toPinThreads,
   toRequestPinOptions,
-  toSitePages,
   toViewerPins,
 } from '../model/mappers';
 
@@ -160,19 +159,17 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     : null;
 
   // 초안도 배포 URL도 없으면 핀 생성이 409이므로 핀 모드를 미리 막습니다.
-  // 배포 사이트는 핀 스크립트가 연결돼야 핀 위치를 고정할 수 있어서, 연결 전과 없을 때도 막습니다.
+  // 배포 사이트는 핀 스크립트가 없으면 핀 위치를 고정할 수 없어서 막습니다(연결 확인 중에는 막지 않음).
   // 개발자는 새 핀을 못 만들지만, 기존 핀 위치 다시 지정은 핀 모드가 필요해서 그때는 막지 않습니다.
-  const pinDisabledReason =
+  const pinBlockedMessage =
     project && !project.deployment_url && draft === null
       ? '초안을 만들거나 배포 사이트를 연결하면 핀을 남길 수 있어요'
-      : showDeployed && scriptStatus === 'connecting'
-        ? '핀 스크립트 연결을 확인하고 있어요'
-        : showDeployed && scriptStatus === 'disconnected'
-          ? PIN_SCRIPT_MISSING_MESSAGE
-          : project && !can(project.my_role, 'create-pin') && relocatePin.pinId === null
-            ? '핀은 고객만 남길 수 있어요'
-            : null;
-  const pinDisabledNotice =
+      : showDeployed && scriptStatus === 'disconnected'
+        ? PIN_SCRIPT_MISSING_TOAST
+        : project && !can(project.my_role, 'create-pin') && relocatePin.pinId === null
+          ? '개발자는 검수 요청을 만들 때 반영 위치를 찍어요'
+          : null;
+  const scriptNotice =
     showDeployed && scriptStatus === 'disconnected' ? (
       <PinScriptMissingNotice projectId={projectId} />
     ) : undefined;
@@ -206,16 +203,24 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const frameUrl =
     deploymentUrl && reload.path ? new URL(reload.path, deploymentUrl).href : deploymentUrl;
   const currentPath = deployedPath ?? getPagePath(frameUrl);
-  // 초안은 한 페이지만 미리 보여 주므로 페이지 목록이 없습니다.
+  // 초안은 한 페이지(`/`)만 있지만 시안처럼 페이지 목록과 핀 수를 보여 줍니다.
   const address: SiteAddress | undefined =
     showDeployed && deploymentUrl
       ? {
           host: toDeploymentHost(deploymentUrl),
           path: currentPath,
-          ...(isScriptConnected && { pages: toSitePages(viewerPins), onSelectPage: goToPath }),
+          ...(isScriptConnected && {
+            pages: toSitePages(viewerPins, currentPath),
+            onSelectPage: goToPath,
+          }),
         }
       : showDraft
-        ? { host: '초안 미리보기', path: '/' }
+        ? {
+            host: `draft.respec.app/${projectId}`,
+            path: '/',
+            pages: toSitePages(viewerPins, '/'),
+            onSelectPage: () => {},
+          }
         : undefined;
   const handleReload =
     showDeployed || showDraft
@@ -227,9 +232,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   const startRelocate = (pinId: number) => {
     setDraftPin(null);
-    relocatePin.start(pinId);
+    relocatePin.start(pinId, pins.findIndex((pin) => pin.id === pinId) + 1);
   };
-  const relocatingNumber = pins.findIndex((pin) => pin.id === relocatePin.pinId) + 1;
 
   const pinPopover = (
     <PinCommentPopover
@@ -265,6 +269,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                   <RelocatePinButton
                     isActive={relocatePin.pinId === Number(id)}
                     onClick={() => startRelocate(Number(id))}
+                    onCancel={relocatePin.cancel}
                   />
                 </>
               )}
@@ -297,27 +302,20 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           onSelectPin={handleSelectPin}
           draftPin={draftPin}
           draftPinContent={pinPopover}
-          pinDisabledReason={pinDisabledReason}
-          pinDisabledNotice={pinDisabledNotice}
+          pinBlockedMessage={pinBlockedMessage}
+          notice={scriptNotice}
           address={address}
+          scriptStatus={showDeployed ? scriptStatus : showDraft ? 'connected' : undefined}
           history={history}
           onReload={handleReload}
           footnote={footnote}
-          pinPrompt={
-            relocatingNumber > 0 ? (
-              <RelocatePinPrompt
-                pinNumber={relocatingNumber}
-                isPending={relocatePin.isPending}
-                errorMessage={relocatePin.errorMessage}
-                onCancel={relocatePin.cancel}
-              />
-            ) : undefined
-          }
+          placingHint={relocatePin.hint}
+          onCancelPlacing={relocatePin.cancel}
           showResolved={showResolved}
           onShowResolvedChange={setShowResolved}
           renderSite={
             showDeployed && frameUrl
-              ? (mode) => (
+              ? (mode, placePin) => (
                   <DeployedSiteFrame
                     key={`${deploymentUrl}#${reload.key}`}
                     url={frameUrl}
@@ -325,7 +323,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     pins={viewerPins}
                     focusPin={selectedPin}
                     navigateTo={navigation}
-                    onPlacePin={handlePlacePin}
+                    onPlacePin={placePin}
                     onSelectPin={handleSelectPin}
                     onPinMissing={handlePinMissing}
                     onPinFound={handlePinFound}
@@ -336,16 +334,17 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                   />
                 )
               : showDraft
-                ? (mode) => (
+                ? (mode, placePin) => (
                     <DraftPreviewFrame
                       key={reload.key}
                       html={draftPreview.data}
                       error={draftPreview.error}
                       mode={mode}
                       pins={viewerPins}
-                      onPlacePin={handlePlacePin}
+                      onPlacePin={placePin}
                       onSelectPin={handleSelectPin}
                       selectedPinId={selectedPin?.id ?? null}
+                      focusPin={selectedPin}
                       draftPin={draftPin}
                       draftPinContent={pinPopover}
                       onPinMissing={handlePinMissing}

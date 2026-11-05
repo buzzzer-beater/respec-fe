@@ -14,7 +14,7 @@ import {
 import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
-import type { SitePage, ViewerPin } from '@/widgets/site-viewer';
+import type { ViewerPin } from '@/widgets/site-viewer';
 
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
 export const getPagePath = (deploymentUrl: string | null | undefined) => {
@@ -51,21 +51,11 @@ export const toViewerPins = (
             y: pin.relative_y * 100,
             status: pin.request_status,
             ...getPinLook(pin.request_status, role),
-            preview: pin.request_preview,
             locationStatus: pin.location_status,
             anchor: pin,
           },
         ],
   );
-
-/** 주소창 목록에 보여 줄 페이지와 페이지별 핀 개수. `/`가 먼저, 나머지는 경로 순서입니다. */
-export const toSitePages = (pins: ViewerPin[]): SitePage[] => {
-  const counts = new Map<string, number>();
-  for (const pin of pins) counts.set(pin.pagePath, (counts.get(pin.pagePath) ?? 0) + 1);
-  return [...counts]
-    .map(([path, pinCount]) => ({ path, pinCount }))
-    .sort((a, b) => (a.path === '/' ? -1 : b.path === '/' ? 1 : a.path.localeCompare(b.path)));
-};
 
 /** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
 const createAuthorName = (members: ProjectMember[], me: User | undefined) => {

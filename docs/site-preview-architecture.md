@@ -29,10 +29,14 @@
 
 ## 초안 미리보기
 
+> 상태: **확정** (백엔드와 합의, #51). 구현: `src/app/api/projects/[projectId]/draft-preview/route.ts`, `src/widgets/site-viewer/ui/DraftPreviewFrame.tsx`
+
 ```text
 [워크스페이스]
   1. GET /projects/{id}/draft → preview_url 받기 (재생성마다 access 토큰이 바뀌므로 저장하지 않음)
-  2. Next.js 라우트 핸들러가 서버에서 preview_url의 HTML을 받아 옴 (브라우저 CORS 회피)
+  2. Next.js 라우트 핸들러가 서버에서 HTML을 받아 옴 (브라우저 CORS 회피)
+     브라우저는 projectId와 access 키만 넘기고, 서버가 API_BASE_URL로 URL을 직접 만듦 (SSRF 방지)
+     응답 <head>에 원래 CSP와 같은 <meta http-equiv="Content-Security-Policy">를 넣음
   3. <iframe srcdoc={html} sandbox="allow-same-origin">  ← allow-scripts, allow-forms 없음
   4. 부모가 contentDocument를 직접 읽어 핀 엔진 실행
 ```
@@ -41,6 +45,7 @@
 - `allow-forms`도 빼서 폼 전송을 막습니다 (원본 CSP의 `form-action 'none'`과 같은 효과).
 - **iframe 높이를 문서 높이에 맞추고, 스크롤은 부모 컨테이너에서 합니다.** 그러면 마커를 부모의 같은 스크롤 영역에 그릴 수 있어서 iframe 스크롤과 위치를 맞출 필요가 없습니다. 화면 너비 프리셋은 iframe 너비로 조절합니다. (`100vh`를 쓰는 레이아웃은 높이가 달라질 수 있음)
 - **핀 모드**: iframe 위에 투명 레이어를 덮어 클릭 좌표를 받고, `contentDocument.elementFromPoint()`로 아래 요소를 찾습니다. iframe 문서에 이벤트 리스너를 붙이지 않아도 되므로 `sandbox` 동작 차이에 영향받지 않습니다.
+- **`#섹션` 링크**: srcdoc 문서의 `#id` 링크는 부모 페이지 주소 기준으로 해석돼 iframe이 앱 페이지로 이동합니다. 부모가 iframe 문서의 클릭을 받아 `preventDefault` 후 해당 요소 위치로 부모 컨테이너를 스크롤합니다(Chrome에서 `sandbox` 문서에도 부모 리스너가 동작하는 것을 확인).
 - **체험 모드의 한계**: 초안에는 스크립트가 없어서 장바구니, 날짜 선택 같은 동작은 체험할 수 없고 스크롤과 링크 정도만 됩니다. CLAUDE.md의 "미리보기로 직접 사용해 봄"과 차이가 있으니 팀 공유가 필요합니다.
 - 생성은 동기 방식이고 최대 120초(nginx timeout)까지 걸립니다. 로딩 화면과 502/504 처리가 필요합니다.
 

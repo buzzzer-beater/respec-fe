@@ -3,7 +3,12 @@
 import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
-import { PinLocationBadge, useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
+import {
+  type PinPosition as PinLocation,
+  type PinSource,
+  useGetPinCommentsByPin,
+  useGetPins,
+} from '@/entities/pin';
 import {
   useGetDraftPreviewHtml,
   useGetProject,
@@ -13,7 +18,6 @@ import {
 import { isHiddenByDefault, useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
 import {
-  RelocatePinButton,
   RelocatePinPrompt,
   useRelocatePin,
   useReportPinLocation,
@@ -24,13 +28,20 @@ import {
   PinScriptMissingNotice,
   toDeploymentHost,
 } from '@/features/connect-deployment';
-import { PinCommentPopover, usePostPin } from '@/features/create-pin';
-import { MessageRequestMenu } from '@/features/create-request-from-message';
-import { usePostMessage } from '@/features/send-message';
-import { SharePinButton } from '@/features/share-pin';
+import { usePostPin } from '@/features/create-pin';
 import { useViewerSite } from '@/features/switch-site';
 import { formatRelativeTime } from '@/shared/lib';
-import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
+import { toast } from '@/shared/ui';
+import { ChatDrawer } from '@/widgets/chat-drawer';
+import {
+  getPanelView,
+  isWidePanelView,
+  type ReviewSession,
+  type SelectedPin,
+  SideChatPanel,
+  toThreadId,
+  useGetLatestReviewItems,
+} from '@/widgets/side-chat';
 import {
   DeployedSiteFrame,
   DraftPreviewFrame,
@@ -45,10 +56,10 @@ import { WorkspaceLayout } from '@/widgets/workspace-layout';
 import { canMoveHistory, EMPTY_SITE_HISTORY, moveHistory, visitPath } from '../model/history';
 import {
   getPagePath,
+  getReviewItemRequestIds,
   getThreadPins,
   toMessages,
   toPinThreads,
-  toRequestPinOptions,
   toSitePages,
   toViewerPins,
 } from '../model/mappers';
@@ -61,6 +72,12 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
+  // 채팅 서랍. 상단바의 "채팅 N" 버튼과 잇는 일은 화면 조립 때 합니다.
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  // 검수 요청 만들기(개발자): 고른 요청마다 배포본에 찍은 반영 위치와, 지금 찍는 중인 요청
+  const [review, setReview] = useState<ReviewSession | null>(null);
+  const [reviewLocations, setReviewLocations] = useState<Partial<Record<number, PinLocation>>>({});
+  const [placingRequestId, setPlacingRequestId] = useState<number | null>(null);
   // "완료 보기": 해결된 핀 마커와 스레드를 함께 보이고 숨깁니다.
   const [showResolved, setShowResolved] = useState(false);
   // 핀 스크립트가 알려 준 배포 사이트의 지금 경로와 연결 상태
@@ -79,7 +96,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const { data: project } = useGetProject(projectId);
   const { data: members = [] } = useGetProjectMembers(projectId);
   const { data: pins = [] } = useGetPins(projectId);
-  const { data: messages = [], isSuccess: messagesLoaded } = useGetMessages(projectId);
+  const { data: messages = [] } = useGetMessages(projectId);
   const { data: draft } = useGetProjectDraft(projectId);
   const deploymentUrl = project?.deployment_url ?? null;
   // 상단바에서 고른 사이트. 배포 주소가 생겨도 초안을 다시 볼 수 있습니다.
@@ -99,31 +116,54 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     setReload({ key: 0, path: null });
   }
   const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
-  const commentsByPin = useGetPinCommentsByPin(
-    projectId,
-    getThreadPins(pins, showResolved).map((pin) => pin.id),
-  );
+  // 고른 요청은 해결됐어도(승인 직후 등) 대화가 보이도록 댓글을 계속 받습니다.
+  const commentPinIds = getThreadPins(pins, showResolved).map((pin) => pin.id);
+  const selectedPinId = selectedPin ? Number(selectedPin.id) : NaN;
+  if (Number.isInteger(selectedPinId) && !commentPinIds.includes(selectedPinId)) {
+    commentPinIds.push(selectedPinId);
+  }
+  const commentsByPin = useGetPinCommentsByPin(projectId, commentPinIds);
   const canCreateRequest = can(project?.my_role, 'create-request-from-message');
-  // 이미 수정 요청으로 등록된 메시지는 메뉴 대신 "등록됨"으로 표시합니다.
   const { data: requests = [] } = useGetChangeRequests(projectId, 'all');
-  const registeredMessageIds = new Set(requests.map((request) => request.source_chat_message_id));
+  const reviewItems = useGetLatestReviewItems(
+    projectId,
+    getReviewItemRequestIds(requests, showResolved),
+  );
   const postPin = usePostPin(projectId);
-  const postMessage = usePostMessage(projectId);
+  const pinSource: PinSource = showDeployed ? 'deployment' : 'draft';
+  const threads = toPinThreads({
+    pins,
+    commentsByPin,
+    members,
+    me,
+    requests,
+    reviewItems,
+    messages,
+  });
+  const placingNumber =
+    threads.find((thread) => thread.changeRequestId === placingRequestId)?.pinNumber ?? null;
   const relocatePin = useRelocatePin(projectId);
   const { reportMissing, reportFound } = useReportPinLocation(projectId);
 
   const handleSubmitPin = (content: string) => {
     if (!draftPin?.anchor || !project) return;
     postPin.mutate(
-      { role: project.my_role, ...draftPin.anchor, request_content: content },
       {
-        onSuccess: ({ requestFailed }) => {
+        role: project.my_role,
+        ...draftPin.anchor,
+        source: pinSource,
+        request_content: content,
+      },
+      {
+        onSuccess: ({ pin, requestFailed }) => {
           setDraftPin(null);
           setNotice(
             requestFailed
               ? '핀은 저장했지만 수정 요청으로 등록하지 못했어요. 새로고침 후 확인해 주세요.'
               : null,
           );
+          toast(`핀 ${pins.length + 1}을 남겼어요 · AI가 개발 요청으로 정리하고 있어요`);
+          setSelectedPin((prev) => ({ id: String(pin.id), seq: (prev?.seq ?? 0) + 1 }));
         },
       },
     );
@@ -133,6 +173,14 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   // 화면 좌표만으로는 스크롤하면 위치가 어긋나서 앵커 없는 위치는 받지 않습니다(FE#80).
   const handlePlacePin = (position: PinPosition) => {
     if (!position.anchor) return;
+    // 검수 요청의 반영 위치를 찍는 중이면 그 요청의 위치로 둡니다.
+    if (placingRequestId !== null) {
+      const anchor = position.anchor;
+      setReviewLocations((prev) => ({ ...prev, [placingRequestId]: anchor }));
+      setPlacingRequestId(null);
+      toast(`${placingNumber ? `핀 ${placingNumber}` : '요청'} 반영 위치를 찍었어요`);
+      return;
+    }
     // 위치 다시 지정 중이면 새 핀 대신 그 핀을 옮깁니다.
     if (relocatePin.pinId !== null) {
       relocatePin.place(position.anchor);
@@ -169,7 +217,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         ? '핀 스크립트 연결을 확인하고 있어요'
         : showDeployed && scriptStatus === 'disconnected'
           ? PIN_SCRIPT_MISSING_MESSAGE
-          : project && !can(project.my_role, 'create-pin') && relocatePin.pinId === null
+          : project &&
+              !can(project.my_role, 'create-pin') &&
+              relocatePin.pinId === null &&
+              placingRequestId === null
             ? '핀은 고객만 남길 수 있어요'
             : null;
   const pinDisabledNotice =
@@ -231,60 +282,64 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   };
   const relocatingNumber = pins.findIndex((pin) => pin.id === relocatePin.pinId) + 1;
 
-  const pinPopover = (
-    <PinCommentPopover
-      onSubmit={handleSubmitPin}
-      onCancel={() => setDraftPin(null)}
-      isPending={postPin.isPending}
-      errorMessage={pinErrorMessage}
-    />
-  );
+  const newRequest =
+    draftPin?.anchor && project
+      ? {
+          pinNumber: pins.length + 1,
+          source: pinSource,
+          pagePath: draftPin.anchor.page_path,
+          elementLabel: draftPin.anchor.location_context?.section_name ?? null,
+        }
+      : null;
+  const panelView = getPanelView({
+    isReviewOpen: !!review,
+    hasNewRequest: !!newRequest,
+    hasSelection: !!selectedPin && threads.some((thread) => thread.id === selectedPin.id),
+  });
 
   return (
     <WorkspaceLayout
       openKey={selectedPin}
       requestCount={getThreadPins(pins).length}
-      latestMessageId={messagesLoaded ? (messages.at(-1)?.id ?? 0) : undefined}
+      isPanelWide={isWidePanelView(panelView)}
       panel={
         <SideChatPanel
           projectId={projectId}
+          role={project?.my_role}
+          me={me}
+          members={members}
+          threads={threads}
+          site={pinSource}
+          currentPath={showDeployed ? currentPath : showDraft ? '/' : null}
+          showResolved={showResolved}
+          deploymentHost={deploymentUrl ? toDeploymentHost(deploymentUrl) : null}
+          otherPagesHref={`/projects/${projectId}/requests`}
           selectedPin={selectedPin}
-          messages={toMessages(messages, pins, members, me)}
-          pinThreads={toPinThreads(pins, commentsByPin, members, me, requests, showResolved)}
-          onSendMessage={(content) => postMessage.mutate({ content })}
           onSelectPin={handleSelectPin}
           onClosePin={() => setSelectedPin(null)}
-          currentPath={showDeployed ? currentPath : showDraft ? '/' : null}
-          otherPagesHref={`/projects/${projectId}/requests`}
-          renderPinThreadAction={({ id }) => (
-            <>
-              {/* 재배포 후 핀 자리를 못 찾은 핀만 위치를 다시 지정합니다(같은 사이트 안에서). */}
-              {pins.find((pin) => pin.id === Number(id))?.location_status === 'needs_check' && (
-                <>
-                  <PinLocationBadge />
-                  <RelocatePinButton
-                    isActive={relocatePin.pinId === Number(id)}
-                    onClick={() => startRelocate(Number(id))}
-                  />
-                </>
-              )}
-              <SharePinButton projectId={projectId} pinId={Number(id)} />
-            </>
-          )}
-          renderMessageAction={({ id, content }) => {
-            if (!canCreateRequest || !content) return null;
-            if (registeredMessageIds.has(Number(id))) {
-              return <p className="text-faint text-xs font-semibold">수정 요청으로 등록됨</p>;
-            }
-            return (
-              <MessageRequestMenu
-                projectId={projectId}
-                messageId={Number(id)}
-                pins={toRequestPinOptions(pins)}
-              />
-            );
+          onStartNewRequest={() => toast('사이트에서 바꾸고 싶은 곳을 눌러 주세요')}
+          newRequest={newRequest}
+          onSubmitNewRequest={handleSubmitPin}
+          onCancelNewRequest={() => setDraftPin(null)}
+          isSubmittingNewRequest={postPin.isPending}
+          newRequestError={pinErrorMessage}
+          relocatingPinId={relocatePin.pinId}
+          onRelocate={startRelocate}
+          onCancelRelocate={relocatePin.cancel}
+          onSharedPin={() => setIsChatOpen(true)}
+          review={review}
+          onOpenReview={(preselectedIds) => {
+            setSelectedPin(null);
+            setReviewLocations({});
+            setReview((prev) => ({ seq: (prev?.seq ?? 0) + 1, preselectedIds }));
           }}
-          role={project?.my_role}
+          onCloseReview={() => {
+            setReview(null);
+            setPlacingRequestId(null);
+          }}
+          reviewLocations={reviewLocations}
+          placingRequestId={placingRequestId}
+          onStartPlacing={setPlacingRequestId}
         />
       }
     >
@@ -296,7 +351,6 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           onPlacePin={handlePlacePin}
           onSelectPin={handleSelectPin}
           draftPin={draftPin}
-          draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
           pinDisabledNotice={pinDisabledNotice}
           address={address}
@@ -304,7 +358,11 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           onReload={handleReload}
           footnote={footnote}
           pinPrompt={
-            relocatingNumber > 0 ? (
+            placingRequestId !== null ? (
+              <p className="bg-ink rounded-full px-4 py-2 text-[13px] font-semibold text-white">
+                {placingNumber ? `핀 ${placingNumber}의 ` : ''}반영 위치를 눌러 주세요
+              </p>
+            ) : relocatingNumber > 0 ? (
               <RelocatePinPrompt
                 pinNumber={relocatingNumber}
                 isPending={relocatePin.isPending}
@@ -332,7 +390,6 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     onPathChange={handlePathChange}
                     onStatusChange={setScriptStatus}
                     draftPin={draftPin}
-                    draftPinContent={pinPopover}
                   />
                 )
               : showDraft
@@ -347,7 +404,6 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                       onSelectPin={handleSelectPin}
                       selectedPinId={selectedPin?.id ?? null}
                       draftPin={draftPin}
-                      draftPinContent={pinPopover}
                       onPinMissing={handlePinMissing}
                       onPinFound={handlePinFound}
                     />
@@ -369,6 +425,22 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           </p>
         )}
       </main>
+      <ChatDrawer
+        projectId={projectId}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        projectName={project?.name ?? ''}
+        memberEmails={members.map((member) => member.email)}
+        messages={toMessages(messages, pins, members, me, requests)}
+        canCreateRequest={canCreateRequest}
+        onOpenSharedPin={handleSelectPin}
+        onRequestCreated={(request) =>
+          setSelectedPin((prev) => ({
+            id: toThreadId(request.pin_id, request.id),
+            seq: (prev?.seq ?? 0) + 1,
+          }))
+        }
+      />
     </WorkspaceLayout>
   );
 };

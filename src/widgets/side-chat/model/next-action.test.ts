@@ -7,10 +7,11 @@ describe('getNextActionLabel', () => {
     expect(getNextActionLabel('open', 'developer')).toBe('확인 시작');
     expect(getNextActionLabel('reviewing', 'developer')).toBe('작업 시작');
     expect(getNextActionLabel('in_progress', 'developer')).toBe('검수 요청에 담기');
+    expect(getNextActionLabel('pending_review', 'developer')).toBeNull();
   });
 
   it('고객은 검수 대기일 때만 할 일이 있다', () => {
-    expect(getNextActionLabel('pending_review', 'client')).toBe('반영 내용을 보고 승인해 주세요');
+    expect(getNextActionLabel('pending_review', 'client')).toBe('반영 위치를 보고 승인해 주세요');
     expect(getNextActionLabel('open', 'client')).toBeNull();
   });
 

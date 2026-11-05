@@ -27,12 +27,19 @@ interface ProjectCardProps {
   project: Project;
   /** 등장 순서. 카드마다 50ms씩 늦게 나타납니다. */
   index: number;
-  myTurnCount: number;
 }
 
 /** demo-design `.project` 카드. 카드 전체가 링크이고, 개발자가 없으면 카드 안에서 바로 초대합니다. */
-const ProjectCard = ({ project, index, myTurnCount }: ProjectCardProps) => {
-  const { id, name, my_role, deployment_url, unresolved_request_count } = project;
+const ProjectCard = ({ project, index }: ProjectCardProps) => {
+  const {
+    id,
+    name,
+    my_role,
+    deployment_url,
+    has_draft,
+    unresolved_request_count,
+    my_turn_count: myTurnCount,
+  } = project;
   const members = useGetProjectMembers(id);
   const hasDeveloper = members.data?.some((member) => member.role === 'developer') ?? true;
   // 배포 전 프로젝트는 고객이 초안 화면에서 이어 갑니다.
@@ -46,7 +53,7 @@ const ProjectCard = ({ project, index, myTurnCount }: ProjectCardProps) => {
     >
       <div className="bg-stage relative h-[168px] px-[26px] pt-[22px]" aria-hidden>
         <span className="text-text absolute top-3.5 left-3.5 rounded-full bg-white px-[9px] py-1 text-xs font-bold shadow-[0_1px_3px_rgba(24,24,27,0.08)]">
-          {deployment_url ? '배포됨' : '초안'}
+          {deployment_url ? '배포됨' : has_draft ? '초안' : '시작 전'}
         </span>
         <div className="grid h-full content-start gap-2 rounded-t-lg bg-white px-4 py-3.5 shadow-[0_0_0_1px_rgba(24,24,27,0.05)]">
           <i className="bg-bar block h-2 w-2/5 rounded" />
@@ -85,7 +92,9 @@ const ProjectCard = ({ project, index, myTurnCount }: ProjectCardProps) => {
             </span>
           </p>
         ) : (
-          <p className="text-faint -mt-2 text-[13px]">배포 전 · 초안만 있어요</p>
+          <p className="text-faint -mt-2 text-[13px]">
+            {has_draft ? '배포 전 · 초안만 있어요' : '아직 초안이 없어요'}
+          </p>
         )}
         <div className="border-divider flex min-h-[47px] items-center gap-2.5 border-t pt-3.5 text-[13px]">
           {hasDeveloper ? (

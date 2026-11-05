@@ -3,8 +3,8 @@
 import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
-import { useGetProject } from '@/entities/project';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
+import { useGetProject } from '@/entities/project';
 import {
   CHANGE_REQUEST_STATUS_LABEL,
   CHANGE_REQUEST_STATUSES,

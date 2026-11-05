@@ -162,12 +162,14 @@ const DraftPreviewFrame = ({
     const doc = layout?.doc;
     if (!iframe || !doc) return;
     const rect = iframe.getBoundingClientRect();
-    const clientX = event.clientX - rect.left;
-    const clientY = event.clientY - rect.top;
+    // 확대/축소 중이면 화면 px과 문서 px이 달라서 배율로 나눠 문서 좌표로 바꿉니다.
+    const scale = iframe.offsetWidth ? rect.width / iframe.offsetWidth : 1;
+    const clientX = (event.clientX - rect.left) / scale;
+    const clientY = (event.clientY - rect.top) / scale;
     const element = findElementAtPoint(doc, clientX, clientY) ?? doc.body ?? doc.documentElement;
     onPlacePin?.({
-      x: (clientX / rect.width) * 100,
-      y: (clientY / rect.height) * 100,
+      x: (clientX / iframe.offsetWidth) * 100,
+      y: (clientY / iframe.offsetHeight) * 100,
       anchor: createAnchor({ element, clientX, clientY, pagePath: DRAFT_PAGE_PATH }),
     });
   };

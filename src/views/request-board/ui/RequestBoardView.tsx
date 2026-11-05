@@ -11,6 +11,7 @@ import {
   CHANGE_REQUEST_STATUSES,
   useGetChangeRequests,
 } from '@/entities/request';
+import { RequestReviewButton } from '@/features/request-review';
 
 interface RequestBoardViewProps {
   projectId: number;
@@ -60,6 +61,7 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
             className="min-w-0 flex-1 outline-none"
           />
         </label>
+        <RequestReviewButton projectId={projectId} requests={requests.data ?? []} />
       </div>
       {requests.isPending ? (
         <p className="text-muted px-10">요청을 불러오고 있습니다.</p>

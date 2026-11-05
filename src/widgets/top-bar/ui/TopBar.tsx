@@ -26,7 +26,7 @@ const TopBar = ({ title, links = [], children }: TopBarProps) => {
         href="/"
         className="border-divider flex items-center gap-2.5 border-r pr-[22px] text-[21px] font-black tracking-[-0.02em] whitespace-nowrap"
       >
-        <Image src={logoMark} alt="" unoptimized className="size-[22px]" />
+        <Image src={logoMark} alt="" unoptimized className="size-[30px]" />
         RE:SPEC
       </Link>
       {title && (

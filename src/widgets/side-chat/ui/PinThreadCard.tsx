@@ -2,16 +2,11 @@
 
 import { useState } from 'react';
 
-import Image from 'next/image';
+import { MessageItem } from '@/entities/message';
+import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
+import { PROJECT_ROLE_LABEL } from '@/entities/user';
 
-import { CHANGE_REQUEST_STATUS_LABEL, CHANGE_REQUEST_STATUSES } from '@/entities/request';
-
-import progressActive from '../assets/progress-active.svg';
-import progressInactive from '../assets/progress-inactive.svg';
-import statusDot from '../assets/status-dot.svg';
-import threadDivider from '../assets/thread-divider.svg';
 import type { PinThread } from '../model/types';
-import PinThreadComment from './PinThreadComment';
 
 const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -20,53 +15,38 @@ const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) =
   // 접힌 상태에서는 마지막 답글만 보여 주고 나머지는 "더 보기"로 묶습니다.
   const hiddenCount = isExpanded ? 0 : Math.max(0, replies.length - 1);
   const visibleReplies = hiddenCount > 0 ? replies.slice(-1) : replies;
-  const step = CHANGE_REQUEST_STATUSES.indexOf(status) + 1;
 
   if (!first) return null;
 
   return (
-    <article className="rounded-xlarge border-line-card flex w-full flex-col gap-3 border bg-white px-5 py-4">
-      <header className="flex w-full items-center justify-between">
-        <div className="flex items-center gap-2 text-xs leading-[normal] font-medium">
-          <span className="bg-surface-chip text-ink-500 rounded-full px-2 py-1">#{pinNumber}</span>
-          <span className="bg-primary-faint text-primary-deep flex items-center gap-1 rounded-full px-2 py-1">
-            <Image src={statusDot} alt="" unoptimized />
-            {CHANGE_REQUEST_STATUS_LABEL[status]}
-          </span>
-        </div>
-        <span
-          role="img"
-          aria-label={`진행 단계 ${step}/${CHANGE_REQUEST_STATUSES.length}`}
-          className="flex gap-[3px]"
-        >
-          {CHANGE_REQUEST_STATUSES.map((value, index) => (
-            <Image
-              key={value}
-              src={index < step ? progressActive : progressInactive}
-              alt=""
-              unoptimized
-            />
-          ))}
+    <article className="flex w-full flex-col gap-4 bg-white px-9 py-7">
+      <header className="flex items-center gap-2.5">
+        <span className="bg-brand grid size-6 place-items-center rounded-full rounded-bl-[4px] text-xs font-extrabold text-white">
+          {pinNumber}
+        </span>
+        <h3 className="text-base font-extrabold">{pinNumber}번 요청</h3>
+        <span className="ml-auto">
+          <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
         </span>
       </header>
 
-      <div className="flex w-full flex-col gap-4">
-        <PinThreadComment {...first} />
-        {hiddenCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="flex w-full items-center gap-4"
-          >
-            <Image src={threadDivider} alt="" unoptimized className="h-px min-w-0 flex-1" />
-            <span className="text-ink-faint text-xs leading-[normal] font-medium whitespace-nowrap">
-              답글 {hiddenCount}개 더 보기
-            </span>
-            <Image src={threadDivider} alt="" unoptimized className="h-px min-w-0 flex-1" />
-          </button>
-        )}
-        {visibleReplies.map(({ id, ...reply }) => (
-          <PinThreadComment key={id} {...reply} />
+      <div className="flex flex-col gap-4">
+        {[first, ...visibleReplies].map(({ id, authorName, authorRole, ...comment }, index) => (
+          <div key={id} className="flex flex-col">
+            {index === 1 && hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded(true)}
+                className="bg-hover text-muted hover:text-ink mb-4 self-center rounded-full px-3 py-1 text-xs font-semibold"
+              >
+                답글 {hiddenCount}개 더 보기
+              </button>
+            )}
+            <MessageItem
+              {...comment}
+              authorName={`${authorName} · ${PROJECT_ROLE_LABEL[authorRole]}`}
+            />
+          </div>
         ))}
       </div>
     </article>

@@ -2,14 +2,11 @@
 
 import { useState } from 'react';
 
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 import { usePostProject } from '@/entities/project';
 import { DraftPromptForm, usePutProjectDraft } from '@/features/generate-draft';
 import type { ApiError } from '@/shared/api';
-
-import logoMarkLarge from '../assets/logo-mark-large.svg';
 
 const PROJECT_NAME_MAX = 40;
 
@@ -54,25 +51,24 @@ const DraftView = () => {
   };
 
   return (
-    <main className="shadow-elevation-2 flex h-full min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-white px-8">
-      <div className="flex w-full max-w-3xl flex-col items-center gap-15 pb-20">
-        <Image src={logoMarkLarge} alt="" unoptimized priority />
-        <div className="flex flex-col items-center gap-2.5 leading-[normal]">
-          <h1 className="text-[56px] font-semibold whitespace-nowrap text-black">
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-white px-8">
+      <div className="flex w-full max-w-2xl flex-col items-center gap-10 pb-20">
+        <div className="flex flex-col items-center gap-3">
+          <h1 className="text-[40px] font-extrabold tracking-[-0.02em] whitespace-nowrap">
             어떤 사이트를 만들까요?
           </h1>
-          <p className="text-ink-400 w-min min-w-full text-center text-xl">
+          <p className="text-muted w-min min-w-full text-center text-base leading-relaxed">
             프로젝트 이름과 원하는 방향을 알려주시면, 화면 구조와 기획 초안을 먼저 정리해 드릴게요.
           </p>
         </div>
         <DraftPromptForm onSubmit={handleSubmit} disabled={isPending} />
         {isPending && (
-          <p role="status" className="text-ink-450 text-sm">
+          <p role="status" className="text-muted text-sm">
             초안을 만들고 있어요. 최대 2분 정도 걸릴 수 있어요.
           </p>
         )}
         {error && !isPending && (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-warn text-sm font-semibold">
             {toMessage(error)}
           </p>
         )}

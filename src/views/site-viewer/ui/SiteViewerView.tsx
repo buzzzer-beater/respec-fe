@@ -8,16 +8,13 @@ import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { useGetMe } from '@/entities/user';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { usePostMessage } from '@/features/send-message';
-import type { Device } from '@/features/switch-device';
 import { SideChatPanel } from '@/widgets/side-chat';
 import { type PinPosition, SiteViewer } from '@/widgets/site-viewer';
-import { WorkspaceHeader } from '@/widgets/workspace-header';
 
 import {
   getPagePath,
   getThreadPins,
   toMessages,
-  toParticipants,
   toPinThreads,
   toViewerPins,
   VIEWER_ANCHOR_SELECTOR,
@@ -28,7 +25,6 @@ interface SiteViewerViewProps {
 }
 
 const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
-  const [device, setDevice] = useState<Device>('desktop');
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -83,7 +79,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   return (
     <div className="flex h-full min-w-0 flex-1">
-      <main className="bg-canvas shadow-elevation-2 relative flex h-full min-w-0 flex-1 flex-col">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col">
         <SiteViewer
           url={project?.deployment_url ?? '배포 사이트가 아직 연결되지 않았어요'}
           pins={toViewerPins(pins)}
@@ -98,18 +94,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
             />
           }
         />
-        <div className="absolute inset-x-0 top-0 z-20">
-          <WorkspaceHeader
-            projectName={project?.name ?? ''}
-            device={device}
-            onDeviceChange={setDevice}
-            participants={toParticipants(members, me)}
-          />
-        </div>
         {notice && (
           <p
             role="alert"
-            className="rounded-xsmall shadow-elevation-2 text-danger absolute top-20 left-1/2 z-30 -translate-x-1/2 bg-white px-4 py-2 text-sm"
+            className="text-warn absolute top-4 left-1/2 z-30 -translate-x-1/2 rounded-[10px] bg-[#fff4e8] px-3.5 py-2 text-[13px] font-semibold"
           >
             {notice}
           </p>

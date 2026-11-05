@@ -1,58 +1,51 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 @import 'tailwindcss';
 
 @theme {
-  --color-surface-subtle: #f9f9f9;
-  --color-surface-muted: #f5f4f4;
-  --color-surface-cool: #f2f2f6;
-  --color-surface-strong: #f0efef;
-  --color-surface-chip: #f4f4f4;
-  --color-surface-bubble: #f3f3f7;
-  --color-canvas: #f5f5f8;
-  --color-frame-bar: #fbfbfd;
-  --color-frame-url: #e7e7ee;
-  --color-primary: #7f6bfe;
-  --color-primary-strong: #5647e0;
-  --color-primary-muted: #ac9ffe;
-  --color-primary-subtle: #e6e2ff;
-  --color-primary-faint: #efedfd;
-  --color-primary-deep: #2e268a;
-  --color-primary-bubble: #a9a9fe;
-  --color-accent: #1a6aff;
-  --color-danger: #f40e15;
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
-  --color-ink-950: #15151b;
-  --color-ink-900: #191919;
-  --color-ink-850: #1d1d1d;
-  --color-ink-800: #323232;
-  --color-ink-700: #363636;
-  --color-ink-650: #464646;
-  --color-ink-600: #5e5b5b;
-  --color-ink-cool: #4a4a56;
-  --color-ink-550: #6e6e7b;
-  --color-ink-450: #858592;
-  --color-ink-500: #5f5f5f;
-  --color-ink-400: #7c7c7c;
-  --color-ink-300: #a9a9a9;
-  --color-ink-warm: #6e6e67;
-  --color-ink-body: #27272a;
-  --color-ink-meta: #54545c;
-  --color-ink-faint: #848486;
+  /* demo-design 시안 기준. 메인 컬러는 보라 하나, 주요 버튼은 ink */
+  --color-brand: #5647e0;
+  --color-brand-strong: #3f31c9;
+  --color-brand-soft: #ecebfd;
+  --color-ink: #18181b;
+  --color-text: #3f3f46;
+  --color-muted: #84848c;
+  --color-faint: #b4b4bb;
+  --color-divider: #ebebee;
+  --color-field: #dcdce2;
+  --color-hover: #f5f5f7;
+  --color-stage: #f1f1f4;
+  --color-ai: #f6f6f8;
+  --color-warn: #c4670f;
 
-  --color-line: #e4e4e4;
-  --color-line-subtle: #eaeaea;
-  --color-line-strong: #dddddd;
-  --color-line-frame: #e5e5e5;
-  --color-line-card: #e0e0e0;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-  --color-chip-text: #3a3a33;
-  --color-chip-line: #e6e6e0;
+body {
+  background: #fff;
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
 
-  --radius-xs: 4px;
-  --radius-xsmall: 8px;
-  --radius-small: 10px;
-  --radius-xlarge: 20px;
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
 
-  --shadow-elevation-1: 0px 3px 10px 0px rgba(0, 0, 0, 0.02);
-  --shadow-elevation-2: 0px 4px 12px 0px rgba(0, 0, 0, 0.04);
-  --shadow-segment: 0px 1px 2px 0px rgba(16, 16, 33, 0.122);
+@keyframes pin-drop {
+  from {
+    opacity: 0;
+    translate: 0 -20px;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    translate: 12px 0;
+  }
 }

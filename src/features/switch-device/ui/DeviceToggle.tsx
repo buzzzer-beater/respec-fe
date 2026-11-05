@@ -20,11 +20,7 @@ interface DeviceToggleProps {
 
 const DeviceToggle = ({ value, onChange }: DeviceToggleProps) => {
   return (
-    <div
-      role="radiogroup"
-      aria-label="미리보기 화면 크기"
-      className="bg-surface-cool rounded-small flex shrink-0 gap-0.5 p-[3px]"
-    >
+    <div role="radiogroup" aria-label="미리보기 화면 크기" className="flex shrink-0 gap-0.5">
       {DEVICES.map(({ value: device, label, icon }) => {
         const isSelected = device === value;
 
@@ -35,10 +31,11 @@ const DeviceToggle = ({ value, onChange }: DeviceToggleProps) => {
             role="radio"
             aria-checked={isSelected}
             aria-label={label}
+            title={label}
             onClick={() => onChange(device)}
             className={cn(
-              'flex h-7 w-8 items-center justify-center rounded-[7px]',
-              isSelected ? 'shadow-segment text-ink-950 bg-white' : 'text-ink-550',
+              'grid h-10 w-10 place-items-center rounded-[10px] transition-colors',
+              isSelected ? 'bg-hover text-ink' : 'text-muted hover:text-ink',
             )}
           >
             {/* 선택 상태에 따라 색을 바꾸려고 SVG를 마스크로 씁니다. */}

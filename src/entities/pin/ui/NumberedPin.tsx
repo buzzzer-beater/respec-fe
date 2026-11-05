@@ -1,30 +1,28 @@
-import Image from 'next/image';
-
 import { cn } from '@/shared/lib';
-
-import badgeIcon from '../assets/badge.svg';
 
 interface NumberedPinProps {
   number: number;
+  /** 해결됐거나 요청이 없는 핀. 작은 점으로 줄이고, 부모(group)에 마우스를 올리면 번호를 보여 줍니다. */
   muted?: boolean;
-  showBadge?: boolean;
+  /** 저장 전인 새 핀 */
+  draft?: boolean;
   className?: string;
 }
 
-// 왼쪽 아래 뾰족한 모서리가 핀이 가리키는 지점입니다.
-const NumberedPin = ({ number, muted = false, showBadge = false, className }: NumberedPinProps) => {
+// 왼쪽 아래 뾰족한 모서리가 핀이 가리키는 지점입니다. 보라 채우기 + 흰 숫자, 그림자 없음.
+const NumberedPin = ({ number, muted = false, draft = false, className }: NumberedPinProps) => {
   return (
     <span
       className={cn(
-        'relative flex size-12 shrink-0 items-center justify-center rounded-full rounded-bl-none text-lg leading-[normal] font-semibold text-white',
-        muted ? 'bg-primary-muted' : 'bg-primary',
+        'ease-spring grid shrink-0 animate-[pin-drop_0.45s_var(--ease-out-soft)_both] place-items-center rounded-[50%_50%_50%_6px] text-[13px] leading-none font-extrabold text-white transition-[width,height,scale,background-color] duration-300 group-hover:scale-110',
+        draft ? 'bg-ink' : 'bg-brand group-hover:bg-brand-strong',
+        muted
+          ? 'size-3 text-[0px] group-hover:size-7 group-hover:scale-100 group-hover:text-xs'
+          : 'size-[30px]',
         className,
       )}
     >
       {number}
-      {showBadge && (
-        <Image src={badgeIcon} alt="" unoptimized className="absolute top-[1.5px] left-[34.5px]" />
-      )}
     </span>
   );
 };

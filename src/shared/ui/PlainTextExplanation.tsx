@@ -10,7 +10,7 @@ export type PlainTextExplanationProps = {
   className?: string;
 };
 
-const textClassName = 'text-sm whitespace-pre-wrap wrap-anywhere';
+const textClassName = 'whitespace-pre-wrap wrap-anywhere';
 
 /**
  * 원문과 AI 쉬운 설명을 함께 보여 줍니다.
@@ -24,18 +24,18 @@ export const PlainTextExplanation = ({
   className,
 }: PlainTextExplanationProps) => {
   if (!plainText?.trim()) {
-    return <p className={cn(textClassName, 'min-w-0 text-neutral-900', className)}>{original}</p>;
+    return <p className={cn(textClassName, 'text-ink min-w-0', className)}>{original}</p>;
   }
 
   return (
-    <dl className={cn('flex min-w-0 flex-col gap-2', className)}>
-      <div className="flex flex-col gap-0.5">
-        <dt className="text-xs font-medium text-neutral-500">{originalLabel}</dt>
-        <dd className={`${textClassName} text-neutral-900`}>{original}</dd>
+    <dl className={cn('flex min-w-0 flex-col gap-2.5', className)}>
+      <div className="flex flex-col gap-1">
+        <dt className="text-muted text-xs font-semibold">{originalLabel}</dt>
+        <dd className={cn(textClassName, 'text-ink')}>{original}</dd>
       </div>
-      <div className="flex flex-col gap-0.5 rounded-md bg-sky-50 px-3 py-2">
-        <dt className="text-xs font-medium text-sky-700">{plainTextLabel}</dt>
-        <dd className={`${textClassName} text-neutral-800`}>{plainText}</dd>
+      <div className="bg-ai flex flex-col gap-1 rounded-[10px] px-3 py-2.5">
+        <dt className="text-text text-xs font-bold">{plainTextLabel}</dt>
+        <dd className={cn(textClassName, 'text-text text-[13px] leading-relaxed')}>{plainText}</dd>
       </div>
     </dl>
   );

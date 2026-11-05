@@ -3,54 +3,42 @@ import { Avatar, PlainTextExplanation } from '@/shared/ui';
 
 import type { Message } from '../model/types';
 
-interface MessageItemProps extends Omit<Message, 'id' | 'replies'> {
-  variant?: 'default' | 'reply';
-}
+type MessageItemProps = Omit<Message, 'id'>;
 
+// 내 메시지는 오른쪽 연보라 말풍선, 상대 메시지는 왼쪽 회색 말풍선입니다.
 const MessageItem = ({
   authorName,
   authorAvatarUrl,
+  isMine = false,
   content,
   plainText,
   timeLabel,
-  variant = 'default',
 }: MessageItemProps) => {
-  const isReply = variant === 'reply';
-
   return (
-    <div className={cn('flex w-full items-start', isReply ? 'gap-2.5' : 'gap-3')}>
-      {isReply ? (
-        <span className="flex h-12 shrink-0 items-center">
-          <Avatar
-            src={authorAvatarUrl}
-            alt={authorName}
-            size={40}
-            className="border-accent border"
-          />
-        </span>
-      ) : (
-        <Avatar
-          src={authorAvatarUrl}
-          alt={authorName}
-          size={48}
-          className="ring-line-subtle ring-[0.5px]"
-        />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col gap-1 py-1 leading-[normal]">
-        <div className="text-ink-600 flex items-center gap-1.5 text-sm">
-          <span className="whitespace-nowrap">{authorName}</span>
-          {timeLabel && (
-            <>
-              <span aria-hidden className="bg-ink-600 size-0.5 rounded-full" />
-              <span className="whitespace-nowrap">{timeLabel}</span>
-            </>
+    <div className={cn('flex max-w-[88%] gap-2', isMine && 'flex-row-reverse self-end')}>
+      <Avatar
+        src={authorAvatarUrl}
+        alt={authorName}
+        size={28}
+        className={isMine ? 'bg-brand' : 'bg-ink'}
+      />
+      <div
+        className={cn('grid min-w-0 gap-1', isMine ? 'justify-items-end' : 'justify-items-start')}
+      >
+        <p className="text-muted text-xs">
+          {authorName}
+          {timeLabel && ` · ${timeLabel}`}
+        </p>
+        <div
+          className={cn(
+            'text-ink px-3.5 py-2.5 text-[15px] leading-normal',
+            isMine
+              ? 'bg-brand-soft rounded-[16px_4px_16px_16px]'
+              : 'bg-stage rounded-[4px_16px_16px_16px]',
           )}
-        </div>
-        {plainText?.trim() ? (
+        >
           <PlainTextExplanation original={content} plainText={plainText} />
-        ) : (
-          <p className="text-ink-800 font-medium break-words">{content}</p>
-        )}
+        </div>
       </div>
     </div>
   );

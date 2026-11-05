@@ -63,17 +63,14 @@ const AuthForm = ({ mode }: AuthFormProps) => {
 
   const errorMessage = inputError ?? (mutation.error ? toMessage(mutation.error) : null);
   const inputClassName =
-    'rounded-xsmall border-line-strong text-ink-900 placeholder:text-ink-300 focus:border-primary w-full border bg-white px-4 py-3 outline-none';
+    'border-field text-ink placeholder:text-faint focus:border-ink h-12 w-full rounded-xl border bg-white px-4 outline-none transition-colors';
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-small shadow-elevation-2 flex w-full max-w-sm flex-col gap-6 bg-white px-8 py-10"
-    >
-      <h1 className="text-ink-900 text-2xl font-semibold">{copy.title}</h1>
-      <div className="flex flex-col gap-3">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-7">
+      <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">{copy.title}</h1>
+      <div className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="text-ink-600 text-sm">이메일</span>
+          <span className="text-text text-sm font-semibold">이메일</span>
           <input
             type="email"
             required
@@ -84,7 +81,7 @@ const AuthForm = ({ mode }: AuthFormProps) => {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className="text-ink-600 text-sm">비밀번호</span>
+          <span className="text-text text-sm font-semibold">비밀번호</span>
           <input
             type="password"
             required
@@ -96,20 +93,20 @@ const AuthForm = ({ mode }: AuthFormProps) => {
         </label>
       </div>
       {errorMessage && (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-warn text-sm font-semibold">
           {errorMessage}
         </p>
       )}
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="bg-primary-strong rounded-xsmall py-3 font-medium text-white disabled:opacity-60"
+        className="bg-ink h-12 rounded-xl font-semibold text-white transition-transform hover:bg-[#34322e] active:scale-[0.98] disabled:opacity-60"
       >
         {mutation.isPending ? '잠시만요…' : copy.submit}
       </button>
-      <p className="text-ink-450 text-center text-sm">
+      <p className="text-muted text-center text-sm">
         {copy.switchText}{' '}
-        <Link href={copy.switchHref} className="text-primary-strong font-medium">
+        <Link href={copy.switchHref} className="text-ink font-bold underline underline-offset-4">
           {copy.switchLabel}
         </Link>
       </p>

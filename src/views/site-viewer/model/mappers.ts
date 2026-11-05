@@ -2,11 +2,10 @@ import type { ChatMessage, Message } from '@/entities/message';
 import type { PinComment, PinWithRequest } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
 import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
-import { PROJECT_ROLE_LABEL, type ProjectRole, type User } from '@/entities/user';
+import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
-import type { WorkspaceParticipant } from '@/widgets/workspace-header';
 
 /**
  * 사이트 미리보기 방식이 정해지기 전까지는 요소를 고를 수 없어서,
@@ -61,6 +60,7 @@ export const toMessages = (
     return {
       id: String(message.id),
       authorName: authorName(message.author_id),
+      isMine: message.author_id === me?.id,
       content,
       plainText: message.ai_plain_text,
       timeLabel: formatRelativeTime(message.created_at),
@@ -98,22 +98,10 @@ export const toPinThreads = (
         id: String(comment.id),
         authorName: authorName(comment.author_id),
         authorRole: roleOf(comment.author_id),
+        isMine: comment.author_id === me?.id,
         content: comment.content,
         plainText: comment.ai_plain_text,
         timeLabel: formatRelativeTime(comment.created_at),
       })),
-  }));
-};
-
-/** 참여자 목록을 못 받으면 나만 보여 줍니다. */
-export const toParticipants = (
-  members: ProjectMember[],
-  me: User | undefined,
-): WorkspaceParticipant[] => {
-  if (members.length === 0) return me ? [{ id: String(me.id), name: me.email }] : [];
-
-  return members.map((member) => ({
-    id: String(member.id),
-    name: `${member.email} (${PROJECT_ROLE_LABEL[member.role]})`,
   }));
 };

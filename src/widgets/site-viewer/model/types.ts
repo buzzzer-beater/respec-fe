@@ -5,7 +5,6 @@ export type ViewerMode = 'browse' | 'pin';
 
 export interface ViewerPin extends Pin {
   muted?: boolean;
-  showBadge?: boolean;
 }
 
 export interface PinPosition {

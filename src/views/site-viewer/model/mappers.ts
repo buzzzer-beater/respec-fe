@@ -11,12 +11,6 @@ import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
 
-/**
- * 사이트 미리보기 방식이 정해지기 전까지는 요소를 고를 수 없어서,
- * 사이트 영역 전체를 앵커로 두고 영역 안 상대 좌표(0~1)만 저장합니다.
- */
-export const VIEWER_ANCHOR_SELECTOR = 'body';
-
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
 export const getPagePath = (deploymentUrl: string | null | undefined) => {
   if (!deploymentUrl) return '/';

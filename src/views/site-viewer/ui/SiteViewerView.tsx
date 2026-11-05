@@ -18,16 +18,22 @@ import {
   useRelocatePin,
   useReportPinLocation,
 } from '@/features/check-pin-location';
-import { DeploymentEmptyState } from '@/features/connect-deployment';
+import {
+  DeploymentEmptyState,
+  PIN_SCRIPT_MISSING_MESSAGE,
+  PinScriptMissingNotice,
+} from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { MessageRequestMenu } from '@/features/create-request-from-message';
 import { usePostMessage } from '@/features/send-message';
 import { SharePinButton } from '@/features/share-pin';
+import { useViewerSite } from '@/features/switch-site';
 import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
 import {
   DeployedSiteFrame,
   DraftPreviewFrame,
   type PinPosition,
+  type PinScriptStatus,
   SiteViewer,
 } from '@/widgets/site-viewer';
 import { WorkspaceLayout } from '@/widgets/workspace-layout';
@@ -39,7 +45,6 @@ import {
   toPinThreads,
   toRequestPinOptions,
   toViewerPins,
-  VIEWER_ANCHOR_SELECTOR,
 } from '../model/mappers';
 
 interface SiteViewerViewProps {
@@ -52,8 +57,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
   // "완료 보기": 해결된 핀 마커와 스레드를 함께 보이고 숨깁니다.
   const [showResolved, setShowResolved] = useState(false);
-  // 핀 스크립트가 알려 준 배포 사이트의 지금 경로
+  // 핀 스크립트가 알려 준 배포 사이트의 지금 경로와 연결 상태
   const [deployedPath, setDeployedPath] = useState<string | null>(null);
+  const [scriptStatus, setScriptStatus] = useState<PinScriptStatus>('connecting');
 
   const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
@@ -62,8 +68,19 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const { data: messages = [], isSuccess: messagesLoaded } = useGetMessages(projectId);
   const { data: draft } = useGetProjectDraft(projectId);
   const deploymentUrl = project?.deployment_url ?? null;
-  // 배포 URL이 없고 초안이 있으면 초안을 띄웁니다.
-  const showDraft = !!project && !project.deployment_url && !!draft;
+  // 상단바에서 고른 사이트. 배포 주소가 생겨도 초안을 다시 볼 수 있습니다.
+  const { site } = useViewerSite({ hasDraft: !!draft, hasDeployment: !!deploymentUrl });
+  const showDraft = !!project && site === 'draft' && !!draft;
+  const showDeployed = !!project && site === 'deployed' && !!deploymentUrl;
+  // 배포 후에 초안을 볼 때는 배포본 기준 핀의 위치 상태를 바꾸지 않도록 위치 보고를 하지 않습니다.
+  // 초안 핀과 배포본 핀을 나누는 `pins.source`가 생기면 사이트별로 핀을 걸러 보고합니다.
+  const reportsLocation = showDeployed || (showDraft && !deploymentUrl);
+  // 사이트를 바꾸면 저장 전인 새 핀은 다른 사이트 위치라서 닫습니다.
+  const [prevSite, setPrevSite] = useState(site);
+  if (site !== prevSite) {
+    setPrevSite(site);
+    setDraftPin(null);
+  }
   const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
   const commentsByPin = useGetPinCommentsByPin(
     projectId,
@@ -78,22 +95,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const relocatePin = useRelocatePin(projectId);
   const { reportMissing, reportFound } = useReportPinLocation(projectId);
 
-  // 초안은 요소 기준 앵커가 있고, 배포 사이트는 아직 영역 기준 좌표만 저장합니다.
-  const toAnchor = (position: PinPosition) =>
-    position.anchor ?? {
-      page_path: getPagePath(project?.deployment_url),
-      element_selector: VIEWER_ANCHOR_SELECTOR,
-      relative_x: position.x / 100,
-      relative_y: position.y / 100,
-    };
-
   const handleSubmitPin = (content: string) => {
-    if (!draftPin || !project) return;
-    // 초안과 핀 스크립트가 연결된 배포 사이트는 요소 기준 앵커가 있고,
-    // 스크립트가 연결되지 않은 배포 사이트는 영역 기준 좌표만 저장합니다.
-    const anchor = toAnchor(draftPin);
+    if (!draftPin?.anchor || !project) return;
     postPin.mutate(
-      { role: project.my_role, ...anchor, request_content: content },
+      { role: project.my_role, ...draftPin.anchor, request_content: content },
       {
         onSuccess: ({ requestFailed }) => {
           setDraftPin(null);
@@ -107,10 +112,13 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     );
   };
 
+  // 초안 미리보기와 핀 스크립트가 연결된 배포 사이트만 핀을 만들므로 요소 기준 앵커가 항상 있습니다.
+  // 화면 좌표만으로는 스크롤하면 위치가 어긋나서 앵커 없는 위치는 받지 않습니다(FE#80).
   const handlePlacePin = (position: PinPosition) => {
+    if (!position.anchor) return;
     // 위치 다시 지정 중이면 새 핀 대신 그 핀을 옮깁니다.
     if (relocatePin.pinId !== null) {
-      relocatePin.place(toAnchor(position));
+      relocatePin.place(position.anchor);
       return;
     }
     postPin.reset();
@@ -135,10 +143,21 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     : null;
 
   // 초안도 배포 URL도 없으면 핀 생성이 409이므로 핀 모드를 미리 막습니다.
+  // 배포 사이트는 핀 스크립트가 연결돼야 핀 위치를 고정할 수 있어서, 연결 전과 없을 때도 막습니다.
   const pinDisabledReason =
     project && !project.deployment_url && draft === null
       ? '초안을 만들거나 배포 사이트를 연결하면 핀을 남길 수 있어요'
-      : null;
+      : showDeployed && scriptStatus === 'connecting'
+        ? '핀 스크립트 연결을 확인하고 있어요'
+        : showDeployed && scriptStatus === 'disconnected'
+          ? PIN_SCRIPT_MISSING_MESSAGE
+          : null;
+  const pinDisabledNotice =
+    showDeployed && scriptStatus === 'disconnected' ? (
+      <PinScriptMissingNotice projectId={projectId} />
+    ) : undefined;
+  const handlePinMissing = reportsLocation ? (id: string) => reportMissing(Number(id)) : undefined;
+  const handlePinFound = reportsLocation ? (id: string) => reportFound(Number(id)) : undefined;
 
   const startRelocate = (pinId: number) => {
     setDraftPin(null);
@@ -199,7 +218,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     >
       <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
         <SiteViewer
-          url={project?.deployment_url ?? '배포 사이트가 아직 연결되지 않았어요'}
+          url={deploymentUrl ?? '배포 사이트가 아직 연결되지 않았어요'}
           pins={toViewerPins(pins, showResolved)}
           selectedPinId={selectedPin?.id ?? null}
           onPlacePin={handlePlacePin}
@@ -207,8 +226,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           draftPin={draftPin}
           draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
+          pinDisabledNotice={pinDisabledNotice}
           pagePath={
-            deploymentUrl
+            showDeployed
               ? (deployedPath ?? getPagePath(deploymentUrl))
               : showDraft
                 ? '/'
@@ -227,7 +247,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           showResolved={showResolved}
           onShowResolvedChange={setShowResolved}
           renderSite={
-            deploymentUrl
+            showDeployed && deploymentUrl
               ? (mode) => (
                   <DeployedSiteFrame
                     key={deploymentUrl}
@@ -237,9 +257,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     focusPin={selectedPin}
                     onPlacePin={handlePlacePin}
                     onSelectPin={handleSelectPin}
-                    onPinMissing={(id) => reportMissing(Number(id))}
-                    onPinFound={(id) => reportFound(Number(id))}
+                    onPinMissing={handlePinMissing}
+                    onPinFound={handlePinFound}
                     onPathChange={setDeployedPath}
+                    onStatusChange={setScriptStatus}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}
                   />
@@ -256,8 +277,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                       selectedPinId={selectedPin?.id ?? null}
                       draftPin={draftPin}
                       draftPinContent={pinPopover}
-                      onPinMissing={(id) => reportMissing(Number(id))}
-                      onPinFound={(id) => reportFound(Number(id))}
+                      onPinMissing={handlePinMissing}
+                      onPinFound={handlePinFound}
                     />
                   )
                 : undefined

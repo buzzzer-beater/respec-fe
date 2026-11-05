@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  type MouseEvent,
-  type ReactNode,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { NumberedPin } from '@/entities/pin';
 import { CHANGE_REQUEST_STATUS_TONE } from '@/entities/request';
@@ -19,13 +12,13 @@ import {
   toOrigin,
 } from '@/shared/lib/pin-bridge';
 
-import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
-import PinMarkerLayer from './PinMarkerLayer';
+import type { PinPosition, PinScriptStatus, ViewerMode, ViewerPin } from '../model/types';
 
-/** 이 시간 안에 `respec:ready`가 오지 않으면 핀 스크립트가 없다고 보고 영역 좌표로 핀을 남깁니다. */
-export const PIN_SCRIPT_READY_TIMEOUT_MS = 3000;
-
-type Status = 'connecting' | 'connected' | 'disconnected';
+/**
+ * 이 시간 안에 `respec:ready`가 오지 않으면 핀 스크립트가 없다고 봅니다.
+ * 스크립트 없이는 핀 위치를 고정할 수 없어서 핀 모드를 막습니다(FE#80).
+ */
+export const PIN_SCRIPT_READY_TIMEOUT_MS = 2000;
 
 const getInitialPath = (url: string) => {
   try {
@@ -73,6 +66,8 @@ interface DeployedSiteFrameProps {
   onPinFound?: (pinId: string) => void;
   /** 지금 사이트의 경로가 바뀔 때 */
   onPathChange?: (path: string) => void;
+  /** 핀 스크립트 연결 상태가 바뀔 때. 처음 마운트할 때 `connecting`으로 한 번 부릅니다. */
+  onStatusChange?: (status: PinScriptStatus) => void;
   /** 저장 전인 새 핀 위치(iframe 화면 기준 %)와, 그 옆에 띄울 입력창 */
   draftPin?: PinPosition | null;
   draftPinContent?: ReactNode;
@@ -81,7 +76,7 @@ interface DeployedSiteFrameProps {
 /**
  * 개발자가 연결한 배포 사이트를 cross-origin iframe으로 띄웁니다.
  * 사이트에 넣은 `respec-pin.js`가 마커를 그리고 앵커를 계산해 postMessage로 보냅니다.
- * 스크립트가 연결되지 않으면 사이트 영역 기준 좌표로 핀을 남깁니다(폴백).
+ * 스크립트가 연결되지 않으면 핀을 그리지도 만들지도 않고, 호출부가 핀 모드를 막고 설치를 안내합니다.
  */
 const DeployedSiteFrame = ({
   url,
@@ -93,12 +88,13 @@ const DeployedSiteFrame = ({
   onPinMissing,
   onPinFound,
   onPathChange,
+  onStatusChange,
   draftPin,
   draftPinContent,
 }: DeployedSiteFrameProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const origin = toOrigin(url);
-  const [status, setStatus] = useState<Status>('connecting');
+  const [status, setStatus] = useState<PinScriptStatus>('connecting');
   const [path, setPath] = useState(() => getInitialPath(url));
   // 사이트가 새로 불러와질 때마다 올려서 모드와 핀을 다시 보냅니다.
   const [readyCount, setReadyCount] = useState(0);
@@ -169,6 +165,9 @@ const DeployedSiteFrame = ({
     return () => clearTimeout(timer);
   }, []);
 
+  const notifyStatus = useEffectEvent((next: PinScriptStatus) => onStatusChange?.(next));
+  useEffect(() => notifyStatus(status), [status]);
+
   const isConnected = status === 'connected';
 
   useEffect(() => {
@@ -203,18 +202,6 @@ const DeployedSiteFrame = ({
     if (focusId) focusTarget(focusId);
   }, [focusId, focusSeq]);
 
-  // 폴백: 사이트 영역 위 투명 레이어를 누른 위치를 영역 기준 %로 저장합니다.
-  const handlePlacePin = (event: MouseEvent<HTMLButtonElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    onPlacePin?.({
-      x: ((event.clientX - rect.left) / rect.width) * 100,
-      y: ((event.clientY - rect.top) / rect.height) * 100,
-    });
-  };
-
-  const isFallback = status === 'disconnected';
-  const fallbackPins = isFallback ? pins.filter((pin) => pin.pagePath === path) : [];
-
   return (
     <div className="absolute inset-0">
       <iframe
@@ -224,19 +211,6 @@ const DeployedSiteFrame = ({
         // 사이트가 워크스페이스(top)를 다른 주소로 옮기지 못하게 막습니다.
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
         className="block size-full border-0"
-      />
-      {isFallback && mode === 'pin' && (
-        <button
-          type="button"
-          aria-label="핀 추가할 위치 선택"
-          onClick={handlePlacePin}
-          className="absolute inset-0 cursor-crosshair"
-        />
-      )}
-      <PinMarkerLayer
-        markers={fallbackPins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
-        selectedPinId={selectedPinId}
-        onSelectPin={onSelectPin}
       />
       {draftPin && (
         <div
@@ -248,14 +222,6 @@ const DeployedSiteFrame = ({
           </span>
           {draftPinContent}
         </div>
-      )}
-      {isFallback && (
-        <p
-          role="status"
-          className="text-muted pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-[10px] bg-white px-3.5 py-2 text-center text-[13px] font-semibold shadow-[0_2px_12px_rgba(24,24,27,0.12)]"
-        >
-          핀 스크립트가 연결되지 않았어요. 지금은 화면 위치로만 핀을 남겨요.
-        </p>
       )}
     </div>
   );

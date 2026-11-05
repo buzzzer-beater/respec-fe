@@ -109,10 +109,11 @@ body {
   }
 }
 
+/* 핀이 위에서 20px 떨어지며 나타납니다. 핀 끝을 맞추는 위치(-100%)는 `translate`로 따로 둡니다. */
 @keyframes drop {
   from {
     opacity: 0;
-    transform: translateY(calc(-100% - 20px));
+    transform: translateY(-20px);
   }
 }
 

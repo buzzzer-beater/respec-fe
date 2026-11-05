@@ -1,175 +1,180 @@
 'use client';
 
-import { type ReactNode, useEffect, useSyncExternalStore } from 'react';
+import { useEffect } from 'react';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { useGetInvitationPreview } from '@/entities/project';
-import { PROJECT_ROLE_LABEL } from '@/entities/user';
+import { PROJECT_ROLE_LABEL, RoleAvatar } from '@/entities/user';
 import { usePostInvitationAccept } from '@/features/accept-invitation';
-import { type ApiError, getAccessToken } from '@/shared/api';
+import { useHasAccessToken, usePostLogout } from '@/features/auth';
+import type { ApiError } from '@/shared/api';
 import { toLoginPath } from '@/shared/lib';
+import { buttonClassName, toast } from '@/shared/ui';
 import { TopBar } from '@/widgets/top-bar';
 
-const subscribeNothing = () => () => {};
+// 수락 안내를 잠깐 보여 준 뒤 프로젝트 목록으로 갑니다.
+const ACCEPT_REDIRECT_DELAY_MS = 1000;
 
-/** 서버 렌더링과 하이드레이션 중에는 `null`, 그 뒤에는 저장된 토큰이 있는지 알려 줍니다. */
-const useHasAccessToken = () =>
-  useSyncExternalStore<boolean | null>(
-    subscribeNothing,
-    () => getAccessToken() !== null,
-    () => null,
-  );
+// 미리보기는 없는 토큰에 NOT_FOUND, 수락은 INVITATION_INVALID, 만료·끈 링크는 INVITATION_EXPIRED를 줍니다.
+const isUnavailable = (error: ApiError | null) =>
+  !!error &&
+  (error.code === 'INVITATION_EXPIRED' ||
+    error.code === 'INVITATION_INVALID' ||
+    error.code === 'NOT_FOUND');
 
-type InvalidReason = 'missing' | 'invalid' | 'expired';
+const toInviteNext = (token: string) => `/invite?${new URLSearchParams({ token })}`;
 
-const INVALID_COPY: Record<InvalidReason, { title: string; description: string }> = {
-  missing: {
-    title: '초대 링크가 올바르지 않아요',
-    description: '받은 링크 전체를 그대로 열었는지 확인해 주세요.',
-  },
-  invalid: {
-    title: '찾을 수 없는 초대 링크예요',
-    description: '링크가 잘못되었을 수 있어요. 초대한 분께 새 링크를 요청해 주세요.',
-  },
-  expired: {
-    title: '더 이상 쓸 수 없는 초대 링크예요',
-    description: '링크가 만료되었거나 비활성화되었어요. 초대한 분께 새 링크를 요청해 주세요.',
-  },
-};
-
-// 미리보기는 없는 토큰에 NOT_FOUND, 수락은 INVITATION_INVALID를 줍니다.
-const toInvalidReason = (error: ApiError | null): InvalidReason | null => {
-  if (!error) return null;
-  if (error.code === 'INVITATION_EXPIRED') return 'expired';
-  if (error.code === 'INVITATION_INVALID' || error.code === 'NOT_FOUND') return 'invalid';
-  return null;
-};
-
-const toLoginHref = (token: string) => toLoginPath(`/invite?${new URLSearchParams({ token })}`);
-
-const Notice = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children?: ReactNode;
-}) => (
-  <div className="flex w-full max-w-sm flex-col gap-3 text-center">
-    <h1 className="text-2xl font-extrabold tracking-[-0.02em]">{title}</h1>
-    {description && <p className="text-muted text-sm leading-relaxed">{description}</p>}
-    {children}
+/** 링크가 없거나 만료됐거나 꺼졌을 때. 시안은 한 문구로 안내합니다. */
+const Unavailable = () => (
+  <div className="grid gap-3 text-center">
+    <h2 className="text-[30px] font-extrabold tracking-[-0.02em]">링크가 더 이상 열리지 않아요</h2>
+    <p className="text-muted text-[15px] leading-[1.7]">
+      초대 링크가 만료됐거나 꺼졌어요.
+      <br />
+      초대한 분께 새 링크를 부탁해 주세요.
+    </p>
+    <Link
+      href="/projects"
+      className={buttonClassName({ variant: 'secondary', className: 'mt-3 justify-self-center' })}
+    >
+      내 프로젝트로 가기
+    </Link>
   </div>
 );
-
-const primaryClassName =
-  'bg-ink flex h-12 items-center justify-center rounded-xl font-semibold text-white transition-transform hover:bg-[#34322e] active:scale-[0.98] disabled:opacity-60';
 
 const InviteContent = ({ token }: { token: string }) => {
   const router = useRouter();
   const hasToken = useHasAccessToken();
   const preview = useGetInvitationPreview(token, hasToken === true);
   const accept = usePostInvitationAccept();
+  const logout = usePostLogout();
 
   // 로그인하지 않았으면 로그인 후 이 페이지로 돌아오게 보냅니다.
   // 토큰이 만료된 경우(401)는 공통 인터셉터가 처리합니다.
   useEffect(() => {
-    if (hasToken === false) router.replace(toLoginHref(token));
-  }, [hasToken, router, token]);
+    if (hasToken === false && !logout.isPending) router.replace(toLoginPath(toInviteNext(token)));
+  }, [hasToken, logout.isPending, router, token]);
 
-  const invalidReason = toInvalidReason(preview.error) ?? toInvalidReason(accept.error);
-  if (invalidReason) return <Notice {...INVALID_COPY[invalidReason]} />;
+  if (isUnavailable(preview.error) || isUnavailable(accept.error)) return <Unavailable />;
 
   if (preview.error) {
-    return <Notice title="초대 정보를 불러오지 못했어요" description={preview.error.message} />;
+    return (
+      <div className="grid gap-3 text-center">
+        <h2 className="text-2xl font-extrabold">초대 정보를 불러오지 못했어요</h2>
+        <p className="text-muted text-sm">{preview.error.message}</p>
+      </div>
+    );
   }
 
   if (!preview.data) {
     return (
-      <p role="status" className="text-muted text-sm">
+      <p role="status" className="text-muted text-center text-sm">
         초대 정보를 확인하고 있어요…
       </p>
     );
   }
 
-  const { project, invited_by, me, expires_at, already_member } = preview.data;
-  const workspaceHref = `/projects/${project.id}/viewer`;
+  const { project, invited_by, me, already_member } = preview.data;
+  const isBusy = accept.isPending || accept.isSuccess;
 
   const handleAccept = () => {
     accept.mutate(
       { token },
-      { onSuccess: ({ project_id }) => router.replace(`/projects/${project_id}/viewer`) },
+      {
+        onSuccess: () => {
+          toast(`${project.name}에 참여했어요`);
+          setTimeout(() => router.replace('/projects'), ACCEPT_REDIRECT_DELAY_MS);
+        },
+      },
     );
   };
 
+  // 다른 계정으로 참여하려면 로그아웃하고 이 초대로 돌아오는 로그인 화면으로 갑니다.
+  const handleOtherAccount = () =>
+    logout.mutate(undefined, {
+      onSuccess: () => router.replace(toLoginPath(toInviteNext(token))),
+    });
+
   return (
-    <div className="flex w-full max-w-[520px] flex-col gap-7">
-      <div className="bg-stage h-[180px] overflow-hidden rounded-2xl px-8 pt-6" aria-hidden>
-        <div className="flex h-full flex-col gap-2 rounded-t-lg bg-white px-5 pt-4 shadow-[0_0_0_1px_rgba(24,24,27,0.05)]">
-          <i className="bg-hover h-2 w-2/5 rounded" />
-          <i className="h-[52px] rounded-md bg-[#f1efe9]" />
-          <span className="grid flex-1 grid-cols-3 gap-2">
-            <i className="bg-hover rounded" />
-            <i className="bg-hover rounded" />
-            <i className="bg-hover rounded" />
+    <div className="grid gap-7">
+      <div className="bg-stage h-[180px] rounded-2xl px-8 pt-6" aria-hidden>
+        <div className="grid h-full content-start gap-[9px] rounded-t-[9px] bg-white px-[18px] py-4 shadow-[0_0_0_1px_rgba(24,24,27,0.05)]">
+          <i className="bg-bar block h-[9px] w-2/5 rounded" />
+          <i className="block h-[52px] rounded-md bg-[#f1efe9]" />
+          <span className="grid grid-cols-3 gap-[7px]">
+            <i className="bg-bar block h-[30px] rounded" />
+            <i className="bg-bar block h-[30px] rounded" />
+            <i className="bg-bar block h-[30px] rounded" />
           </span>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-brand text-sm font-bold">프로젝트 초대</p>
-        <h1 className="text-[28px] font-extrabold tracking-[-0.02em] break-all">{project.name}</h1>
+
+      <div>
+        <p className="text-muted mb-2 text-sm font-semibold">초대를 받았어요</p>
+        <h2 className="text-[30px] font-extrabold tracking-[-0.02em] break-all">{project.name}</h2>
+        <p className="text-text mt-3.5 flex items-center gap-2 text-[15px]">
+          <RoleAvatar name={invited_by.email} role="client" size={26} />
+          {invited_by.email} 님이 개발자로 함께해 달라고 했어요
+        </p>
       </div>
-      <dl className="bg-stage flex flex-col gap-3 rounded-2xl p-5 text-sm">
-        <div className="flex justify-between gap-4">
-          <dt className="text-muted shrink-0">초대한 사람</dt>
-          <dd className="text-ink truncate font-semibold">{invited_by.email}</dd>
+
+      <dl className="bg-ai grid rounded-[14px] px-5 py-1.5">
+        <div className="border-divider flex gap-4 border-b py-3 text-sm">
+          <dt className="text-muted w-[84px] shrink-0">참여 역할</dt>
+          <dd className="text-ink leading-[1.6] font-semibold">{PROJECT_ROLE_LABEL[me.role]}</dd>
         </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-muted shrink-0">참여할 계정</dt>
-          <dd className="text-ink truncate font-semibold">{me.email}</dd>
+        <div className="flex gap-4 py-3 text-sm">
+          <dt className="text-muted w-[84px] shrink-0">하는 일</dt>
+          <dd className="text-ink leading-[1.6] font-semibold">
+            초안 코드를 받아 고치고, 요청에 답하고, 검수를 요청해요
+          </dd>
         </div>
-        <div className="flex justify-between gap-4">
-          <dt className="text-muted shrink-0">참여 역할</dt>
-          <dd className="text-ink font-semibold">{PROJECT_ROLE_LABEL[me.role]}</dd>
-        </div>
-        {!already_member && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted shrink-0">링크 만료</dt>
-            <dd className="text-ink font-semibold">
-              {new Date(expires_at).toLocaleString('ko-KR', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </dd>
-          </div>
-        )}
       </dl>
 
+      <p className="text-muted flex items-center gap-2.5 text-[13px]">
+        <RoleAvatar name={me.email} role="developer" size={28} />
+        <span className="min-w-0 truncate">
+          <b className="text-ink">{me.email}</b> 계정으로 참여해요
+        </span>
+        <button
+          type="button"
+          onClick={handleOtherAccount}
+          disabled={logout.isPending}
+          className="text-muted hover:text-ink ml-auto shrink-0 underline"
+        >
+          다른 계정
+        </button>
+      </p>
+
       {accept.error && (
-        <p role="alert" className="text-warn text-sm font-semibold">
+        <p role="alert" className="text-warn text-[13px] font-semibold">
           {accept.error.message}
         </p>
       )}
 
       {already_member ? (
-        <div className="flex flex-col gap-3">
+        <div className="grid gap-3">
           <p className="text-text text-sm">이미 참여 중인 프로젝트예요.</p>
-          <Link href={workspaceHref} className={primaryClassName}>
-            작업 화면으로 이동
+          <Link
+            href={`/projects/${project.id}/viewer`}
+            className={buttonClassName({ className: 'h-[52px] text-[15px]' })}
+          >
+            작업 화면으로 가기
           </Link>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={handleAccept}
-          disabled={accept.isPending || accept.isSuccess}
-          className={primaryClassName}
-        >
-          {accept.isPending || accept.isSuccess ? '참여하는 중…' : '초대 수락하기'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleAccept}
+            disabled={isBusy}
+            className={buttonClassName({ className: 'h-[52px] flex-1 text-[15px]' })}
+          >
+            {isBusy ? '참여하는 중…' : '수락하고 참여하기'}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -180,12 +185,16 @@ interface InviteViewProps {
   token?: string;
 }
 
+/** demo-design `invite.html`: 어떤 프로젝트인지, 누가 불렀는지, 어떤 계정으로 들어가는지 보여 줍니다. */
 const InviteView = ({ token }: InviteViewProps) => {
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar />
-      <main className="flex flex-1 items-center justify-center p-8 pb-24">
-        {token ? <InviteContent token={token} /> : <Notice {...INVALID_COPY.missing} />}
+      <title>RE:SPEC — 초대 수락</title>
+      <TopBar title="초대" minimal />
+      <main className="grid min-h-[calc(100vh-84px)] place-items-center px-6 pt-12 pb-20">
+        <div className="w-[min(520px,100%)] animate-[pop-in_0.4s_var(--ease-out-soft)]">
+          {token ? <InviteContent token={token} /> : <Unavailable />}
+        </div>
       </main>
     </div>
   );

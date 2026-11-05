@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseParentMessage, parseSiteMessage, toOrigin } from './protocol';
+import {
+  BRIDGE_PREVIEW_MAX_LENGTH,
+  parseParentMessage,
+  parseSiteMessage,
+  toOrigin,
+} from './protocol';
 
 describe('parseSiteMessage', () => {
   it('ready와 path-changed는 /로 시작하는 경로만 받는다', () => {
@@ -63,6 +68,18 @@ describe('parseSiteMessage', () => {
     expect(parseSiteMessage({ type: 'respec:pin-created', x: 1, anchor })).toBeNull();
   });
 
+  it('pin-missing과 pin-found는 핀 id만 받는다', () => {
+    expect(parseSiteMessage({ type: 'respec:pin-found', pinId: '3', extra: 1 })).toEqual({
+      type: 'respec:pin-found',
+      pinId: '3',
+    });
+    expect(parseSiteMessage({ type: 'respec:pin-missing', pinId: '3' })).toEqual({
+      type: 'respec:pin-missing',
+      pinId: '3',
+    });
+    expect(parseSiteMessage({ type: 'respec:pin-found', pinId: '' })).toBeNull();
+  });
+
   it('respec 메시지가 아니면 null', () => {
     expect(parseSiteMessage('respec:ready')).toBeNull();
     expect(parseSiteMessage({ type: 'webpackOk' })).toBeNull();
@@ -85,10 +102,24 @@ describe('parseParentMessage', () => {
           relative_x: 0.1,
           relative_y: 0.2,
           location_context: null,
+          tone: 'warn',
           muted: true,
-          request_preview: '비밀',
+          request_preview: '버튼 색을 바꿔 주세요',
+          location_status: 'needs_check',
+          author_email: 'a@b.c',
         },
         { id: '2', number: 2, page_path: '/', relative_x: 0, relative_y: 0 },
+        {
+          id: '3',
+          number: 3,
+          page_path: '/',
+          element_selector: '#b',
+          relative_x: 0,
+          relative_y: 0,
+          tone: 'red',
+          request_preview: 'x'.repeat(500),
+          location_status: 'lost',
+        },
       ],
     });
 
@@ -104,7 +135,23 @@ describe('parseParentMessage', () => {
           relative_x: 0.1,
           relative_y: 0.2,
           location_context: null,
+          tone: 'warn',
           muted: true,
+          request_preview: '버튼 색을 바꿔 주세요',
+          location_status: 'needs_check',
+        },
+        {
+          id: '3',
+          number: 3,
+          page_path: '/',
+          element_selector: '#b',
+          relative_x: 0,
+          relative_y: 0,
+          location_context: null,
+          tone: 'brand',
+          muted: false,
+          request_preview: 'x'.repeat(BRIDGE_PREVIEW_MAX_LENGTH),
+          location_status: 'located',
         },
       ],
     });

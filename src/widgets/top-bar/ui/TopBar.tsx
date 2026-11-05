@@ -32,6 +32,15 @@ const TopBar = ({ title, links = [], children }: TopBarProps) => {
         <Image src={logoMark} alt="" unoptimized className="size-[30px]" />
         RE:SPEC
       </Link>
+      {pathname !== '/login' && pathname !== '/signup' && (
+        <Link
+          href="/projects"
+          aria-current={pathname === '/projects' ? 'page' : undefined}
+          className="text-muted hover:text-ink aria-[current=page]:text-ink ml-3 text-[15px] font-bold whitespace-nowrap transition-colors"
+        >
+          내 프로젝트
+        </Link>
+      )}
       {title && (
         <h1 className="ml-3 truncate text-xl font-extrabold tracking-[-0.01em]">{title}</h1>
       )}

@@ -21,6 +21,17 @@ export const CHANGE_REQUEST_STATUS_LABEL: Record<ChangeRequestStatus, string> = 
   resolved: '해결됨',
 };
 
+/** 상태별 색. 핀 마커와 상태 배지가 같은 기준을 씁니다. */
+export type RequestStatusTone = 'brand' | 'ink' | 'warn' | 'faint';
+
+export const CHANGE_REQUEST_STATUS_TONE: Record<ChangeRequestStatus, RequestStatusTone> = {
+  open: 'brand',
+  reviewing: 'brand',
+  in_progress: 'ink',
+  pending_review: 'warn',
+  resolved: 'faint',
+};
+
 export function isChangeRequestStatus(value: unknown): value is ChangeRequestStatus {
   return CHANGE_REQUEST_STATUSES.includes(value as ChangeRequestStatus);
 }

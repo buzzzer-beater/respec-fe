@@ -7,6 +7,7 @@ import type { ApiError } from '@/shared/api';
 import { createAnchor, findElementAtPoint, restoreAnchor } from '@/shared/lib/pin-engine';
 
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
+import PinMarkerLayer from './PinMarkerLayer';
 
 /** 초안은 `#앵커` 링크만 있는 한 페이지 HTML이라 핀을 모두 `/`에 둡니다. */
 export const DRAFT_PAGE_PATH = '/';
@@ -92,6 +93,8 @@ interface DraftPreviewFrameProps {
   pins: ViewerPin[];
   onPlacePin?: (position: PinPosition) => void;
   onSelectPin?: (pinId: string) => void;
+  /** 강조할 핀 */
+  selectedPinId?: string | null;
   /** 저장 전인 새 핀 위치(문서 기준 %)와, 그 옆에 띄울 입력창 */
   draftPin?: PinPosition | null;
   draftPinContent?: ReactNode;
@@ -109,6 +112,7 @@ const DraftPreviewFrame = ({
   pins,
   onPlacePin,
   onSelectPin,
+  selectedPinId,
   draftPin,
   draftPinContent,
 }: DraftPreviewFrameProps) => {
@@ -155,10 +159,18 @@ const DraftPreviewFrame = ({
     });
   };
 
+  // 마커 레이어는 iframe과 같은 크기라서 문서 좌표(px)를 %로 바꿔 넘깁니다.
   const markers = layout
     ? pins.flatMap((pin) => {
         const position = locatePin(layout, pin);
-        return position ? [{ pin, ...position }] : [];
+        if (!position || !layout.width || !layout.height) return [];
+        return [
+          {
+            pin,
+            x: (position.x / layout.width) * 100,
+            y: (position.y / layout.height) * 100,
+          },
+        ];
       })
     : [];
 
@@ -198,18 +210,11 @@ const DraftPreviewFrame = ({
               className="absolute inset-0 cursor-crosshair"
             />
           )}
-          {markers.map(({ pin, x, y }) => (
-            <button
-              key={pin.id}
-              type="button"
-              aria-label={`${pin.number}번 핀`}
-              onClick={() => onSelectPin?.(pin.id)}
-              className="group absolute z-10 -translate-y-full hover:z-20"
-              style={{ left: x, top: y }}
-            >
-              <NumberedPin number={pin.number} muted={pin.muted} />
-            </button>
-          ))}
+          <PinMarkerLayer
+            markers={markers}
+            selectedPinId={selectedPinId}
+            onSelectPin={onSelectPin}
+          />
           {draftPin && (
             <div
               className="absolute z-20 flex items-start gap-2"

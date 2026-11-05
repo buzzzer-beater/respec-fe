@@ -1,11 +1,32 @@
+import { cn } from '@/shared/lib';
+
+import {
+  CHANGE_REQUEST_STATUS_TONE,
+  type ChangeRequestStatus,
+  type RequestStatusTone,
+} from '../model/status';
+
 interface RequestStatusBadgeProps {
   label: string;
+  /** 주면 핀 마커와 같은 기준으로 상태 색을 입힙니다. 없으면 회색입니다. */
+  status?: ChangeRequestStatus;
 }
 
-// 상태 색은 따로 두지 않습니다. 메인 컬러를 핀에만 쓰려고 회색 한 가지로 표시합니다.
-const RequestStatusBadge = ({ label }: RequestStatusBadgeProps) => {
+const TONE_CLASS: Record<RequestStatusTone, string> = {
+  brand: 'bg-brand-soft text-brand',
+  ink: 'bg-ink text-white',
+  warn: 'bg-[#fff4e8] text-warn',
+  faint: 'bg-hover text-muted',
+};
+
+const RequestStatusBadge = ({ label, status }: RequestStatusBadgeProps) => {
   return (
-    <span className="bg-hover text-text inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap">
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap',
+        status ? TONE_CLASS[CHANGE_REQUEST_STATUS_TONE[status]] : 'bg-hover text-text',
+      )}
+    >
       {label}
     </span>
   );

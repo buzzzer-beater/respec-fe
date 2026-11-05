@@ -5,7 +5,7 @@ import type { LocationContext, PinAnchor, RestorableAnchor } from '../pin-engine
  * 양쪽이 이 파일 하나를 같이 씁니다. 규격을 바꾸면 `PIN_BRIDGE_VERSION`을 올리고
  * `pnpm build:pin-script`로 `public/respec-pin.js`를 다시 만듭니다.
  */
-export const PIN_BRIDGE_VERSION = 3;
+export const PIN_BRIDGE_VERSION = 4;
 
 /** RE:SPEC이 핀 스크립트를 내려주는 경로 (`public/respec-pin.js`) */
 export const PIN_SCRIPT_PATH = '/respec-pin.js';
@@ -24,12 +24,16 @@ export type BridgePinTone = (typeof BRIDGE_PIN_TONES)[number];
 /** 백엔드 `location_status`와 같은 값입니다. */
 export type BridgePinLocationStatus = 'located' | 'needs_check';
 
-/** 툴팁에 쓸 요청 내용의 최대 길이. 넘으면 자릅니다. */
-export const BRIDGE_PREVIEW_MAX_LENGTH = 200;
+/**
+ * 마커 종류. `pin` = 그 사이트에 찍은 핀, `review` = 개발자가 검수 요청 때 배포본에 찍은 반영 위치(흰 테두리),
+ * `draft` = 아직 보내지 않은 위치(검정, 누를 수 없음)
+ */
+export const BRIDGE_PIN_KINDS = ['pin', 'review', 'draft'] as const;
+export type BridgePinKind = (typeof BRIDGE_PIN_KINDS)[number];
 
 /**
  * iframe으로 보내는 핀. 위치와 표시에 필요한 값만 담습니다.
- * 요청 내용은 툴팁용 앞부분(`request_preview`)만 보내고, 작성자나 인증 정보는 보내지 않습니다.
+ * 배포 사이트는 다른 사람이 만든 문서라서 요청 내용, 작성자, 인증 정보는 보내지 않습니다.
  */
 export type BridgePin = RestorableAnchor & {
   id: string;
@@ -39,8 +43,7 @@ export type BridgePin = RestorableAnchor & {
   tone: BridgePinTone;
   /** 내가 움직일 차례. 빨간 점을 붙입니다. */
   alert: boolean;
-  /** 마우스를 올리면 보여 줄 요청 내용 */
-  request_preview: string | null;
+  kind: BridgePinKind;
   /** 서버에 저장된 위치 상태. 스크립트가 `pin-missing`/`pin-found`를 보낼지 판단할 때 씁니다. */
   location_status: BridgePinLocationStatus;
 };
@@ -115,12 +118,13 @@ const toAnchor = (value: unknown): PinAnchor | null => {
 const isTone = (value: unknown): value is BridgePinTone =>
   BRIDGE_PIN_TONES.includes(value as BridgePinTone);
 
-const toPreview = (value: unknown): string | null =>
-  isNonEmptyString(value) ? value.slice(0, BRIDGE_PREVIEW_MAX_LENGTH) : null;
+const isKind = (value: unknown): value is BridgePinKind =>
+  BRIDGE_PIN_KINDS.includes(value as BridgePinKind);
 
 const toBridgePin = (value: unknown): BridgePin | null => {
   if (!isRecord(value)) return null;
-  const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert } = value;
+  const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert, kind } =
+    value;
   if (!isNonEmptyString(id) || !isFiniteNumber(number) || !isPagePath(page_path)) return null;
   if (!isNonEmptyString(element_selector)) return null;
   if (!isFiniteNumber(relative_x) || !isFiniteNumber(relative_y)) return null;
@@ -134,7 +138,7 @@ const toBridgePin = (value: unknown): BridgePin | null => {
     location_context: toLocationContext(value.location_context) ?? null,
     tone: isTone(tone) ? tone : 'brand',
     alert: alert === true,
-    request_preview: toPreview(value.request_preview),
+    kind: isKind(kind) ? kind : 'pin',
     location_status: value.location_status === 'needs_check' ? 'needs_check' : 'located',
   };
 };

@@ -1,3 +1,4 @@
+export { toSitePages } from './model/pages';
 export type {
   PinPosition,
   PinScriptStatus,

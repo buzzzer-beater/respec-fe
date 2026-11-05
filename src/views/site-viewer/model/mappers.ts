@@ -3,6 +3,8 @@ import {
   getPinLook,
   isDeletedPinComment,
   type PinComment,
+  type PinPosition,
+  type PinSource,
   type PinWithRequest,
 } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
@@ -16,7 +18,7 @@ import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { ChatDrawerMessage, SharedPin } from '@/widgets/chat-drawer';
 import { type PinThread, type PinThreadComment, toThreadId } from '@/widgets/side-chat';
-import type { SitePage, ViewerPin } from '@/widgets/site-viewer';
+import type { ViewerPin } from '@/widgets/site-viewer';
 
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
 export const getPagePath = (deploymentUrl: string | null | undefined) => {
@@ -53,21 +55,11 @@ export const toViewerPins = (
             y: pin.relative_y * 100,
             status: pin.request_status,
             ...getPinLook(pin.request_status, role),
-            preview: pin.request_preview,
             locationStatus: pin.location_status,
             anchor: pin,
           },
         ],
   );
-
-/** 주소창 목록에 보여 줄 페이지와 페이지별 핀 개수. `/`가 먼저, 나머지는 경로 순서입니다. */
-export const toSitePages = (pins: ViewerPin[]): SitePage[] => {
-  const counts = new Map<string, number>();
-  for (const pin of pins) counts.set(pin.pagePath, (counts.get(pin.pagePath) ?? 0) + 1);
-  return [...counts]
-    .map(([path, pinCount]) => ({ path, pinCount }))
-    .sort((a, b) => (a.path === '/' ? -1 : b.path === '/' ? 1 : a.path.localeCompare(b.path)));
-};
 
 /**
  * 작성자 id를 이메일과 역할로 바꿉니다. 백엔드에 이름이 없어서 이메일을 이름처럼 씁니다.
@@ -109,6 +101,68 @@ export const toMessages = (
     isRegistered: registered.has(message.id),
   }));
 };
+
+interface SitePinSources {
+  pins: PinWithRequest[];
+  role: ProjectRole | null | undefined;
+  showResolved: boolean;
+  /** 지금 보는 사이트 */
+  site: PinSource;
+  /** 요청 id → 마지막 검수 항목. 배포본에서는 개발자가 찍은 반영 위치로 그립니다. */
+  reviewItems: Map<number, ReviewItem>;
+  /** 검수 요청을 만드는 중 배포본에 찍었지만 아직 보내지 않은 위치. 요청 id → 위치 */
+  placedLocations?: Partial<Record<number, PinPosition>>;
+}
+
+/**
+ * 사이트별로 그릴 핀(demo-design `posFor`).
+ * - 초안 A: 초안에서 남긴 핀만 그립니다.
+ * - 배포본 B: 배포본에서 남긴 핀과, 검수 요청 때 개발자가 다시 찍은 반영 위치를 그립니다.
+ *   반영 위치가 있는 요청은 원래 핀 대신 반영 위치로 보여 줍니다(흰 테두리 표시).
+ * 번호는 사이트와 관계없이 프로젝트 전체의 만든 순서입니다.
+ */
+export const toSiteViewerPins = ({
+  pins,
+  role,
+  showResolved,
+  site,
+  reviewItems,
+  placedLocations = {},
+}: SitePinSources): ViewerPin[] => {
+  const all = toViewerPins(pins, role, showResolved);
+  if (site === 'draft') {
+    return all.filter((viewerPin) => {
+      const pin = pins.find(({ id }) => String(id) === viewerPin.id);
+      return pin?.source !== 'deployment';
+    });
+  }
+
+  const byPinId = new Map(pins.map((pin) => [String(pin.id), pin]));
+  const marks = all.flatMap((viewerPin): ViewerPin[] => {
+    const pin = byPinId.get(viewerPin.id);
+    if (!pin) return [];
+    const placed =
+      pin.change_request_id === null ? undefined : placedLocations[pin.change_request_id];
+    if (placed) {
+      return [{ ...toLocationPin(viewerPin, placed), kind: 'draft', alert: false }];
+    }
+    const location =
+      pin.change_request_id === null ? null : reviewItems.get(pin.change_request_id)?.location;
+    if (location) return [{ ...toLocationPin(viewerPin, location), kind: 'review' }];
+    return pin.source === 'deployment' ? [viewerPin] : [];
+  });
+  return marks;
+};
+
+/** 핀을 다른 위치(검수 반영 위치)에 그리도록 바꿉니다. 위치 확인 보고는 하지 않습니다. */
+const toLocationPin = (viewerPin: ViewerPin, location: PinPosition): ViewerPin => ({
+  ...viewerPin,
+  pagePath: location.page_path,
+  x: location.relative_x * 100,
+  y: location.relative_y * 100,
+  locationStatus: 'located',
+  anchor: location,
+});
 
 /** 공유된 핀을 카드 정보로 바꿉니다. 핀을 못 찾으면(삭제됨) 번호와 경로가 `null`입니다. */
 const toSharedPin = (pinId: number, pins: PinWithRequest[]): SharedPin => {

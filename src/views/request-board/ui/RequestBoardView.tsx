@@ -22,9 +22,8 @@ import {
   isMyTurn,
   useGetChangeRequests,
 } from '@/entities/request';
-import { PROJECT_ROLE_LABEL } from '@/entities/user';
+import { can, PROJECT_ROLE_LABEL } from '@/entities/user';
 import { ChangeRequestStatusButtons } from '@/features/change-request-status';
-import { AddToReviewButton, RequestReviewButton } from '@/features/request-review';
 import { cn } from '@/shared/lib';
 import { buttonClassName, Dropdown, Icon, Switch } from '@/shared/ui';
 
@@ -95,6 +94,7 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
   const all = requests.data ?? [];
   const openCount = all.filter((request) => request.status !== 'resolved').length;
   const mineCount = all.filter((request) => isMyTurn(request.status, role)).length;
+  const workingCount = all.filter((request) => request.status === 'in_progress').length;
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
@@ -117,7 +117,15 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
           label="사이트"
           triggerClassName="h-10 shadow-[inset_0_0_0_1px_var(--color-divider)]"
         />
-        <RequestReviewButton projectId={projectId} requests={all} />
+        {/* 검수 요청은 배포본에 반영 위치를 찍어야 해서 작업 화면에서 묶어 보냅니다. */}
+        {can(role, 'request-review') && (
+          <Link
+            href={`${viewerHref}?review=1`}
+            className={buttonClassName({ size: 'sm', className: 'shrink-0' })}
+          >
+            {workingCount > 0 ? `검수 요청 만들기 · ${workingCount}` : '검수 요청 만들기'}
+          </Link>
+        )}
         <label className="border-divider text-muted focus-within:border-ink flex h-10 w-[260px] items-center gap-2 rounded-[10px] border px-3">
           <Icon name="search" size={15} />
           <input
@@ -218,14 +226,14 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
                               role={role}
                               pinNumber={request.pinNumber}
                             />
-                            <AddToReviewButton
-                              size="sm"
-                              variant="secondary"
-                              projectId={projectId}
-                              requestId={request.id}
-                              status={request.status}
-                              role={role}
-                            />
+                            {can(role, 'request-review') && request.status === 'in_progress' && (
+                              <Link
+                                href={`${viewerHref}?review=1&pick=${request.id}`}
+                                className={buttonClassName({ variant: 'secondary', size: 'sm' })}
+                              >
+                                검수 요청에 담기
+                              </Link>
+                            )}
                             {showReviewLink && (
                               <Link
                                 href={request.href}

@@ -3,3 +3,4 @@ export * from './cn';
 export * from './download';
 export * from './shake';
 export * from './time';
+export * from './use-search-flag';

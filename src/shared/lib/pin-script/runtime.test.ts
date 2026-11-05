@@ -31,7 +31,7 @@ const pin = (overrides: Partial<BridgePin> = {}): BridgePin => ({
   location_context: null,
   tone: 'brand',
   alert: false,
-  request_preview: null,
+  kind: 'pin',
   location_status: 'located',
   ...overrides,
 });
@@ -108,32 +108,37 @@ describe('startPinScript', () => {
     expect(marker.hasAttribute('data-selected')).toBe(true);
   });
 
-  it('상태 색, 해결된 핀, 요청 내용 툴팁을 마커에 표시한다', () => {
+  it('상태 색, 내 차례, 마커 종류를 표시하고 이름은 "핀 N"이다', () => {
     const { parent } = createParent();
     stop = startPinScript({ win: window, parent, allowedOrigins: [RESPEC_ORIGIN] });
-    render('<button id="cta">구매</button><a id="logo">로고</a>');
+    render('<button id="cta">구매</button><a id="logo">로고</a><p id="note">안내</p>');
     mockRect(get('#cta'), { left: 100, top: 200, width: 40, height: 20 });
     mockRect(get('#logo'), { left: 0, top: 0, width: 40, height: 20 });
+    mockRect(get('#note'), { left: 0, top: 100, width: 40, height: 20 });
 
     send(parent, {
       type: 'respec:show-pins',
       pins: [
-        pin({ tone: 'quiet', request_preview: '<b>버튼</b> 색을 바꿔 주세요' }),
-        pin({ id: '2', number: 2, element_selector: '#logo', tone: 'brand', alert: true }),
+        pin({ tone: 'quiet' }),
+        pin({ id: '2', number: 2, element_selector: '#logo', alert: true, kind: 'review' }),
+        pin({ id: 'draft', number: 3, element_selector: '#note', alert: true, kind: 'draft' }),
       ],
       selectedPinId: null,
     });
     vi.advanceTimersToNextFrame();
 
-    const [first, second] = markers() as HTMLElement[];
+    const [first, review, draft] = markers() as HTMLElement[];
     expect(first.getAttribute('data-tone')).toBe('quiet');
     expect(first.hasAttribute('data-alert')).toBe(false);
-    expect(first.querySelector('.tip')?.textContent).toBe('<b>버튼</b> 색을 바꿔 주세요');
-    expect(first.querySelector('b')).toBeNull();
-    expect(first.getAttribute('aria-label')).toBe('1번 핀, <b>버튼</b> 색을 바꿔 주세요');
-    expect(second.getAttribute('data-tone')).toBe('brand');
-    expect(second.hasAttribute('data-alert')).toBe(true);
-    expect(second.querySelector('.tip')?.textContent).toBe('');
+    expect(first.getAttribute('aria-label')).toBe('핀 1');
+    expect(first.hasAttribute('title')).toBe(false);
+    expect(review.getAttribute('data-kind')).toBe('review');
+    expect(review.hasAttribute('data-alert')).toBe(true);
+    expect(review.title).toBe('핀 2 반영 위치');
+    expect(draft.getAttribute('data-kind')).toBe('draft');
+    expect(draft.hasAttribute('data-alert')).toBe(false);
+    expect(draft.getAttribute('aria-hidden')).toBe('true');
+    expect(draft.tabIndex).toBe(-1);
   });
 
   it('핀 모드에서 누르면 사이트 클릭을 막고 앵커를 보낸다', () => {
@@ -181,7 +186,7 @@ describe('startPinScript', () => {
     expect(locationMessages(messages)).toEqual([{ type: 'respec:pin-missing', pinId: '2' }]);
   });
 
-  it('없다고 판정한 핀은 저장된 좌표에 위치 확인 필요 마커로 그린다', () => {
+  it('요소를 못 찾은 핀은 그리지 않는다', () => {
     const { parent } = createParent();
     stop = startPinScript({ win: window, parent, allowedOrigins: [RESPEC_ORIGIN] });
     const gone = pin({
@@ -193,20 +198,13 @@ describe('startPinScript', () => {
 
     send(parent, { type: 'respec:show-pins', pins: [gone], selectedPinId: null });
     vi.advanceTimersToNextFrame();
-    // 늦게 나타날 수 있어서 판정 전에는 그리지 않습니다.
-    expect(markers()).toHaveLength(0);
-
     vi.advanceTimersByTime(LOCATION_CHECK_DELAY_MS);
     vi.advanceTimersToNextFrame();
 
-    const [marker] = markers() as HTMLElement[];
-    expect(marker.hasAttribute('data-needs-check')).toBe(true);
-    expect(marker.style.left).toBe('30px');
-    expect(marker.style.top).toBe('40px');
-    expect(marker.getAttribute('aria-label')).toBe('2번 핀, 위치 확인 필요');
+    expect(markers()).toHaveLength(0);
   });
 
-  it('서버가 needs_check인 핀은 요소가 없으면 바로 흐리게 그리고 다시 보고하지 않는다', () => {
+  it('서버가 needs_check인 핀은 요소가 없으면 그리지도, 다시 보고하지도 않는다', () => {
     const { parent, messages } = createParent();
     stop = startPinScript({ win: window, parent, allowedOrigins: [RESPEC_ORIGIN] });
 
@@ -216,9 +214,26 @@ describe('startPinScript', () => {
       selectedPinId: null,
     });
     vi.advanceTimersToNextFrame();
-    expect(markers()[0].hasAttribute('data-needs-check')).toBe(true);
+    expect(markers()).toHaveLength(0);
 
     vi.advanceTimersByTime(LOCATION_CHECK_DELAY_MS);
+    expect(locationMessages(messages)).toEqual([]);
+  });
+
+  it('반영 위치와 보내기 전 위치는 요소가 없어도 보고하지 않는다', () => {
+    const { parent, messages } = createParent();
+    stop = startPinScript({ win: window, parent, allowedOrigins: [RESPEC_ORIGIN] });
+
+    send(parent, {
+      type: 'respec:show-pins',
+      pins: [
+        pin({ element_selector: '#gone', kind: 'review' }),
+        pin({ id: 'draft', element_selector: '#gone', kind: 'draft' }),
+      ],
+      selectedPinId: null,
+    });
+    vi.advanceTimersByTime(LOCATION_CHECK_DELAY_MS);
+
     expect(locationMessages(messages)).toEqual([]);
   });
 
@@ -234,7 +249,7 @@ describe('startPinScript', () => {
     vi.advanceTimersToNextFrame();
 
     expect(locationMessages(messages)).toEqual([{ type: 'respec:pin-found', pinId: '1' }]);
-    expect(markers()[0].hasAttribute('data-needs-check')).toBe(false);
+    expect(markers()).toHaveLength(1);
   });
 
   it('못 찾던 요소가 DOM에 나중에 나타나면 pin-found를 보낸다', async () => {

@@ -11,12 +11,13 @@ export type DeploymentUrlResult =
     }
   | { ok: false; error: DeploymentUrlError };
 
+// demo-design `checkDeployUrl` 문구
 export const DEPLOYMENT_URL_ERROR_MESSAGE: Record<DeploymentUrlError, string> = {
-  empty: '배포 사이트 주소를 입력해 주세요.',
+  empty: '배포 주소를 입력해 주세요.',
   'has-space': '주소에 공백이 들어갈 수 없어요.',
-  invalid: '올바른 주소가 아니에요. https://로 시작하는 전체 주소를 넣어 주세요.',
-  'not-https': 'https://로 시작하는 주소만 연결할 수 있어요.',
-  'has-credentials': '아이디나 비밀번호가 들어간 주소는 연결할 수 없어요.',
+  invalid: '주소 형식을 확인해 주세요. 예) https://my-shop.vercel.app',
+  'not-https': 'https:// 로 시작하는 주소만 연결할 수 있어요.',
+  'has-credentials': '아이디·비밀번호가 들어간 주소는 쓸 수 없어요.',
 };
 
 /**
@@ -49,14 +50,5 @@ export const toDeploymentHost = (value: string) => {
     return new URL(value).host;
   } catch {
     return value;
-  }
-};
-
-/** 해커톤 범위에서는 Vercel 배포 주소를 권장합니다. */
-export const isVercelAppUrl = (value: string) => {
-  try {
-    return new URL(value.trim()).hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
   }
 };

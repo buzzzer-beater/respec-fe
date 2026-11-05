@@ -103,10 +103,11 @@
 - 스크립트는 iframe 안일 때(`window.parent !== window`)만 동작하고, `async`로 불러와 우리 서버 장애가 사이트 로딩에 영향을 주지 않게 합니다. 두 번 넣어도 한 번만 실행합니다.
 - 허용 origin은 스크립트 주소(`src`)의 origin입니다. `data-respec-origin`이 있으면 그 값을 씁니다.
 - 마커는 iframe 안에서 Shadow DOM(`<respec-pin-root>`)으로 그립니다. 부모에서 그리면 스크롤마다 메시지 지연으로 핀이 흔들립니다. 스크롤, 창 크기, DOM 변경 때 `requestAnimationFrame`으로 위치를 다시 계산합니다.
+- 마커 모양은 앱의 `PinMarkerButton`과 같습니다: 요청 상태 색(`tone`, `CHANGE_REQUEST_STATUS_TONE`), 해결됐거나 요청이 없는 핀은 작은 점(`muted`, 마우스를 올리면 번호), 고른 핀은 링과 확대, 마우스를 올리면 `request_preview` 툴팁, 요소를 못 찾은 핀은 저장된 좌표(`page_x/page_y`)에 흐린 점선. Shadow DOM 안에는 Tailwind가 없어서 스타일은 `overlay.ts`의 CSS 문자열로 쓰고, 색 값은 `pin-script/theme.ts` 한 곳에 `globals.css` 토큰 값을 옮겨 둡니다(`theme.test.ts`가 비교).
 - 핀 모드: Shadow DOM 안의 투명 레이어가 화면을 덮고, `window` capture 단계에서 마우스·포인터·터치 이벤트를 멈춰 사이트 리스너로 가지 않게 합니다. 스크롤(`wheel`)은 막지 않습니다. 누른 위치는 `elementsFromPoint`로 레이어를 건너뛰고 아래 요소를 찾습니다.
 - 경로: `location.pathname`만 `page_path`로 씁니다(쿼리, 해시 제외). 경로가 바뀌면 이전 경로 마커를 지우고 `path-changed`를 보냅니다. 부모는 현재 경로의 핀만 다시 보냅니다.
 - 다른 경로의 핀을 고르면(`navigate`) 스크립트가 `location.assign`으로 새로 불러옵니다. 새 문서가 `ready`를 보내면 부모가 같은 경로로 `navigate`를 다시 보내 핀으로 스크롤합니다.
-- `pin-missing`: 핀 목록을 받고 2초 뒤에도 DOM에 요소가 **아예 없는** 핀만, 경로·핀마다 한 번 보냅니다. 숨겨진 요소는 보내지 않습니다. 부모는 `onPinMissing(pinId)` 콜백만 열어 두고, `location-status` 보고는 #25에서 연결합니다.
+- `pin-missing`/`pin-found`: 핀 목록을 받거나 DOM이 바뀌면 2초 뒤 요소를 다시 찾아, 핀마다 상태가 **바뀔 때만** 보냅니다. 처음 상태는 서버의 `location_status`입니다. DOM에 요소가 **아예 없으면** `pin-missing`, `needs_check`였거나 없다고 보낸 핀의 요소를 다시 찾으면 `pin-found`입니다. 숨겨진 요소(모달, 탭)는 어느 쪽도 보내지 않고 마커도 그리지 않습니다. 부모(`DeployedSiteFrame`)는 `onPinMissing`/`onPinFound`로 넘기고, `SiteViewerView`가 `useReportPinLocation`의 `reportMissing`/`reportFound`로 `PATCH .../location-status`를 보냅니다.
 - `respec:ready`를 3초 안에 못 받으면 "핀 스크립트가 연결되지 않았어요" 안내 후 영역 좌표만 저장하는 오버레이로 폴백합니다. 늦게라도 `ready`가 오면 스크립트 방식으로 바뀝니다. iframe `onload`는 에러 화면에도 발생하므로 판정에 쓰지 않습니다.
 - iframe `sandbox`에 `allow-top-navigation`을 넣지 않아 사이트가 워크스페이스 주소를 바꾸지 못합니다. `allow-same-origin`은 사이트가 자기 origin(쿠키, 저장소)을 유지하도록 넣습니다. cross-origin이라 워크스페이스에는 접근할 수 없습니다.
 
@@ -115,7 +116,7 @@
 - `public/respec-pin.js`는 `pnpm build:pin-script`(`scripts/build-pin-script.mjs`)로 만들고 저장소에 커밋합니다. 새 의존성 없이 이미 있는 `typescript`의 `transpileModule`로 파일마다 CommonJS로 바꾸고, 작은 `require` 함수와 함께 IIFE 하나로 묶습니다. 상대 경로 import만 따라가므로 `pin-engine`, `pin-bridge`, `pin-script`는 서로 상대 경로로 import합니다.
 - `src/shared/lib/pin-script/bundle.test.ts`가 커밋된 파일과 지금 소스로 만든 결과를 비교합니다. 핀 엔진이나 규격을 바꾸고 다시 만들지 않으면 `pnpm test`가 실패합니다.
 - Next.js가 `public/`을 `Cache-Control: public, max-age=0`으로 내려주므로 다시 배포하면 바로 반영됩니다. 규격을 바꾸면 `PIN_BRIDGE_VERSION`을 올립니다. 부모는 버전이 다르면 경고만 남깁니다.
-- 축소(minify)는 하지 않습니다(약 33KB). 필요해지면 esbuild 같은 번들러를 개발 의존성으로 넣는 안을 검토합니다.
+- 축소(minify)는 하지 않습니다(약 39KB). 필요해지면 esbuild 같은 번들러를 개발 의존성으로 넣는 안을 검토합니다.
 
 ### 메시지 규격
 
@@ -133,9 +134,11 @@
 { type: 'respec:pin-created', anchor, x, y } // x, y: 누른 지점의 iframe 화면 기준 %
 { type: 'respec:pin-clicked', pinId }
 { type: 'respec:pin-missing', pinId } // DOM에 요소가 없음 → needs_check 보고 대상
+{ type: 'respec:pin-found', pinId } // 못 찾던 요소를 다시 찾음 → located 보고 대상
 ```
 
-- `BridgePin`: `id`, `number`, `page_path`, `element_selector`, `relative_x`, `relative_y`, `location_context`, `muted`만 보냅니다. 요청 내용, 작성자, 인증 토큰은 iframe으로 보내지 않습니다.
+- `BridgePin`(규격 버전 2): `id`, `number`, `page_path`, `element_selector`, `relative_x`, `relative_y`, `location_context`, `tone`(`brand`/`ink`/`warn`/`faint`), `muted`, `request_preview`, `location_status`만 보냅니다. 고른 핀은 `selectedPinId`로 보냅니다.
+- 요청 내용은 툴팁용 `request_preview`(첫 댓글 원문, 200자까지)만 보냅니다. 배포 사이트 코드가 읽을 수 있는 값이라 작성자, 댓글 스레드, AI 변환, 인증 토큰은 보내지 않습니다. 스크립트는 툴팁을 `textContent`로만 넣습니다.
 - 양쪽 모두 `event.origin`과 `event.source`를 검사합니다. 부모는 프로젝트 `deployment_url`의 origin과 자기 iframe에서 온 메시지만, 스크립트는 허용 origin과 `window.parent`에서 온 메시지만 받습니다. 보낼 때도 `targetOrigin`을 그 origin으로 지정합니다.
 - 부모는 `pin-created`의 앵커로 `POST /pins`를 보내고, `pin-clicked`로 오른쪽 패널의 핀을 고르며, `ready`/`path-changed`로 현재 `page_path`를 관리합니다.
 

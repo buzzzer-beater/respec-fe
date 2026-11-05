@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 import type { ReactNode } from 'react';
 
+import { LogoutButton } from '@/features/auth';
 import { NotificationBell } from '@/features/read-notification';
 
 import logoMark from '../assets/logo-mark.svg';
@@ -55,6 +56,7 @@ const TopBar = ({ title, links = [], children }: TopBarProps) => {
       <div className="flex shrink-0 items-center gap-3">
         {children}
         <NotificationBell />
+        <LogoutButton />
       </div>
     </header>
   );

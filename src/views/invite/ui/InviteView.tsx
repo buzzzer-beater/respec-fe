@@ -8,7 +8,8 @@ import { useRouter } from 'next/navigation';
 import { useGetInvitationPreview } from '@/entities/project';
 import { PROJECT_ROLE_LABEL } from '@/entities/user';
 import { usePostInvitationAccept } from '@/features/accept-invitation';
-import { type ApiError, getAccessToken, LOGIN_PATH } from '@/shared/api';
+import { type ApiError, getAccessToken } from '@/shared/api';
+import { toLoginPath } from '@/shared/lib';
 import { TopBar } from '@/widgets/top-bar';
 
 const subscribeNothing = () => () => {};
@@ -46,8 +47,7 @@ const toInvalidReason = (error: ApiError | null): InvalidReason | null => {
   return null;
 };
 
-const toLoginHref = (token: string) =>
-  `${LOGIN_PATH}?next=${encodeURIComponent(`/invite?${new URLSearchParams({ token })}`)}`;
+const toLoginHref = (token: string) => toLoginPath(`/invite?${new URLSearchParams({ token })}`);
 
 const Notice = ({
   title,

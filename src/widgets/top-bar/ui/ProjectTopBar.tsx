@@ -24,6 +24,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
         { href: `${base}/draft`, label: '초안' },
         { href: `${base}/viewer`, label: '작업 화면' },
         { href: `${base}/requests`, label: '요청 관리' },
+        { href: `${base}/review`, label: '검수' },
       ]}
     >
       <ConnectDeploymentButton projectId={projectId} />

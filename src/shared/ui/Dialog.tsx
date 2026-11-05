@@ -120,9 +120,10 @@ export const Dialog = ({
 
 /**
  * 가운데 모달의 내용 틀(여백 32px, 간격 20px). 바깥 클릭을 알아보려면 여백을 `<dialog>`가 아니라 이 안에 둡니다.
+ * 열을 `minmax(0,1fr)`로 두어, 줄바꿈 없는 긴 내용(코드 한 줄 등)이 모달 폭을 넘어 오른쪽 여백을 먹지 않게 합니다.
  */
 export const DialogContent = ({ className, ...props }: ComponentProps<'div'>) => (
-  <div className={cn('grid gap-5 p-8', className)} {...props} />
+  <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-5 p-8', className)} {...props} />
 );
 
 export const DialogTitle = ({ className, ...props }: ComponentProps<'h2'>) => {

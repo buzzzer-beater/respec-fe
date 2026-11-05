@@ -17,7 +17,7 @@ const MessageItem = ({
   const isReply = variant === 'reply';
 
   return (
-    <div className="flex w-full items-start gap-2.5">
+    <div className={cn('flex w-full items-start', isReply ? 'gap-2.5' : 'gap-3')}>
       {isReply ? (
         <span className="flex h-12 shrink-0 items-center">
           <Avatar
@@ -31,16 +31,11 @@ const MessageItem = ({
         <Avatar
           src={authorAvatarUrl}
           alt={authorName}
-          size={52}
+          size={48}
           className="ring-line-subtle ring-[0.5px]"
         />
       )}
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 flex-col gap-1 leading-[normal]',
-          isReply ? 'py-1' : 'py-1.5',
-        )}
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-1 py-1 leading-[normal]">
         <div className="text-ink-600 flex items-center gap-1.5 text-sm">
           <span className="whitespace-nowrap">{authorName}</span>
           <span aria-hidden className="bg-ink-600 size-0.5 rounded-full" />

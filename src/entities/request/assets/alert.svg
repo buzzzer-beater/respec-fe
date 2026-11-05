@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group">
+<path id="Vector" d="M5 10C7.76142 10 10 7.76142 10 5C10 2.23858 7.76142 0 5 0C2.23858 0 0 2.23858 0 5C0 7.76142 2.23858 10 5 10Z" fill="#F1536B"/>
+<g id="Group_2">
+<path id="Vector_2" d="M5 7.55C5.34518 7.55 5.625 7.27018 5.625 6.925C5.625 6.57982 5.34518 6.3 5 6.3C4.65482 6.3 4.375 6.57982 4.375 6.925C4.375 7.27018 4.65482 7.55 5 7.55Z" fill="white"/>
+<path id="Vector_3" d="M5 5.725C5.275 5.725 5.5 5.5 5.5 5.225V2.95C5.5 2.675 5.275 2.45 5 2.45C4.725 2.45 4.5 2.675 4.5 2.95V5.225C4.5 5.5 4.725 5.725 5 5.725Z" fill="white"/>
+</g>
+</g>
+</svg>

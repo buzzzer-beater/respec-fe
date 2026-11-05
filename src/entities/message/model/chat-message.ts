@@ -7,6 +7,6 @@ export interface ChatMessage {
   shared_pin_id: number | null;
   /** AI 변환본. 본문이 없거나 변환에 실패하면 `null` */
   ai_plain_text: string | null;
-  /** ISO 8601. 백엔드에 추가를 요청한 필드라 아직 오지 않을 수 있습니다. */
-  created_at?: string;
+  /** ISO 8601 */
+  created_at: string;
 }

@@ -34,6 +34,8 @@ interface SiteViewerProps {
   renderSite?: (mode: ViewerMode) => ReactNode;
   /** 핀을 남길 수 없는 이유. 있으면 핀 모드를 끄고 안내합니다. */
   pinDisabledReason?: string | null;
+  /** 있으면 핀 모드로 고정하고 기본 안내 대신 보여 줍니다(핀 위치 다시 지정 등). */
+  pinPrompt?: ReactNode;
 }
 
 const SiteViewer = ({
@@ -47,9 +49,10 @@ const SiteViewer = ({
   children,
   renderSite,
   pinDisabledReason,
+  pinPrompt,
 }: SiteViewerProps) => {
   const [selectedMode, setMode] = useState<ViewerMode>('pin');
-  const mode = pinDisabledReason ? 'browse' : selectedMode;
+  const mode = pinDisabledReason ? 'browse' : pinPrompt ? 'pin' : selectedMode;
   const ownsPinLayer = !renderSite;
   const [device, setDevice] = useState<Device>('desktop');
   const [isFull, setIsFull] = useState(false);
@@ -164,7 +167,7 @@ const SiteViewer = ({
         </p>
       )}
 
-      {isPinMode && !draftPin && (
+      {isPinMode && !draftPin && !pinPrompt && (
         <p
           className={cn(
             'bg-ink pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 rounded-[10px] px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap text-white',
@@ -173,6 +176,11 @@ const SiteViewer = ({
         >
           사이트를 눌러 바꾸고 싶은 곳에 핀을 남기세요
         </p>
+      )}
+      {pinPrompt && (
+        <div className={cn('absolute left-1/2 z-30 -translate-x-1/2', isFull ? 'top-4' : 'top-12')}>
+          {pinPrompt}
+        </div>
       )}
 
       <div

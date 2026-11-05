@@ -5,7 +5,7 @@ import { TopBar } from '@/widgets/top-bar';
 const HomePage = () => {
   return (
     <div className="flex h-screen flex-col">
-      <TopBar />
+      <TopBar title="새 프로젝트" />
       <DraftView />
     </div>
   );

@@ -44,8 +44,8 @@ AI는 개발자의 기술적인 설명을 고객이 이해하기 쉬운 말로 �
 ### 수정 요청 상태
 
 ```text
-미해결(open) → 확인함(reviewing) → 진행 중(in_progress) → 검수 대기(pending_review) → 해결됨(resolved)
-검수 대기(pending_review) → 재수정 요청(reopen) → 미해결(open)
+요청 대기(open) → 확인 중(reviewing) → 작업 중(in_progress) → 검수 대기(pending_review) → 해결됨(resolved)
+검수 대기(pending_review) → 재수정 요청(reopen) → 요청 대기(open)
 ```
 
 - 전이와 역할: 확인(`acknowledge`), 작업 시작(`start`), 검수 요청(`in_progress` 요청을 골라 제출)은 개발자, Resolve와 재수정 요청은 고객이 합니다. 전이 표는 `entities/request/model/transition.ts`

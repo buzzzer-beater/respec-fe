@@ -3,13 +3,16 @@
 import { useGetProject, useGetProjectDraft } from '@/entities/project';
 import type { ApiError } from '@/shared/api';
 import { cn } from '@/shared/lib';
+import { buttonClassName, Icon, toast } from '@/shared/ui';
 
 import { useDownloadDraftZip } from '../api/draft-zip';
 import { toDraftZipFilename } from '../model/filename';
 
 const VARIANT_CLASS = {
-  button:
-    'border-divider text-ink hover:bg-hover h-9 rounded-[10px] border px-3.5 text-sm font-semibold',
+  /** 상단 바 `.btn-line.btn-sm` */
+  button: buttonClassName({ variant: 'secondary', size: 'sm' }),
+  /** 결과 화면의 큰 외곽선 버튼 */
+  large: buttonClassName({ variant: 'secondary', size: 'lg' }),
   link: 'text-ink font-semibold underline',
 } as const;
 
@@ -21,12 +24,14 @@ const toErrorMessage = (error: ApiError) => {
 
 interface DownloadDraftButtonProps {
   projectId: number;
-  /** `button`은 상단바 버튼, `link`는 안내 문장 안의 링크 모양입니다. */
+  /** `button`은 상단바 버튼, `large`는 결과 화면 버튼, `link`는 안내 문장 안의 링크 모양입니다. */
   variant?: keyof typeof VARIANT_CLASS;
   /** 버튼 문구. 기본은 "코드 받기"입니다. */
   label?: string;
   /** 부모 너비를 채웁니다(결과 화면의 버튼 줄). */
   fullWidth?: boolean;
+  /** 다 받은 뒤 띄울 안내 */
+  downloadedMessage?: string;
   className?: string;
 }
 
@@ -36,6 +41,7 @@ const DownloadDraftButton = ({
   variant = 'button',
   label = '코드 받기',
   fullWidth = false,
+  downloadedMessage = '초안 코드(ZIP)를 내려받았어요',
   className,
 }: DownloadDraftButtonProps) => {
   const { data: project } = useGetProject(projectId);
@@ -48,15 +54,21 @@ const DownloadDraftButton = ({
     <span className={cn('relative inline-flex', fullWidth && 'flex-1')}>
       <button
         type="button"
-        onClick={() => download.mutate(toDraftZipFilename(project?.name))}
+        onClick={() =>
+          download.mutate(toDraftZipFilename(project?.name), {
+            onSuccess: () => toast(downloadedMessage),
+          })
+        }
         disabled={download.isPending}
         aria-busy={download.isPending}
         className={cn(
           'whitespace-nowrap disabled:cursor-wait disabled:opacity-60',
           VARIANT_CLASS[variant],
+          fullWidth && 'w-full',
           className,
         )}
       >
+        {variant !== 'link' && <Icon name="download" size={variant === 'large' ? 16 : 14} />}
         {download.isPending ? '내려받는 중…' : label}
       </button>
       {download.error && !download.isPending && (

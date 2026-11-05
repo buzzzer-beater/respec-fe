@@ -162,7 +162,7 @@ type PinAnchor = {
 - **`element_selector` 우선순위**: `#id` → 짧은 CSS 경로. 초안 검증기가 `data-*`를 거절하고 `id`는 허용하므로 `data-respec-id` 대신 **`id`** 를 앵커로 씁니다. AI가 요소마다 고정 `id`를 붙이도록 요청했습니다 ([respec-be#12](https://github.com/buzzzer-beater/respec-be/issues/12)). React `useId`가 만드는 `:r1:` 같은 id는 렌더마다 바뀌므로 쓰지 않습니다.
 - **`section_name`**: 가장 가까운 `<section>`의 `id`나 첫 제목(`h1`~`h3`) 텍스트에서 읽습니다.
 - **"위치 확인 필요" 보고**: DOM에 요소가 **아예 없을 때만** `PATCH .../location-status`로 `needs_check`를 보냅니다. 모달, 탭처럼 지금 숨겨진 요소는 보고하지 않고 화면에서만 "지금 화면에 없음"으로 표시합니다. 다시 찾으면 `located`로 되돌립니다.
-- **현재 저장할 수 없는 값**: 반복 요소 `index`, `viewport_width`, 대비용 페이지 좌표. `location_context`가 `extra="forbid"`이고 DB에도 저장되지 않기 때문입니다. 그래서 지금은 `needs_check` 핀을 화면에 그릴 위치가 없고 **패널 목록에만** 보입니다.
+- **대비용 위치 저장**: 반복 요소 `index`, `viewport_width`, 페이지 좌표 `page_x/page_y`를 `location_context`에 함께 저장합니다(백엔드 반영됨). 요소를 못 찾은 `needs_check` 핀은 이 페이지 좌표에 흐린 점선으로 그리고, 패널에도 "위치 확인 필요" 배지를 보여 줍니다.
 
 ## 백엔드 API 사용 정리
 
@@ -196,6 +196,8 @@ type PinAnchor = {
 - 상태 라벨과 탭 매핑은 `entities/request`에 한 곳에서만 정의합니다.
 
 ## 백엔드에 요청할 것
+
+1~4번은 모두 반영되었습니다(respec-be main `e377d33` 기준).
 
 1. **`location_context` 저장과 반환**: JSON 컬럼으로 저장하고 단건/목록 응답에 포함. 자유 필드(`index`, `viewport_width`, 대비용 좌표) 허용 — [respec-be#9](https://github.com/buzzzer-beater/respec-be/issues/9)
 2. **핀 위치 수정 API**: `needs_check` 핀을 다른 요소로 옮기기 (`element_selector`, 좌표 수정) — [respec-be#10](https://github.com/buzzzer-beater/respec-be/issues/10)

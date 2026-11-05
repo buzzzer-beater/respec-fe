@@ -29,6 +29,8 @@ API_BASE_URL=http://localhost:8080 pnpm dev
 
 `API_BASE_URL`은 필수입니다. 로컬에서는 루트 `.env.local`에 설정해도 됩니다. 브라우저의 `/backend/*` 요청은 Next.js rewrite를 통해 해당 서버로 전달되며, `/api/*`는 Next.js Route Handler용으로 남겨 둡니다.
 
+`NEXT_PUBLIC_API_BASE_URL`은 선택입니다. 초안 생성(`PUT /projects/{id}/draft`)은 최대 약 240초 걸리는데 Vercel의 외부 rewrite는 120초에 끊기므로, 이 값이 있으면 초안 생성만 브라우저가 백엔드로 바로 보냅니다. 배포 환경(Vercel)에는 `API_BASE_URL`과 같은 주소로 설정합니다. 빌드할 때 번들에 들어가므로 바꾸면 다시 배포해야 합니다.
+
 ## API 경계
 
 - 브라우저 API: `@/shared/api`의 `get`, `post`, `patch`, `put`, `del`을 사용합니다. Axios base URL은 `/backend`입니다.

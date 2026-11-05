@@ -12,9 +12,10 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   reactCompiler: true,
   experimental: {
-    // 초안 생성은 최대 120초 걸립니다. 기본값 30초에서는 `/backend` 프록시가 먼저 끊깁니다.
-    // `next dev`/`next start`에만 적용됩니다. Vercel에서는 외부 rewrite를 CDN이 처리하고 최대 120초입니다.
-    proxyTimeout: 130_000,
+    // 초안 생성은 최대 약 240초 걸립니다. 기본값 30초에서는 `/backend` 프록시가 먼저 끊깁니다.
+    // `next dev`/`next start`에만 적용됩니다. Vercel에서는 외부 rewrite를 CDN이 처리하고 최대 120초라서,
+    // 배포 환경은 `NEXT_PUBLIC_API_BASE_URL`로 백엔드를 바로 부릅니다(`features/generate-draft/api/draft.ts`).
+    proxyTimeout: 300_000,
   },
   turbopack: {
     rules: {

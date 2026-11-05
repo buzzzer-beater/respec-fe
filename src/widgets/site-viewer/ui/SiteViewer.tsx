@@ -14,7 +14,7 @@ import ViewerToolbar from './ViewerToolbar';
 const DEVICE_WIDTH: Record<Device, string> = {
   desktop: 'max-w-full',
   tablet: 'max-w-[820px]',
-  mobile: 'max-w-[390px]',
+  mobile: 'max-w-[420px]',
 };
 
 interface SiteViewerProps {
@@ -102,65 +102,80 @@ const SiteViewer = ({
         'flex justify-center',
         isFull
           ? 'fixed inset-0 z-30 bg-white'
-          : 'bg-stage relative h-full w-full min-w-0 px-3 pt-8 pb-[76px] lg:px-10 lg:pb-[104px]',
+          : 'bg-stage relative h-full w-full min-w-0 px-3 pt-5 pb-[76px] lg:px-9 lg:pb-[104px]',
       )}
     >
       <div
         className={cn(
-          'relative h-full w-full overflow-hidden bg-white transition-[max-width,box-shadow] duration-500',
+          'relative flex h-full w-full flex-col overflow-hidden bg-white transition-[max-width,box-shadow] duration-500',
           DEVICE_WIDTH[device],
           isFull
             ? device !== 'desktop' && 'shadow-[0_0_0_1px_var(--color-divider)]'
-            : 'rounded-[10px] shadow-[0_0_0_1px_rgba(24,24,27,0.06),0_8px_30px_rgba(24,24,27,0.08)]',
+            : 'rounded-[14px] shadow-[0_0_0_1px_rgba(24,24,27,0.06),0_10px_30px_rgba(24,24,27,0.08)]',
           // 핀 모드에서는 사이트 둘레를 진한 선으로 표시합니다.
           isPinMode &&
             (isFull
               ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]'
-              : 'shadow-[0_0_0_2px_var(--color-ink),0_8px_30px_rgba(24,24,27,0.08)]'),
+              : 'shadow-[0_0_0_2px_var(--color-brand),0_10px_30px_rgba(24,24,27,0.08)]'),
         )}
       >
-        {/* 브라우저 확대처럼 사이트를 넓게 그린 뒤 줄여서(또는 좁게 그린 뒤 키워서) 맞춥니다. */}
-        <div
-          className="absolute top-0 left-0 origin-top-left"
-          style={{
-            width: `${100 / scale}%`,
-            height: `${100 / scale}%`,
-            transform: scale === 1 ? undefined : `scale(${scale})`,
-          }}
-        >
-          {renderSite?.(mode) ?? children ?? (
-            <p className="text-faint absolute inset-0 grid place-items-center px-6 text-center text-sm">
-              {url}
-            </p>
-          )}
-          {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
-          {ownsPinLayer && isPinMode && (
-            <button
-              type="button"
-              aria-label="핀 추가할 위치 선택"
-              onClick={handlePlacePin}
-              className="absolute inset-0 cursor-crosshair"
-            />
-          )}
-          {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
-          {ownsPinLayer && (
-            <PinMarkerLayer
-              markers={pins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
-              selectedPinId={selectedPinId}
-              onSelectPin={onSelectPin}
-            />
-          )}
-          {ownsPinLayer && draftPin && (
-            <div
-              className="absolute z-20 flex items-start gap-2"
-              style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
-            >
-              <span className="-translate-y-full">
-                <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
-              </span>
-              {draftPinContent}
-            </div>
-          )}
+        {!isFull && (
+          <div className="border-divider flex h-12 shrink-0 items-center gap-3 border-b px-4">
+            <span aria-hidden className="flex shrink-0 gap-1.5">
+              <i className="size-2.5 rounded-full bg-[#e4e4e9]" />
+              <i className="size-2.5 rounded-full bg-[#e4e4e9]" />
+              <i className="size-2.5 rounded-full bg-[#e4e4e9]" />
+            </span>
+            <span className="bg-stage text-text min-w-0 flex-1 truncate rounded-lg px-3 py-1.5 text-[13px] lg:max-w-[420px]">
+              {pagePath ?? url}
+            </span>
+            <span className="text-muted ml-auto hidden text-xs lg:block">사이트 미리보기</span>
+          </div>
+        )}
+        <div className="relative min-h-0 flex-1">
+          {/* 브라우저 확대처럼 사이트를 넓게 그린 뒤 줄여서(또는 좁게 그린 뒤 키워서) 맞춥니다. */}
+          <div
+            className="absolute top-0 left-0 origin-top-left"
+            style={{
+              width: `${100 / scale}%`,
+              height: `${100 / scale}%`,
+              transform: scale === 1 ? undefined : `scale(${scale})`,
+            }}
+          >
+            {renderSite?.(mode) ?? children ?? (
+              <p className="text-faint absolute inset-0 grid place-items-center px-6 text-center text-sm">
+                {url}
+              </p>
+            )}
+            {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
+            {ownsPinLayer && isPinMode && (
+              <button
+                type="button"
+                aria-label="핀 추가할 위치 선택"
+                onClick={handlePlacePin}
+                className="absolute inset-0 cursor-crosshair"
+              />
+            )}
+            {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
+            {ownsPinLayer && (
+              <PinMarkerLayer
+                markers={pins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
+                selectedPinId={selectedPinId}
+                onSelectPin={onSelectPin}
+              />
+            )}
+            {ownsPinLayer && draftPin && (
+              <div
+                className="absolute z-20 flex items-start gap-2"
+                style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
+              >
+                <span className="-translate-y-full">
+                  <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
+                </span>
+                {draftPinContent}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
+import { useGetProject } from '@/entities/project';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import {
   CHANGE_REQUEST_STATUS_LABEL,
@@ -18,7 +19,9 @@ interface RequestBoardViewProps {
 
 const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
   const [search, setSearch] = useState('');
+  const [myTurnOnly, setMyTurnOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const project = useGetProject(projectId);
   const requests = useGetChangeRequests(projectId, 'all');
   const pins = useGetPins(projectId);
   const messages = useGetMessages(projectId);
@@ -41,9 +44,19 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
               ?.find((item) => item.id === request.source_pin_comment_id);
       const title =
         comment?.content ?? message?.content ?? request.ai_summary ?? `요청 #${request.id}`;
-      return { ...request, pin, title };
+      const isMyTurn =
+        project.data?.my_role === 'developer'
+          ? request.status === 'open' ||
+            request.status === 'reviewing' ||
+            request.status === 'in_progress'
+          : request.status === 'pending_review';
+      return { ...request, pin, title, isMyTurn };
     })
-    .filter((request) => !query || request.title.toLowerCase().includes(query));
+    .filter(
+      (request) =>
+        (!query || request.title.toLowerCase().includes(query)) &&
+        (!myTurnOnly || request.isMyTurn),
+    );
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
@@ -61,6 +74,14 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
             className="min-w-0 flex-1 outline-none"
           />
         </label>
+        <button
+          type="button"
+          aria-pressed={myTurnOnly}
+          onClick={() => setMyTurnOnly((value) => !value)}
+          className={`h-10 rounded-full border px-3.5 text-sm font-semibold ${myTurnOnly ? 'border-ink bg-ink text-white' : 'border-divider text-text hover:border-ink bg-white'}`}
+        >
+          내 차례만
+        </button>
         <RequestReviewButton projectId={projectId} requests={requests.data ?? []} />
       </div>
       {requests.isPending ? (
@@ -91,11 +112,18 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
                       key={request.id}
                       type="button"
                       onClick={() => setSelectedId(request.id)}
-                      className="block rounded-xl bg-white p-[18px] text-left shadow-sm transition-shadow hover:shadow-md focus-visible:-outline-offset-2"
+                      className={`block rounded-xl bg-white p-[18px] text-left shadow-sm transition-shadow hover:shadow-md focus-visible:-outline-offset-2 ${request.isMyTurn ? 'border-divider border' : ''}`}
                     >
-                      <p className="text-muted text-xs">
-                        {request.pin ? request.pin.page_path : '위치 없음'}
-                      </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-muted truncate text-xs">
+                          {request.pin ? request.pin.page_path : '위치 없음'}
+                        </p>
+                        {request.isMyTurn && (
+                          <span className="text-warn flex shrink-0 items-center gap-1.5 text-xs font-bold">
+                            <i className="bg-warn size-2 rounded-full" />내 차례
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-2.5 line-clamp-3 text-[15px] font-semibold">
                         {request.title}
                       </p>

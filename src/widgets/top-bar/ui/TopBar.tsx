@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 import { LogoutButton } from '@/features/auth';
 import { NotificationBell } from '@/features/read-notification';
 
-import logoMark from '../assets/logo-mark.svg';
+import logo from '../assets/respec-logo.png';
 import type { TopBarLink } from '../model/types';
 
 interface TopBarProps {
@@ -32,8 +32,9 @@ const TopBar = ({ title, links = [], titleAddon, children }: TopBarProps) => {
         href="/"
         className="border-divider flex items-center gap-2.5 border-r pr-3 text-[21px] font-black tracking-[-0.02em] whitespace-nowrap lg:pr-[22px]"
       >
-        <Image src={logoMark} alt="" unoptimized className="size-[30px]" />
-        <span className="max-sm:sr-only">RE:SPEC</span>
+        <span className="h-10 w-[116px] shrink-0 overflow-hidden" aria-hidden>
+          <Image src={logo} alt="" unoptimized className="h-auto w-full -translate-y-[7px]" />
+        </span>
       </Link>
       {pathname !== '/login' && pathname !== '/signup' && (
         <Link

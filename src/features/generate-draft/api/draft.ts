@@ -20,8 +20,8 @@ export const usePutProjectDraft = () => {
   return useMutation({
     mutationFn: ({ projectId, ...body }: DraftCreateReqType & { projectId: number }) =>
       putProjectDraft(projectId, body),
-    // 재생성하면 미리보기 접근 키가 바뀌므로 초안을 다시 받습니다.
-    onSuccess: (_, { projectId }) =>
-      queryClient.invalidateQueries({ queryKey: draftQueryKeys.getDraft(projectId) }),
+    // 새 초안은 미리보기 URL이 바뀌므로 응답으로 바로 덮어씁니다.
+    onSuccess: (draft, { projectId }) =>
+      queryClient.setQueryData(draftQueryKeys.getDraft(projectId), draft),
   });
 };

@@ -23,6 +23,8 @@ interface SiteViewerProps {
   draftPin?: PinPosition | null;
   draftPinContent?: ReactNode;
   onSelectPin?: (pinId: string) => void;
+  /** 강조할 핀(채팅의 핀 카드를 눌렀을 때 등) */
+  selectedPinId?: string | null;
   // 배포 사이트 미리보기 자리. 미리보기 방식이 정해지면 채웁니다.
   children?: ReactNode;
   /**
@@ -39,6 +41,7 @@ const SiteViewer = ({
   pins,
   onPlacePin,
   onSelectPin,
+  selectedPinId,
   draftPin,
   draftPinContent,
   children,
@@ -112,18 +115,30 @@ const SiteViewer = ({
             className="absolute inset-0 cursor-crosshair"
           />
         )}
-        {(ownsPinLayer ? pins : []).map((pin) => (
-          <button
-            key={pin.id}
-            type="button"
-            aria-label={`${pin.number}번 핀`}
-            onClick={() => onSelectPin?.(pin.id)}
-            className="group absolute z-10 -translate-y-full hover:z-20"
-            style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-          >
-            <NumberedPin number={pin.number} muted={pin.muted} />
-          </button>
-        ))}
+        {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
+        {(ownsPinLayer ? pins : []).map((pin) => {
+          const isSelected = pin.id === selectedPinId;
+          return (
+            <button
+              key={pin.id}
+              type="button"
+              aria-label={`${pin.number}번 핀`}
+              aria-pressed={isSelected}
+              onClick={() => onSelectPin?.(pin.id)}
+              className={cn(
+                'group absolute -translate-y-full hover:z-20',
+                isSelected ? 'z-20' : 'z-10',
+              )}
+              style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+            >
+              <NumberedPin
+                number={pin.number}
+                muted={pin.muted && !isSelected}
+                className={cn(isSelected && 'ring-brand/30 scale-110 ring-4')}
+              />
+            </button>
+          );
+        })}
         {ownsPinLayer && draftPin && (
           <div
             className="absolute z-20 flex items-start gap-2"

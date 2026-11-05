@@ -1,7 +1,9 @@
 'use client';
 
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
-import { PROJECT_ROLE_LABEL } from '@/entities/user';
+import { can, PROJECT_ROLE_LABEL } from '@/entities/user';
+import { ConnectDeploymentButton } from '@/features/connect-deployment';
+import { InviteDeveloperButton } from '@/features/invite-developer';
 import { Avatar } from '@/shared/ui';
 
 import TopBar from './TopBar';
@@ -19,10 +21,13 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
     <TopBar
       title={project?.name}
       links={[
+        { href: `${base}/draft`, label: '초안' },
         { href: `${base}/viewer`, label: '작업 화면' },
         { href: `${base}/requests`, label: '요청 관리' },
+        { href: `${base}/review`, label: '검수' },
       ]}
     >
+      <ConnectDeploymentButton projectId={projectId} />
       {members.length > 0 && (
         <ul aria-label="참여자" className="flex">
           {members.map((member) => (
@@ -40,6 +45,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
           ))}
         </ul>
       )}
+      {can(project?.my_role, 'invite-developer') && <InviteDeveloperButton projectId={projectId} />}
     </TopBar>
   );
 };

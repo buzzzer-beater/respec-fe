@@ -4,11 +4,25 @@ import { useState } from 'react';
 
 import { MessageItem } from '@/entities/message';
 import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
-import { PROJECT_ROLE_LABEL } from '@/entities/user';
+import { PROJECT_ROLE_LABEL, type ProjectRole } from '@/entities/user';
+import { ChangeRequestStatusButtons } from '@/features/change-request-status';
+import { ResolveRequestButtons } from '@/features/resolve-request';
 
 import type { PinThread } from '../model/types';
 
-const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) => {
+interface PinThreadCardProps extends Omit<PinThread, 'id'> {
+  projectId?: number;
+  role?: ProjectRole;
+}
+
+const PinThreadCard = ({
+  pinNumber,
+  status,
+  changeRequestId,
+  comments,
+  projectId,
+  role,
+}: PinThreadCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [first, ...replies] = comments;
 
@@ -20,7 +34,7 @@ const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) =
 
   return (
     <article className="flex w-full flex-col gap-4 bg-white px-9 py-7">
-      <header className="flex items-center gap-2.5">
+      <header className="flex flex-wrap items-center gap-2.5">
         <span className="bg-brand grid size-6 place-items-center rounded-full rounded-bl-[4px] text-xs font-extrabold text-white">
           {pinNumber}
         </span>
@@ -28,6 +42,24 @@ const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) =
         <span className="ml-auto">
           <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
         </span>
+        {projectId !== undefined && changeRequestId !== null && (
+          <>
+            <ChangeRequestStatusButtons
+              size="sm"
+              projectId={projectId}
+              requestId={changeRequestId}
+              status={status}
+              role={role}
+            />
+            <ResolveRequestButtons
+              size="sm"
+              projectId={projectId}
+              requestId={changeRequestId}
+              status={status}
+              role={role}
+            />
+          </>
+        )}
       </header>
 
       <div className="flex flex-col gap-4">

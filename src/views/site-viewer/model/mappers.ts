@@ -92,6 +92,7 @@ export const toPinThreads = (
     id: String(pin.id),
     pinNumber: pinNumber.get(pin.id) ?? 0,
     status: pin.request_status,
+    changeRequestId: pin.change_request_id,
     comments: [...(commentsByPin.get(pin.id) ?? [])]
       .sort((a, b) => a.id - b.id)
       .map((comment) => ({

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import type { Message } from '@/entities/message';
+import type { ProjectRole } from '@/entities/user';
 import { MessageInput } from '@/features/send-message';
 
 import type { PinThread } from '../model/types';
@@ -15,9 +16,18 @@ interface SideChatPanelProps {
   messages: Message[];
   pinThreads: PinThread[];
   onSendMessage: (content: string) => void;
+  /** 있으면 핀 스레드에 역할에 맞는 상태 버튼을 보여 줍니다. */
+  projectId?: number;
+  role?: ProjectRole;
 }
 
-const SideChatPanel = ({ messages, pinThreads, onSendMessage }: SideChatPanelProps) => {
+const SideChatPanel = ({
+  messages,
+  pinThreads,
+  onSendMessage,
+  projectId,
+  role,
+}: SideChatPanelProps) => {
   const [tab, setTab] = useState<Tab>('pins');
   useEffect(() => {
     const id = window.location.hash.slice(1);
@@ -63,7 +73,7 @@ const SideChatPanel = ({ messages, pinThreads, onSendMessage }: SideChatPanelPro
           <ul className="bg-stage flex min-h-full flex-col gap-2">
             {pinThreads.map(({ id, ...thread }) => (
               <li key={id} id={`pin-${id}`}>
-                <PinThreadCard {...thread} />
+                <PinThreadCard {...thread} projectId={projectId} role={role} />
               </li>
             ))}
           </ul>

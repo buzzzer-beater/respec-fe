@@ -1,4 +1,4 @@
-import type { Pin } from '@/entities/pin';
+import type { Pin, PinLocationStatus } from '@/entities/pin';
 import type { ChangeRequestStatus } from '@/entities/request';
 import type { PinAnchor, RestorableAnchor } from '@/shared/lib/pin-engine';
 
@@ -11,6 +11,8 @@ export interface ViewerPin extends Pin {
   status?: ChangeRequestStatus | null;
   /** 마커에 마우스를 올리면 보여 줄 요청 내용 */
   preview?: string | null;
+  /** 서버에 저장된 위치 상태. 배포 사이트 핀 스크립트가 위치 보고 여부를 판단할 때 씁니다. */
+  locationStatus?: PinLocationStatus;
   /** 요소 기준 위치. DOM을 읽을 수 있는 초안 미리보기에서 마커 위치를 계산할 때 씁니다. */
   anchor?: RestorableAnchor;
 }

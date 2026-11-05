@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { NumberedPin } from '@/entities/pin';
+import { CHANGE_REQUEST_STATUS_TONE } from '@/entities/request';
 import {
   type BridgePin,
   type ParentMessage,
@@ -34,7 +35,7 @@ const getInitialPath = (url: string) => {
   }
 };
 
-/** iframe으로 보낼 핀. 요청 내용 같은 다른 필드는 보내지 않습니다. */
+/** iframe으로 보낼 핀. 위치와 마커 표시에 필요한 값만 보내고, 요청 내용은 툴팁용 앞부분만 보냅니다. */
 const toBridgePins = (pins: ViewerPin[], path: string): BridgePin[] =>
   pins.flatMap((pin) =>
     pin.pagePath === path && pin.anchor
@@ -47,7 +48,10 @@ const toBridgePins = (pins: ViewerPin[], path: string): BridgePin[] =>
             relative_x: pin.anchor.relative_x,
             relative_y: pin.anchor.relative_y,
             location_context: pin.anchor.location_context ?? null,
+            tone: pin.status ? CHANGE_REQUEST_STATUS_TONE[pin.status] : 'brand',
             muted: !!pin.muted,
+            request_preview: pin.preview ?? null,
+            location_status: pin.locationStatus ?? 'located',
           },
         ]
       : [],
@@ -65,6 +69,8 @@ interface DeployedSiteFrameProps {
   onSelectPin?: (pinId: string) => void;
   /** 사이트 DOM에 핀의 요소가 아예 없음. `needs_check` 보고는 호출부가 합니다. */
   onPinMissing?: (pinId: string) => void;
+  /** 못 찾던 핀의 요소를 다시 찾음. `located` 보고는 호출부가 합니다. */
+  onPinFound?: (pinId: string) => void;
   /** 지금 사이트의 경로가 바뀔 때 */
   onPathChange?: (path: string) => void;
   /** 저장 전인 새 핀 위치(iframe 화면 기준 %)와, 그 옆에 띄울 입력창 */
@@ -85,6 +91,7 @@ const DeployedSiteFrame = ({
   onPlacePin,
   onSelectPin,
   onPinMissing,
+  onPinFound,
   onPathChange,
   draftPin,
   draftPinContent,
@@ -140,6 +147,9 @@ const DeployedSiteFrame = ({
         break;
       case 'respec:pin-missing':
         onPinMissing?.(message.pinId);
+        break;
+      case 'respec:pin-found':
+        onPinFound?.(message.pinId);
         break;
     }
   });

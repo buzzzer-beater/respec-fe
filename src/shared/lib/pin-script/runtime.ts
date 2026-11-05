@@ -9,8 +9,14 @@ import { createAnchor, findElementAtPoint, restoreAnchor } from '../pin-engine';
 import { getPagePath, watchPagePath } from './history';
 import { createOverlay, type OverlayMarker } from './overlay';
 
-/** 화면을 그린 뒤 요소가 늦게 나타나는 경우(데이터 로딩, 하이드레이션)를 기다렸다가 없음을 판정합니다. */
-export const MISSING_CHECK_DELAY_MS = 2000;
+/**
+ * 화면을 그린 뒤 요소가 늦게 나타나는 경우(데이터 로딩, 하이드레이션)를 기다렸다가 없음을 판정합니다.
+ * DOM이 계속 바뀌는 동안에도 이 간격마다 한 번씩 다시 확인합니다.
+ */
+export const LOCATION_CHECK_DELAY_MS = 2000;
+
+/** 스크립트가 마지막으로 판정한 핀 요소 상태 */
+type LocationState = 'found' | 'missing';
 
 /** 핀 모드에서 사이트로 전달되지 않게 막을 이벤트. 스크롤(`wheel`)은 막지 않습니다. */
 const BLOCKED_EVENTS = [
@@ -44,6 +50,7 @@ export type PinScriptOptions = {
  * 배포 사이트 iframe 안에서 핀 엔진을 실행합니다.
  * - 부모가 보낸 핀을 Shadow DOM 마커로 그리고, 스크롤/크기/DOM 변경 때 위치를 다시 계산합니다.
  * - 핀 모드에서는 투명 레이어로 사이트 클릭을 막고, 누른 위치 아래 요소로 앵커를 만듭니다.
+ * - 요소를 못 찾거나 다시 찾으면 핀마다 상태가 바뀔 때만 `pin-missing`/`pin-found`를 보냅니다.
  * - 경로가 바뀌면 부모에게 알립니다.
  * 정리 함수를 돌려줍니다.
  */
@@ -56,9 +63,10 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
   let selectedPinId: string | null = null;
   /** 경로를 옮긴 뒤 핀 목록을 받으면 스크롤할 핀 */
   let pendingScrollPinId: string | null = null;
-  const reportedMissing = new Set<string>();
+  /** 핀마다 마지막으로 판정한 상태. 없으면 서버의 `location_status`를 따릅니다. */
+  const locationStates = new Map<string, LocationState>();
   let frame = 0;
-  let missingTimer: number | undefined;
+  let checkTimer: number | undefined;
 
   const post = (message: SiteMessage) => {
     // 받는 쪽 origin이 다르면 브라우저가 버리므로, 허용한 origin마다 보냅니다.
@@ -67,19 +75,41 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
 
   const currentPins = () => pins.filter((pin) => pin.page_path === path);
 
+  const getLocationState = (pin: BridgePin): LocationState =>
+    locationStates.get(pin.id) ?? (pin.location_status === 'needs_check' ? 'missing' : 'found');
+
+  /**
+   * 요소를 못 찾은 핀을 그릴 viewport 좌표. 핀을 찍을 때 저장한 문서 좌표를 쓰고,
+   * 없으면 초안 미리보기처럼 문서 크기에 대한 상대 좌표를 씁니다.
+   */
+  const getSavedPosition = (pin: BridgePin, fallback?: { pageX: number; pageY: number }) => {
+    const root = doc.documentElement;
+    const pageX = fallback?.pageX ?? pin.relative_x * root.scrollWidth;
+    const pageY = fallback?.pageY ?? pin.relative_y * root.scrollHeight;
+    return { clientX: pageX - win.scrollX, clientY: pageY - win.scrollY };
+  };
+
   const render = () => {
     frame = 0;
     const markers: OverlayMarker[] = [];
     for (const pin of currentPins()) {
       const result = restoreAnchor(doc, pin);
-      if (result.status !== 'found') continue;
+      // 숨겨진 요소(모달, 탭)의 핀은 그리지 않습니다.
+      if (result.status === 'hidden') continue;
+      // 늦게 나타나는 요소일 수 있어서, 없다고 판정한 뒤에만 저장된 좌표에 흐리게 그립니다.
+      if (result.status === 'missing' && getLocationState(pin) !== 'missing') continue;
+      const position =
+        result.status === 'found' ? result.position : getSavedPosition(pin, result.fallback);
       markers.push({
         pinId: pin.id,
         number: pin.number,
-        clientX: result.position.clientX,
-        clientY: result.position.clientY,
+        clientX: position.clientX,
+        clientY: position.clientY,
+        tone: pin.tone,
         muted: pin.muted,
         selected: pin.id === selectedPinId,
+        needsCheck: result.status === 'missing',
+        preview: pin.request_preview,
       });
     }
     overlay.render(markers);
@@ -89,18 +119,37 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
     if (!frame) frame = win.requestAnimationFrame(render);
   };
 
-  // DOM에 요소가 아예 없는 핀만 보고합니다. 숨겨진 요소(모달, 탭)는 보고하지 않습니다.
-  const scheduleMissingCheck = () => {
-    win.clearTimeout(missingTimer);
-    missingTimer = win.setTimeout(() => {
-      for (const pin of currentPins()) {
-        const key = `${path}\n${pin.id}`;
-        if (reportedMissing.has(key)) continue;
-        if (restoreAnchor(doc, pin).status !== 'missing') continue;
-        reportedMissing.add(key);
-        post({ type: 'respec:pin-missing', pinId: pin.id });
-      }
-    }, MISSING_CHECK_DELAY_MS);
+  /**
+   * 요소가 DOM에 아예 없으면 `missing`, 보이면 `found`로 판정해 상태가 바뀐 핀만 보고합니다.
+   * 숨겨진 요소(모달, 탭)는 판정하지 않습니다.
+   */
+  const checkLocations = () => {
+    checkTimer = undefined;
+    let changed = false;
+    for (const pin of currentPins()) {
+      const { status } = restoreAnchor(doc, pin);
+      if (status === 'hidden' || status === getLocationState(pin)) continue;
+      locationStates.set(pin.id, status);
+      changed = true;
+      post({
+        type: status === 'missing' ? 'respec:pin-missing' : 'respec:pin-found',
+        pinId: pin.id,
+      });
+    }
+    if (changed) scheduleRender();
+  };
+
+  /** `restart`면 기다리던 확인을 미루고 처음부터 기다립니다(핀 목록을 새로 받았을 때). */
+  const scheduleLocationCheck = (restart: boolean) => {
+    if (checkTimer !== undefined && !restart) return;
+    win.clearTimeout(checkTimer);
+    checkTimer = win.setTimeout(checkLocations, LOCATION_CHECK_DELAY_MS);
+  };
+
+  // DOM이 바뀌면 마커 위치를 다시 계산하고, 못 찾던 요소가 나타났는지도 확인합니다.
+  const handleMutation = () => {
+    scheduleRender();
+    if (pins.length > 0) scheduleLocationCheck(false);
   };
 
   const scrollToPin = (pinId: string) => {
@@ -130,7 +179,7 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
         pins = message.pins;
         selectedPinId = message.selectedPinId;
         scheduleRender();
-        scheduleMissingCheck();
+        scheduleLocationCheck(true);
         if (pendingScrollPinId && scrollToPin(pendingScrollPinId)) pendingScrollPinId = null;
         break;
       case 'respec:navigate':
@@ -180,7 +229,7 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
     post({ type: 'respec:path-changed', path });
   });
 
-  const observer = new MutationObserver(scheduleRender);
+  const observer = new MutationObserver(handleMutation);
   observer.observe(doc.documentElement, {
     subtree: true,
     childList: true,
@@ -202,7 +251,7 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
     win.removeEventListener('scroll', scheduleRender, { capture: true });
     win.removeEventListener('resize', scheduleRender);
     for (const type of BLOCKED_EVENTS) win.removeEventListener(type, handlePointer, true);
-    win.clearTimeout(missingTimer);
+    win.clearTimeout(checkTimer);
     if (frame) win.cancelAnimationFrame(frame);
     overlay.destroy();
   };

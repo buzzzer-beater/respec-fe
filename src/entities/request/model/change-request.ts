@@ -1,3 +1,4 @@
+import type { PinSource } from '@/entities/pin/@x/request';
 import type { ReviewItem } from '@/entities/review/@x/request';
 
 import type { ChangeRequestStatus } from './status';
@@ -8,6 +9,8 @@ export interface ChangeRequest {
   created_by: number;
   /** 채팅에서 등록한 요청은 핀이 없을 수 있습니다. */
   pin_id: number | null;
+  /** 연결된 핀의 사이트. 핀이 없으면(`pin_id`가 `null`) `null`입니다. */
+  source: PinSource | null;
   /** 출처는 핀 댓글과 채팅 메시지 중 정확히 하나입니다. */
   source_pin_comment_id: number | null;
   source_chat_message_id: number | null;
@@ -18,7 +21,7 @@ export interface ChangeRequest {
 
 /** `GET .../change-requests/{id}` 응답 */
 export interface ChangeRequestDetail extends ChangeRequest {
-  /** 가장 최근 검수 제출의 반영 설명. 검수 요청 전에는 `null` */
+  /** 가장 최근 검수 제출 항목(배포본 반영 위치). 검수 요청 전에는 `null` */
   latest_review_item: ReviewItem | null;
 }
 

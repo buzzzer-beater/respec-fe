@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import type { Project } from '@/entities/project';
-import { useGetProjectMembers } from '@/entities/project';
+import { type Project, useGetProjectMembers } from '@/entities/project';
+import { isMyTurn, useGetChangeRequests } from '@/entities/request';
 import { PROJECT_ROLE_LABEL } from '@/entities/user';
 import { InviteDeveloperButton } from '@/features/invite-developer';
 
@@ -22,6 +22,10 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
   const { id, name, my_role, deployment_url, unresolved_request_count } = project;
   const members = useGetProjectMembers(id);
   const hasDeveloper = members.data?.some((member) => member.role === 'developer') ?? true;
+  // "내 차례 N"은 백엔드 `my_turn_count`가 생기기 전까지 카드마다 한 번씩 받아 셉니다.
+  // 목록 화면에서는 프로젝트마다 주기적으로 다시 받지 않습니다.
+  const { data: requests } = useGetChangeRequests(id, undefined, { polling: false });
+  const myTurnCount = requests?.filter((request) => isMyTurn(request.status, my_role)).length ?? 0;
 
   return (
     <article className="border-divider flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all hover:-translate-y-[3px] hover:shadow-lg">
@@ -62,6 +66,12 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
                 <span className="text-muted">
                   남은 요청 <strong className="text-ink">{unresolved_request_count}</strong>
                 </span>
+                {myTurnCount > 0 && (
+                  <span className="text-alert flex items-center gap-1 font-bold">
+                    <span aria-hidden className="bg-alert size-1.5 rounded-full" />내 차례{' '}
+                    {myTurnCount}
+                  </span>
+                )}
                 <span className="ml-auto flex -space-x-2" aria-label="프로젝트 참여자">
                   {(members.data ?? []).slice(0, 3).map((member) => (
                     <span
@@ -82,7 +92,7 @@ const ProjectCard = ({ project }: ProjectCardProps) => {
       </Link>
       {my_role === 'client' && !hasDeveloper && (
         <div className="px-5 pb-5">
-          <InviteDeveloperButton projectId={id} />
+          <InviteDeveloperButton projectId={id} label="개발자 초대" />
         </div>
       )}
     </article>

@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 
 import type { ApiError } from '@/shared/api';
+import { cn } from '@/shared/lib';
 import {
   Button,
   buttonClassName,
@@ -29,10 +30,20 @@ const formatExpiresAt = (iso: string) => {
 
 interface InviteDeveloperButtonProps {
   projectId: number;
+  /** 버튼 문구. 상단바는 "초대", 프로젝트 카드는 "개발자 초대"입니다. */
+  label?: string;
+  className?: string;
 }
 
-/** 상단바의 "초대" 버튼과 초대 링크 다이얼로그. 고객에게만 보여 줍니다. */
-const InviteDeveloperButton = ({ projectId }: InviteDeveloperButtonProps) => {
+/**
+ * 초대 버튼과 초대 링크 다이얼로그. 고객에게만 보여 줍니다.
+ * 여러 곳에서 반복되는 버튼이라 외곽선으로 둡니다.
+ */
+const InviteDeveloperButton = ({
+  projectId,
+  label = '초대',
+  className,
+}: InviteDeveloperButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
   const issue = usePostInvitation(projectId);
@@ -59,9 +70,12 @@ const InviteDeveloperButton = ({ projectId }: InviteDeveloperButtonProps) => {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="bg-ink h-9 rounded-full px-4 text-sm font-bold text-white transition-transform hover:bg-[#34322e] active:scale-95"
+        className={cn(
+          'border-divider text-ink hover:bg-hover h-9 shrink-0 rounded-full border bg-white px-4 text-sm font-bold whitespace-nowrap',
+          className,
+        )}
       >
-        초대
+        {label}
       </button>
       {/* 닫아도 언마운트하지 않아 발급한 링크가 남아 있습니다. */}
       <Dialog open={isOpen} onClose={() => setIsOpen(false)} closeOnBackdropClick={false}>

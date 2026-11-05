@@ -18,3 +18,12 @@ export const CHANGE_REQUEST_TURN: Record<ChangeRequestStatus, ProjectRole | null
 export function isMyTurn(status: ChangeRequestStatus, role: ProjectRole | null | undefined) {
   return role != null && CHANGE_REQUEST_TURN[status] === role;
 }
+
+/** 요청 관리 열 제목 옆에 붙이는 차례 */
+export const CHANGE_REQUEST_TURN_LABEL: Record<ChangeRequestStatus, string> = {
+  open: '개발자 차례',
+  reviewing: '개발자 차례',
+  in_progress: '개발자 차례',
+  pending_review: '고객 차례',
+  resolved: '완료',
+};

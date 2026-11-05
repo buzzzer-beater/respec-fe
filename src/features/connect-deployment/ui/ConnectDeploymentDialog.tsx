@@ -1,8 +1,9 @@
 'use client';
 
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 
 import type { ApiError } from '@/shared/api';
+import { Button, Dialog, DialogTitle, Input } from '@/shared/ui';
 
 import { usePutProjectDeployment } from '../api/deployment';
 import {
@@ -33,15 +34,10 @@ const ConnectDeploymentDialog = ({
   currentUrl,
   onClose,
 }: ConnectDeploymentDialogProps) => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [value, setValue] = useState(currentUrl ?? '');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [connectedUrl, setConnectedUrl] = useState<string | null>(null);
   const putDeployment = usePutProjectDeployment(projectId);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   const result = validateDeploymentUrl(value);
   // 처음 제출하기 전에는 입력 중 오류를 보여 주지 않습니다.
@@ -62,18 +58,9 @@ const ConnectDeploymentDialog = ({
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="connect-deployment-title"
-      onClose={onClose}
-      // 바깥(backdrop)을 누르면 닫습니다.
-      onClick={(event) => event.target === event.currentTarget && dialogRef.current?.close()}
-      className="backdrop:bg-ink/40 m-auto w-[440px] max-w-[calc(100%-32px)] rounded-2xl bg-white p-0 shadow-[0_12px_40px_rgba(24,24,27,0.2)]"
-    >
+    <Dialog onClose={onClose}>
       <div className="flex flex-col gap-5 p-6">
-        <h2 id="connect-deployment-title" className="text-ink text-lg font-extrabold">
-          {connectedUrl ? '배포 사이트를 연결했어요' : title}
-        </h2>
+        <DialogTitle>{connectedUrl ? '배포 사이트를 연결했어요' : title}</DialogTitle>
 
         {connectedUrl ? (
           <>
@@ -91,14 +78,9 @@ const ConnectDeploymentDialog = ({
               </p>
             </div>
             <PinScriptGuide />
-            <button
-              type="button"
-              autoFocus
-              onClick={() => dialogRef.current?.close()}
-              className="bg-ink h-11 rounded-xl text-sm font-semibold text-white transition-transform active:scale-95"
-            >
+            <Button autoFocus onClick={onClose} className="h-11">
               확인
-            </button>
+            </Button>
           </>
         ) : (
           <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -106,7 +88,7 @@ const ConnectDeploymentDialog = ({
               <label htmlFor="deployment-url" className="text-text text-sm font-semibold">
                 배포 사이트 주소
               </label>
-              <input
+              <Input
                 id="deployment-url"
                 type="url"
                 inputMode="url"
@@ -122,7 +104,6 @@ const ConnectDeploymentDialog = ({
                 aria-invalid={errorMessage ? true : undefined}
                 aria-describedby="deployment-url-hint"
                 disabled={putDeployment.isPending}
-                className="border-field text-ink placeholder:text-faint focus:border-ink aria-invalid:border-warn h-12 w-full rounded-xl border px-3.5 text-[15px] outline-none"
               />
               <p id="deployment-url-hint" className="text-muted text-xs leading-normal">
                 {result.ok && !isVercelAppUrl(value)
@@ -138,26 +119,18 @@ const ConnectDeploymentDialog = ({
 
             {isChange && <PinScriptGuide />}
 
-            <div className="flex gap-2 text-sm font-semibold">
-              <button
-                type="button"
-                onClick={() => dialogRef.current?.close()}
-                className="border-divider text-ink hover:bg-hover h-11 flex-1 rounded-xl border"
-              >
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={onClose} className="h-11 flex-1">
                 취소
-              </button>
-              <button
-                type="submit"
-                disabled={putDeployment.isPending}
-                className="bg-ink h-11 flex-1 rounded-xl text-white transition-transform active:scale-95 disabled:opacity-40"
-              >
+              </Button>
+              <Button type="submit" disabled={putDeployment.isPending} className="h-11 flex-1">
                 {putDeployment.isPending ? '연결하는 중…' : isChange ? '변경하기' : '연결하기'}
-              </button>
+              </Button>
             </div>
           </form>
         )}
       </div>
-    </dialog>
+    </Dialog>
   );
 };
 

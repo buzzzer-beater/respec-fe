@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 import {
   canTransition,
@@ -9,25 +9,46 @@ import {
 } from '@/entities/request';
 import { can, type ProjectRole } from '@/entities/user';
 import type { ApiError } from '@/shared/api';
-import { cn } from '@/shared/lib';
+import {
+  Button,
+  type ButtonSize,
+  Dialog,
+  DialogDescription,
+  DialogTitle,
+  Textarea,
+} from '@/shared/ui';
 
 import { useReopenChangeRequest, useResolveChangeRequest } from '../api/resolve-request';
-import ModalDialog from './ModalDialog';
 
 interface ResolveRequestButtonsProps {
   projectId: number;
   requestId: number;
   status: ChangeRequestStatus;
   role: ProjectRole | null | undefined;
-  size?: 'sm' | 'md';
+  size?: ButtonSize;
 }
 
 type DialogKind = 'resolve' | 'reopen';
 
-const buttonSize = {
-  sm: 'h-7 rounded-lg px-2.5 text-xs',
-  md: 'h-10 rounded-xl px-4 text-sm',
-};
+interface ConfirmDialogProps {
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}
+
+/** 열린 채로 마운트되는 확인 모달. Esc와 바깥 클릭으로 닫힙니다. */
+const ConfirmDialog = ({ title, description, onClose, children }: ConfirmDialogProps) => (
+  <Dialog onClose={onClose} className="w-[400px]">
+    <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-1.5">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </div>
+      {children}
+    </div>
+  </Dialog>
+);
 
 /** 고객용 Resolve/재수정 요청 버튼. 검수 대기일 때만 보여 줍니다. */
 const ResolveRequestButtons = ({
@@ -83,28 +104,19 @@ const ResolveRequestButtons = ({
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
       {canReopen && (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size={size}
           onClick={() => openDialog('reopen')}
-          className={cn(
-            'border-divider text-ink hover:bg-hover border bg-white font-semibold',
-            buttonSize[size],
-          )}
+          className="bg-white"
         >
           재수정 요청
-        </button>
+        </Button>
       )}
       {canResolve && (
-        <button
-          type="button"
-          onClick={() => openDialog('resolve')}
-          className={cn(
-            'bg-ink font-semibold text-white transition-transform active:scale-95',
-            buttonSize[size],
-          )}
-        >
+        <Button size={size} onClick={() => openDialog('resolve')}>
           해결 완료
-        </button>
+        </Button>
       )}
       {notice && (
         <p role="alert" className="text-warn w-full text-right text-xs font-semibold">
@@ -113,7 +125,7 @@ const ResolveRequestButtons = ({
       )}
 
       {dialog === 'resolve' && (
-        <ModalDialog
+        <ConfirmDialog
           title="이 요청을 해결됨으로 바꿀까요?"
           description="해결된 요청은 기본 화면에서 숨겨지지만 지워지지 않아요. 해결된 핀에는 더 이상 댓글을 남길 수 없어요."
           onClose={() => setDialog(null)}
@@ -123,35 +135,30 @@ const ResolveRequestButtons = ({
               {getTransitionErrorMessage(dialogError)}
             </p>
           )}
-          <div className="flex gap-2 text-sm font-semibold">
-            <button
-              type="button"
-              onClick={() => setDialog(null)}
-              className="border-divider text-ink hover:bg-hover h-10 flex-1 rounded-xl border"
-            >
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setDialog(null)} className="flex-1">
               취소
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               autoFocus
               disabled={resolve.isPending}
               onClick={handleResolve}
-              className="bg-ink h-10 flex-1 rounded-xl text-white transition-transform active:scale-95 disabled:opacity-40"
+              className="flex-1"
             >
               {resolve.isPending ? '처리 중…' : '해결 완료'}
-            </button>
+            </Button>
           </div>
-        </ModalDialog>
+        </ConfirmDialog>
       )}
 
       {dialog === 'reopen' && (
-        <ModalDialog
+        <ConfirmDialog
           title="다시 고쳐 달라고 요청할까요?"
           description="어떤 점이 아직 아쉬운지 적어 주세요. 개발자에게 알림이 가요."
           onClose={() => setDialog(null)}
         >
           <form onSubmit={handleReopen} className="flex flex-col gap-3">
-            <textarea
+            <Textarea
               autoFocus
               rows={4}
               value={reason}
@@ -160,31 +167,27 @@ const ResolveRequestButtons = ({
               aria-label="재수정 사유"
               required
               disabled={reopen.isPending}
-              className="border-field text-ink placeholder:text-faint focus:border-ink max-h-60 w-full resize-none rounded-xl border px-3.5 py-3 text-[15px] leading-normal outline-none"
+              className="max-h-60"
             />
             {dialogError && (
               <p role="alert" className="text-warn text-xs font-semibold">
                 {getTransitionErrorMessage(dialogError)}
               </p>
             )}
-            <div className="flex gap-2 text-sm font-semibold">
-              <button
-                type="button"
-                onClick={() => setDialog(null)}
-                className="border-divider text-ink hover:bg-hover h-10 flex-1 rounded-xl border"
-              >
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setDialog(null)} className="flex-1">
                 취소
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={!trimmedReason || reopen.isPending}
-                className="bg-ink h-10 flex-1 rounded-xl text-white transition-transform active:scale-95 disabled:opacity-40"
+                className="flex-1"
               >
                 {reopen.isPending ? '보내는 중…' : '재수정 요청'}
-              </button>
+              </Button>
             </div>
           </form>
-        </ModalDialog>
+        </ConfirmDialog>
       )}
     </div>
   );

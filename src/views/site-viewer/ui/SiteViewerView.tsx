@@ -311,9 +311,13 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     showDeployed || showDraft
       ? () => setReload((prev) => ({ key: prev.key + 1, path: showDeployed ? currentPath : null }))
       : undefined;
-  // 배포본의 "마지막 배포 · N일 전"은 백엔드 `deployment_updated_at`(respec-be#35)이 생기면 붙입니다.
+  // 미리보기 아래 시각. 배포본은 RE:SPEC에 주소를 연결한 시각이라 이전 프로젝트는 없을 수 있습니다.
   const footnote =
-    showDraft && draft ? `초안 생성 · ${formatRelativeTime(draft.updated_at)}` : undefined;
+    showDraft && draft
+      ? `초안 생성 · ${formatRelativeTime(draft.updated_at)}`
+      : showDeployed && project?.deployment_updated_at
+        ? `마지막 배포 · ${formatRelativeTime(project.deployment_updated_at)}`
+        : undefined;
 
   const startRelocate = (pinId: number) => {
     setDraftPin(null);

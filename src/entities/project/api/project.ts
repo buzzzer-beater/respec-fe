@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { get, post } from '@/shared/api';
+import { get, patch, post } from '@/shared/api';
 
 import type { Project, ProjectMember } from '../model/project';
 
@@ -24,6 +24,10 @@ export interface ProjectCreateReqType {
 
 export const postProject = (body: ProjectCreateReqType) => post<Project>('/projects', body);
 
+/** 고객만 바꿀 수 있습니다. 응답은 프로젝트 조회와 같습니다. */
+export const patchProject = (projectId: number, body: ProjectCreateReqType) =>
+  patch<Project>(`/projects/${projectId}`, body);
+
 export const useGetProjects = () =>
   useQuery({ queryKey: projectQueryKeys.getProjects(), queryFn: getProjects });
 
@@ -38,6 +42,15 @@ export const useGetProjectMembers = (projectId: number) =>
     queryKey: projectQueryKeys.getProjectMembers(projectId),
     queryFn: () => getProjectMembers(projectId),
   });
+
+/** 이름을 바꾸면 상단 바·목록이 새 이름을 쓰도록 프로젝트 쿼리를 모두 다시 받습니다. */
+export const usePatchProject = (projectId: number) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProjectCreateReqType) => patchProject(projectId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: projectQueryKeys.all() }),
+  });
+};
 
 export const usePostProject = () => {
   const queryClient = useQueryClient();

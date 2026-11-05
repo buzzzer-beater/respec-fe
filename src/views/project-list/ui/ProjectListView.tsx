@@ -4,17 +4,13 @@ import { useState } from 'react';
 
 import Link from 'next/link';
 
-import { useQueries } from '@tanstack/react-query';
-
 import { useGetProjects } from '@/entities/project';
-import { changeRequestQueryKeys, getChangeRequests, isMyTurn } from '@/entities/request';
 import { buttonClassName, Icon } from '@/shared/ui';
 
 import ProjectCard from './ProjectCard';
 
 /**
  * demo-design `projects.html`. 카드를 누르면 작업 화면, 마지막 칸은 새 프로젝트(초안 생성)입니다.
- * 백엔드에 `my_turn_count`가 없어서 프로젝트마다 요청 목록을 받아 내 차례를 셉니다(카드와 같은 캐시를 씁니다).
  */
 const ProjectListView = () => {
   const projects = useGetProjects();
@@ -23,20 +19,7 @@ const ProjectListView = () => {
   const query = search.trim().toLowerCase();
   const list = query ? all.filter((project) => project.name.toLowerCase().includes(query)) : all;
 
-  const requestQueries = useQueries({
-    queries: all.map((project) => ({
-      queryKey: changeRequestQueryKeys.getChangeRequests(project.id),
-      queryFn: () => getChangeRequests(project.id),
-    })),
-  });
-  const myTurnByProject = new Map(
-    all.map((project, index) => [
-      project.id,
-      requestQueries[index]?.data?.filter((request) => isMyTurn(request.status, project.my_role))
-        .length ?? 0,
-    ]),
-  );
-  const totalMyTurn = [...myTurnByProject.values()].reduce((sum, count) => sum + count, 0);
+  const totalMyTurn = all.reduce((sum, project) => sum + project.my_turn_count, 0);
 
   return (
     <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-white">
@@ -82,11 +65,7 @@ const ProjectListView = () => {
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-5">
             {list.map((project, index) => (
               <li key={project.id} className="flex">
-                <ProjectCard
-                  project={project}
-                  index={index}
-                  myTurnCount={myTurnByProject.get(project.id) ?? 0}
-                />
+                <ProjectCard project={project} index={index} />
               </li>
             ))}
             {list.length === 0 ? (

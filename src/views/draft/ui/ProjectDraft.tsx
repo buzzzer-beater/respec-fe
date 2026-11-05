@@ -10,6 +10,7 @@ import {
   type SiteType,
   useGetProject,
   useGetProjectDraft,
+  usePatchProject,
 } from '@/entities/project';
 import { can } from '@/entities/user';
 import { DownloadDraftButton } from '@/features/download-draft';
@@ -26,13 +27,15 @@ interface ProjectDraftProps {
 }
 
 /**
- * 이미 있는 프로젝트에 초안을 생성합니다. 프로젝트 이름은 바꿀 수 없습니다(백엔드에 이름 수정이 없습니다).
+ * 이미 있는 프로젝트에 초안을 생성합니다. 이름을 고쳤으면 초안을 만들기 전에 먼저 저장합니다.
  * 초안이 이미 있으면 덮어쓰기 전에 한 번 확인합니다. 이전 초안은 되돌릴 수 없어서입니다.
  */
 const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
   const project = useGetProject(projectId);
   const draft = useGetProjectDraft(projectId);
   const putDraft = usePutProjectDraft();
+  const rename = usePatchProject(projectId);
+  const [editedName, setEditedName] = useState<string | undefined>();
   // 고르기 전에는 기존 초안의 유형과 설명을 기본값으로 씁니다.
   const [pickedSiteType, setPickedSiteType] = useState<SiteType | undefined>();
   const [editedPrompt, setEditedPrompt] = useState<string | undefined>();
@@ -43,9 +46,14 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
   const siteType = pickedSiteType ?? (isSiteType(draftSiteType) ? draftSiteType : 'shop');
   const prompt = editedPrompt ?? draft.data?.prompt ?? '';
 
-  const flow = useDraftFlow(() =>
-    putDraft.mutateAsync({ projectId, prompt: prompt.trim(), site_type: siteType }),
-  );
+  const name = editedName ?? project.data?.name ?? '';
+
+  const flow = useDraftFlow(async () => {
+    const nextName = name.trim();
+    if (project.data && nextName !== project.data.name)
+      await rename.mutateAsync({ name: nextName });
+    await putDraft.mutateAsync({ projectId, prompt: prompt.trim(), site_type: siteType });
+  });
 
   if (project.isPending) return <StatusMessage>프로젝트를 불러오고 있어요.</StatusMessage>;
   if (project.isError) {
@@ -95,7 +103,8 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
     <div className="min-h-0 flex-1 overflow-y-auto">
       {flow.step === 'input' && (
         <DraftComposer
-          projectName={project.data.name}
+          projectName={name}
+          onProjectNameChange={setEditedName}
           prompt={prompt}
           onPromptChange={setEditedPrompt}
           siteType={siteType}

@@ -26,12 +26,17 @@
   --color-ink-550: #6e6e7b;
   --color-ink-450: #858592;
   --color-ink-500: #5f5f5f;
+  --color-ink-400: #7c7c7c;
   --color-ink-300: #a9a9a9;
+  --color-ink-warm: #6e6e67;
 
   --color-line: #e4e4e4;
   --color-line-subtle: #eaeaea;
   --color-line-strong: #dddddd;
   --color-line-frame: #e5e5e5;
+
+  --color-chip-text: #3a3a33;
+  --color-chip-line: #e6e6e0;
 
   --radius-xs: 4px;
   --radius-xsmall: 8px;
@@ -41,11 +46,4 @@
   --shadow-elevation-1: 0px 3px 10px 0px rgba(0, 0, 0, 0.02);
   --shadow-elevation-2: 0px 4px 12px 0px rgba(0, 0, 0, 0.04);
   --shadow-segment: 0px 1px 2px 0px rgba(16, 16, 33, 0.122);
-}
-
-@theme {
-  --color-ink-400: #7c7c7c;
-  --color-ink-warm: #6e6e67;
-  --color-chip-text: #3a3a33;
-  --color-chip-line: #e6e6e0;
 }

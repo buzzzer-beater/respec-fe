@@ -40,6 +40,7 @@ API_BASE_URL=http://localhost:8080 pnpm dev
 pnpm peers check
 pnpm lint
 pnpm format:check
+pnpm test
 API_BASE_URL=http://localhost:8080 pnpm check-types
 API_BASE_URL=http://localhost:8080 pnpm build
 ```

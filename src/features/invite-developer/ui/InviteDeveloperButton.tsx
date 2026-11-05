@@ -86,7 +86,7 @@ const InviteDeveloperButton = ({ projectId }: InviteDeveloperButtonProps) => {
                   value={link}
                   aria-label="초대 링크"
                   onFocus={(event) => event.currentTarget.select()}
-                  className="border-field text-ink h-10 min-w-0 flex-1 rounded-xl border px-3 text-sm outline-none"
+                  className="border-field text-ink focus:border-ink h-10 min-w-0 flex-1 rounded-xl border px-3 text-sm outline-none"
                 />
                 <CopyButton
                   // 새 링크를 발급하면 "복사됨" 표시를 지웁니다.

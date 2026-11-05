@@ -31,8 +31,9 @@ body {
   word-break: keep-all;
 }
 
+/* 키보드 포커스 테두리. 메인 컬러로 두고, 스크롤 영역 가장자리에서 잘리는 요소는 `-outline-offset-2`로 안쪽에 그립니다. */
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
 

@@ -102,7 +102,7 @@ const NotificationBell = () => {
                       type="button"
                       onClick={() => handleSelect(notification)}
                       className={cn(
-                        'hover:bg-hover flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors',
+                        'hover:bg-hover flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors focus-visible:-outline-offset-2',
                         isRead && 'opacity-50',
                       )}
                     >

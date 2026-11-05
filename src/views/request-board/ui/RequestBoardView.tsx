@@ -52,7 +52,7 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
         <p className="text-muted text-sm">
           전체 <strong className="text-ink">{requests.data?.length ?? 0}</strong>건
         </p>
-        <label className="border-divider ml-auto flex h-10 w-[260px] items-center rounded-[10px] border px-3">
+        <label className="border-divider focus-within:border-ink ml-auto flex h-10 w-[260px] items-center rounded-[10px] border px-3 transition-colors">
           <span className="sr-only">요청 검색</span>
           <input
             value={search}
@@ -91,7 +91,7 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
                       key={request.id}
                       type="button"
                       onClick={() => setSelectedId(request.id)}
-                      className="block rounded-xl bg-white p-[18px] text-left shadow-sm transition-shadow hover:shadow-md"
+                      className="block rounded-xl bg-white p-[18px] text-left shadow-sm transition-shadow hover:shadow-md focus-visible:-outline-offset-2"
                     >
                       <p className="text-muted text-xs">
                         {request.pin ? request.pin.page_path : '위치 없음'}

@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { ProjectDraft } from '@/entities/project';
+import { type ProjectDraft, projectQueryKeys } from '@/entities/project';
 import { put } from '@/shared/api';
 
 export interface DraftCreateReqType {
@@ -15,8 +15,13 @@ const DRAFT_TIMEOUT_MS = 130_000;
 export const putProjectDraft = (projectId: number, body: DraftCreateReqType) =>
   put<ProjectDraft>(`/projects/${projectId}/draft`, body, { timeout: DRAFT_TIMEOUT_MS });
 
-export const usePutProjectDraft = () =>
-  useMutation({
+export const usePutProjectDraft = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
     mutationFn: ({ projectId, ...body }: DraftCreateReqType & { projectId: number }) =>
       putProjectDraft(projectId, body),
+    // 새 초안은 미리보기 URL이 바뀌므로 응답으로 바로 덮어씁니다.
+    onSuccess: (draft, { projectId }) =>
+      queryClient.setQueryData(projectQueryKeys.getProjectDraft(projectId), draft),
   });
+};

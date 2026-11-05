@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 
-import Link from 'next/link';
-
 import { useGetMessages } from '@/entities/message';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import {
@@ -12,6 +10,7 @@ import {
   useGetChangeRequests,
 } from '@/entities/request';
 import { RequestReviewButton } from '@/features/request-review';
+import { RequestDetailDrawer } from '@/widgets/request-detail';
 
 interface RequestBoardViewProps {
   projectId: number;
@@ -19,6 +18,7 @@ interface RequestBoardViewProps {
 
 const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const requests = useGetChangeRequests(projectId, 'all');
   const pins = useGetPins(projectId);
   const messages = useGetMessages(projectId);
@@ -86,37 +86,34 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
                   {column.length === 0 && (
                     <p className="text-faint py-6 text-center text-sm">요청이 없습니다.</p>
                   )}
-                  {column.map((request) => {
-                    const card = (
-                      <>
-                        <p className="text-muted text-xs">
-                          {request.pin ? request.pin.page_path : '위치 없음'}
-                        </p>
-                        <p className="mt-2.5 line-clamp-3 text-[15px] font-semibold">
-                          {request.title}
-                        </p>
-                        <p className="text-muted mt-3 text-xs">요청 #{request.id}</p>
-                      </>
-                    );
-                    return request.pin && request.status !== 'resolved' ? (
-                      <Link
-                        key={request.id}
-                        href={`/projects/${projectId}/viewer#pin-${request.pin.id}`}
-                        className="block rounded-xl bg-white p-[18px] shadow-sm transition-shadow hover:shadow-md"
-                      >
-                        {card}
-                      </Link>
-                    ) : (
-                      <article key={request.id} className="rounded-xl bg-white p-[18px] shadow-sm">
-                        {card}
-                      </article>
-                    );
-                  })}
+                  {column.map((request) => (
+                    <button
+                      key={request.id}
+                      type="button"
+                      onClick={() => setSelectedId(request.id)}
+                      className="block rounded-xl bg-white p-[18px] text-left shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <p className="text-muted text-xs">
+                        {request.pin ? request.pin.page_path : '위치 없음'}
+                      </p>
+                      <p className="mt-2.5 line-clamp-3 text-[15px] font-semibold">
+                        {request.title}
+                      </p>
+                      <p className="text-muted mt-3 text-xs">요청 #{request.id}</p>
+                    </button>
+                  ))}
                 </div>
               </section>
             );
           })}
         </div>
+      )}
+      {selectedId !== null && (
+        <RequestDetailDrawer
+          projectId={projectId}
+          requestId={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
       )}
     </main>
   );

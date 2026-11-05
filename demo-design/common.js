@@ -137,7 +137,7 @@ function saveData() {
 }
 function resetDemo() {
   try {
-    ['respec-requests', 'respec-messages', 'respec-role', 'respec-notices', 'respec-deploy', 'respec-invite-studio'].forEach((k) => sessionStorage.removeItem(k));
+    ['respec-requests', 'respec-messages', 'respec-role', 'respec-notices', 'respec-invite-studio'].forEach((k) => sessionStorage.removeItem(k));
   } catch {
     // 무시
   }

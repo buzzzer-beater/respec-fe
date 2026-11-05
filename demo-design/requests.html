@@ -238,7 +238,6 @@
         <nav class="views" aria-label="화면">
           <a href="workspace.html" id="toWorkspace">작업 화면</a>
           <a href="requests.html" aria-current="page">요청 관리 <span class="badge" id="navCount" hidden>0</span></a>
-          <a href="release.html" onclick="this.href = linkTo('release.html')">배포와 검수</a>
         </nav>
 
         <div class="topbar-right">
@@ -320,11 +319,12 @@
             class: 'btn btn-dark btn-sm',
             onclick: (e) => {
               e.stopPropagation();
-              if (next[0] === 'review') {
-                location.href = linkTo('release.html', { pin: req.id });
-                return;
-              }
               req.status = next[0];
+              if (req.status === 'review') {
+                req.replies ||= [];
+                req.replies.push({ event: true, role: 'developer', time: '방금 전', text: '수정을 마치고 검수를 요청했어요' });
+                noticeStatus(req, 'review');
+              }
               toast(`핀 ${req.no} · ${STATUS[STATUS_INDEX[next[0]]].label}`);
               render();
             },

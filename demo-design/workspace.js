@@ -3,7 +3,7 @@
 const params = new URLSearchParams(location.search);
 const SITES = {
   A: params.get('a') || 'http://localhost:5174',
-  B: params.get('b') || loadSaved('respec-deploy', null)?.url || 'http://localhost:5173',
+  B: params.get('b') || 'http://localhost:5173',
 };
 
 // 작업판 위 사이트 프레임 크기
@@ -479,13 +479,7 @@ function renderReply(req) {
 
 // 역할과 단계에 맞는 결정 버튼
 function renderActions(req) {
-  const go = (status, label) => h('button', { class: 'btn btn-dark', onclick: (e) => {
-    if (status === 'review') {
-      location.href = linkTo('release.html', { pin: req.id });
-      return;
-    }
-    changeStatus(req, status, e);
-  } }, label);
+  const go = (status, label) => h('button', { class: 'btn btn-dark', onclick: (e) => changeStatus(req, status, e) }, label);
   if (req.status === 'done') return null;
   if (currentRole === 'developer') {
     const next = DEV_NEXT[req.status];

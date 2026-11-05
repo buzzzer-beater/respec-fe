@@ -139,6 +139,8 @@ export const toPinThreads = (
   return getThreadPins(pins, showResolved).map((pin) => ({
     id: String(pin.id),
     pinNumber: pinNumber.get(pin.id) ?? 0,
+    pagePath: pin.page_path,
+    preview: pin.request_preview,
     status: pin.request_status,
     changeRequestId: pin.change_request_id,
     aiSummary:

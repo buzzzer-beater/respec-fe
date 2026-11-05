@@ -250,15 +250,21 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           pinThreads={toPinThreads(pins, commentsByPin, members, me, requests, showResolved)}
           onSendMessage={(content) => postMessage.mutate({ content })}
           onSelectPin={handleSelectPin}
+          onClosePin={() => setSelectedPin(null)}
+          currentPath={showDeployed ? currentPath : showDraft ? '/' : null}
+          otherPagesHref={`/projects/${projectId}/requests`}
           renderPinThreadAction={({ id }) => (
             <>
+              {/* 재배포 후 핀 자리를 못 찾은 핀만 위치를 다시 지정합니다(같은 사이트 안에서). */}
               {pins.find((pin) => pin.id === Number(id))?.location_status === 'needs_check' && (
-                <PinLocationBadge />
+                <>
+                  <PinLocationBadge />
+                  <RelocatePinButton
+                    isActive={relocatePin.pinId === Number(id)}
+                    onClick={() => startRelocate(Number(id))}
+                  />
+                </>
               )}
-              <RelocatePinButton
-                isActive={relocatePin.pinId === Number(id)}
-                onClick={() => startRelocate(Number(id))}
-              />
               <SharePinButton projectId={projectId} pinId={Number(id)} />
             </>
           )}

@@ -4,6 +4,7 @@ import type { ProjectRole } from './role';
 export const PROJECT_ACTIONS = [
   'generate-draft',
   'invite-developer',
+  'create-pin',
   'resolve-request',
   'reopen-request',
   'create-request-from-message',
@@ -19,6 +20,8 @@ export type ProjectAction = (typeof PROJECT_ACTIONS)[number];
 const ACTION_ROLE: Record<ProjectAction, ProjectRole> = {
   'generate-draft': 'client',
   'invite-developer': 'client',
+  // 수정 요청은 고객만 만들 수 있어서, 개발자 핀은 요청 없이 남아 아무 데도 보이지 않습니다.
+  'create-pin': 'client',
   'resolve-request': 'client',
   'reopen-request': 'client',
   'create-request-from-message': 'client',

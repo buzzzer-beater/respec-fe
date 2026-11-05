@@ -50,7 +50,12 @@ const ReviewItemCard = ({
     <li className="border-divider rounded-2xl border bg-white p-5">
       <div className="flex items-center gap-2">
         <span className="text-muted text-xs">요청 #{item.change_request_id}</span>
-        {request && <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[request.status]} />}
+        {request && (
+          <RequestStatusBadge
+            label={CHANGE_REQUEST_STATUS_LABEL[request.status]}
+            status={request.status}
+          />
+        )}
       </div>
 
       <div className="mt-3">

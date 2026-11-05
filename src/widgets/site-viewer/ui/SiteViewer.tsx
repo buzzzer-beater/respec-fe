@@ -7,6 +7,7 @@ import type { Device } from '@/features/switch-device';
 import { cn } from '@/shared/lib';
 
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
+import PinMarkerLayer from './PinMarkerLayer';
 import ViewerToolbar from './ViewerToolbar';
 
 const DEVICE_WIDTH: Record<Device, string> = {
@@ -36,6 +37,11 @@ interface SiteViewerProps {
   pinDisabledReason?: string | null;
   /** 지금 보고 있는 페이지 경로. 있으면 뷰어 위에 보여 줍니다. */
   pagePath?: string;
+  /** 있으면 핀 모드로 고정하고 기본 안내 대신 보여 줍니다(핀 위치 다시 지정 등). */
+  pinPrompt?: ReactNode;
+  /** 해결된 핀 보기. `onShowResolvedChange`를 주면 도구 막대에 "완료 보기" 토글을 둡니다. */
+  showResolved?: boolean;
+  onShowResolvedChange?: (value: boolean) => void;
 }
 
 const SiteViewer = ({
@@ -50,9 +56,12 @@ const SiteViewer = ({
   renderSite,
   pinDisabledReason,
   pagePath,
+  pinPrompt,
+  showResolved,
+  onShowResolvedChange,
 }: SiteViewerProps) => {
   const [selectedMode, setMode] = useState<ViewerMode>('pin');
-  const mode = pinDisabledReason ? 'browse' : selectedMode;
+  const mode = pinDisabledReason ? 'browse' : pinPrompt ? 'pin' : selectedMode;
   const ownsPinLayer = !renderSite;
   const [device, setDevice] = useState<Device>('desktop');
   const [isFull, setIsFull] = useState(false);
@@ -119,29 +128,13 @@ const SiteViewer = ({
           />
         )}
         {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
-        {(ownsPinLayer ? pins : []).map((pin) => {
-          const isSelected = pin.id === selectedPinId;
-          return (
-            <button
-              key={pin.id}
-              type="button"
-              aria-label={`${pin.number}번 핀`}
-              aria-pressed={isSelected}
-              onClick={() => onSelectPin?.(pin.id)}
-              className={cn(
-                'group absolute -translate-y-full hover:z-20',
-                isSelected ? 'z-20' : 'z-10',
-              )}
-              style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-            >
-              <NumberedPin
-                number={pin.number}
-                muted={pin.muted && !isSelected}
-                className={cn(isSelected && 'ring-brand/30 scale-110 ring-4')}
-              />
-            </button>
-          );
-        })}
+        {ownsPinLayer && (
+          <PinMarkerLayer
+            markers={pins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
+            selectedPinId={selectedPinId}
+            onSelectPin={onSelectPin}
+          />
+        )}
         {ownsPinLayer && draftPin && (
           <div
             className="absolute z-20 flex items-start gap-2"
@@ -176,7 +169,7 @@ const SiteViewer = ({
         </p>
       )}
 
-      {isPinMode && !draftPin && (
+      {isPinMode && !draftPin && !pinPrompt && (
         <p
           className={cn(
             'bg-ink pointer-events-none absolute left-1/2 z-30 w-max max-w-[calc(100%-24px)] -translate-x-1/2 rounded-[10px] px-3.5 py-2 text-center text-[13px] font-semibold text-white',
@@ -185,6 +178,11 @@ const SiteViewer = ({
         >
           사이트를 눌러 바꾸고 싶은 곳에 핀을 남기세요
         </p>
+      )}
+      {pinPrompt && (
+        <div className={cn('absolute left-1/2 z-30 -translate-x-1/2', isFull ? 'top-4' : 'top-12')}>
+          {pinPrompt}
+        </div>
       )}
 
       <div
@@ -203,6 +201,8 @@ const SiteViewer = ({
           onDeviceChange={setDevice}
           isFull={isFull}
           onToggleFull={() => setIsFull((value) => !value)}
+          showResolved={showResolved}
+          onShowResolvedChange={onShowResolvedChange}
         />
       </div>
     </section>

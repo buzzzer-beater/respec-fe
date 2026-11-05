@@ -17,9 +17,12 @@ interface ViewerToolbarProps {
   onDeviceChange: (device: Device) => void;
   isFull: boolean;
   onToggleFull: () => void;
+  /** 주면 해결된 핀을 보이고 숨기는 "완료 보기" 토글을 둡니다. */
+  showResolved?: boolean;
+  onShowResolvedChange?: (value: boolean) => void;
 }
 
-// 미리보기 아래 도구: 모드 · 화면 크기 · 전체 화면
+// 미리보기 아래 도구: 모드 · 완료 보기 · 화면 크기 · 전체 화면
 const ViewerToolbar = ({
   mode,
   onModeChange,
@@ -28,6 +31,8 @@ const ViewerToolbar = ({
   onDeviceChange,
   isFull,
   onToggleFull,
+  showResolved = false,
+  onShowResolvedChange,
 }: ViewerToolbarProps) => {
   return (
     <div className="flex items-center gap-1.5 rounded-[14px] bg-white p-[5px] shadow-[0_2px_12px_rgba(24,24,27,0.12)]">
@@ -56,6 +61,19 @@ const ViewerToolbar = ({
           );
         })}
       </div>
+      {onShowResolvedChange && (
+        <>
+          <span aria-hidden className="bg-divider h-[22px] w-px" />
+          <button
+            type="button"
+            onClick={() => onShowResolvedChange(!showResolved)}
+            aria-pressed={showResolved}
+            className="text-text hover:bg-hover aria-pressed:bg-brand-soft aria-pressed:text-brand h-10 rounded-[10px] px-3.5 text-sm font-semibold whitespace-nowrap"
+          >
+            완료 보기
+          </button>
+        </>
+      )}
       {/* 좁은 화면에서는 화면이 이미 작아서 크기 선택을 숨깁니다. */}
       <div className="hidden items-center gap-1.5 lg:flex">
         <span aria-hidden className="bg-divider h-[22px] w-px" />

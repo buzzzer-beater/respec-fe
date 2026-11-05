@@ -33,7 +33,7 @@ const SharedPinCard = ({ pin, onOpen }: SharedPinCardProps) => {
         <span className="text-sm font-extrabold">{pinNumber}번 핀</span>
         {status && (
           <span className="ml-auto">
-            <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
+            <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} status={status} />
           </span>
         )}
       </span>

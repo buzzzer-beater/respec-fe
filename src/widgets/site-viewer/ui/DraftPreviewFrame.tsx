@@ -7,6 +7,7 @@ import type { ApiError } from '@/shared/api';
 import { createAnchor, findElementAtPoint, restoreAnchor } from '@/shared/lib/pin-engine';
 
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
+import PinMarkerLayer from './PinMarkerLayer';
 
 /** 초안은 `#앵커` 링크만 있는 한 페이지 HTML이라 핀을 모두 `/`에 둡니다. */
 export const DRAFT_PAGE_PATH = '/';
@@ -65,18 +66,25 @@ const handleLinkClick = (event: Event, iframe: HTMLIFrameElement, container: HTM
   container.scrollTo({ top: iframe.offsetTop + top, behavior: 'smooth' });
 };
 
-/** 마커를 그릴 문서 좌표(px). 요소가 숨겨져 있거나 위치를 모르면 `null`입니다. */
-const locatePin = (layout: FrameLayout, pin: ViewerPin) => {
-  if (!pin.anchor) {
-    return { x: (pin.x / 100) * layout.width, y: (pin.y / 100) * layout.height };
-  }
+/**
+ * 마커를 그릴 문서 좌표(px)와 복원 결과.
+ * `missing`이면 위치 확인 필요로 흐리게 그리고, `hidden`(모달, 탭 등)이면 그리지 않습니다.
+ */
+type PinLocation =
+  | { status: 'found' | 'missing'; x: number; y: number }
+  | { status: 'hidden'; x?: undefined; y?: undefined };
+
+const locatePin = (layout: FrameLayout, pin: ViewerPin): PinLocation => {
+  const saved = { x: (pin.x / 100) * layout.width, y: (pin.y / 100) * layout.height };
+  if (!pin.anchor) return { status: 'found', ...saved };
   const result = restoreAnchor(layout.doc, pin.anchor);
-  if (result.status === 'found') return { x: result.position.pageX, y: result.position.pageY };
-  // 요소를 못 찾으면 핀을 찍을 때 저장한 문서 좌표로 대신 그립니다.
-  if (result.status === 'missing' && result.fallback) {
-    return { x: result.fallback.pageX, y: result.fallback.pageY };
+  if (result.status === 'found') {
+    return { status: 'found', x: result.position.pageX, y: result.position.pageY };
   }
-  return null;
+  if (result.status === 'hidden') return { status: 'hidden' };
+  // 요소를 못 찾으면 핀을 찍을 때 저장한 문서 좌표(없으면 저장된 상대 좌표)로 대신 그립니다.
+  const { fallback } = result;
+  return { status: 'missing', ...(fallback ? { x: fallback.pageX, y: fallback.pageY } : saved) };
 };
 
 const toErrorMessage = (error: ApiError) =>
@@ -92,9 +100,15 @@ interface DraftPreviewFrameProps {
   pins: ViewerPin[];
   onPlacePin?: (position: PinPosition) => void;
   onSelectPin?: (pinId: string) => void;
+  /** 강조할 핀 */
+  selectedPinId?: string | null;
   /** 저장 전인 새 핀 위치(문서 기준 %)와, 그 옆에 띄울 입력창 */
   draftPin?: PinPosition | null;
   draftPinContent?: ReactNode;
+  /** 핀 요소가 초안에 없을 때(`needs_check` 보고용). 숨겨진 요소에는 부르지 않습니다. */
+  onPinMissing?: (pinId: string) => void;
+  /** 핀 요소를 찾았을 때(`located` 보고용) */
+  onPinFound?: (pinId: string) => void;
 }
 
 /**
@@ -109,8 +123,11 @@ const DraftPreviewFrame = ({
   pins,
   onPlacePin,
   onSelectPin,
+  selectedPinId,
   draftPin,
   draftPinContent,
+  onPinMissing,
+  onPinFound,
 }: DraftPreviewFrameProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -155,12 +172,38 @@ const DraftPreviewFrame = ({
     });
   };
 
-  const markers = layout
-    ? pins.flatMap((pin) => {
-        const position = locatePin(layout, pin);
-        return position ? [{ pin, ...position }] : [];
-      })
-    : [];
+  const located = layout ? pins.map((pin) => ({ pin, ...locatePin(layout, pin) })) : [];
+  const hiddenPins = located.flatMap(({ pin, status }) => (status === 'hidden' ? [pin] : []));
+  // 마커 레이어는 iframe과 같은 크기라서 문서 좌표(px)를 %로 바꿔 넘깁니다.
+  const markers =
+    layout?.width && layout.height
+      ? located.flatMap((item) =>
+          item.status === 'hidden'
+            ? []
+            : [
+                {
+                  pin: item.pin,
+                  x: (item.x / layout.width) * 100,
+                  y: (item.y / layout.height) * 100,
+                  needsCheck: item.status === 'missing',
+                },
+              ],
+        )
+      : [];
+
+  // 요소 기준으로 찾은 결과만 보고합니다. 보고 중복은 받는 쪽이 막습니다.
+  const reportKey = located
+    .flatMap(({ pin, status }) => (pin.anchor ? [`${pin.id}:${status}`] : []))
+    .join(',');
+  useEffect(() => {
+    // 초안이 바뀌어 iframe이 다시 로드되는 중이면 예전 문서 결과라 보고하지 않습니다.
+    if (!reportKey || layout?.doc !== iframeRef.current?.contentDocument) return;
+    for (const entry of reportKey.split(',')) {
+      const [pinId, status] = entry.split(':');
+      if (status === 'missing') onPinMissing?.(pinId);
+      if (status === 'found') onPinFound?.(pinId);
+    }
+  }, [reportKey, layout, onPinMissing, onPinFound]);
 
   const status = error
     ? toErrorMessage(error)
@@ -198,18 +241,11 @@ const DraftPreviewFrame = ({
               className="absolute inset-0 cursor-crosshair"
             />
           )}
-          {markers.map(({ pin, x, y }) => (
-            <button
-              key={pin.id}
-              type="button"
-              aria-label={`${pin.number}번 핀`}
-              onClick={() => onSelectPin?.(pin.id)}
-              className="group absolute z-10 -translate-y-full hover:z-20"
-              style={{ left: x, top: y }}
-            >
-              <NumberedPin number={pin.number} muted={pin.muted} />
-            </button>
-          ))}
+          <PinMarkerLayer
+            markers={markers}
+            selectedPinId={selectedPinId}
+            onSelectPin={onSelectPin}
+          />
           {draftPin && (
             <div
               className="absolute z-20 flex items-start gap-2"
@@ -222,6 +258,15 @@ const DraftPreviewFrame = ({
             </div>
           )}
         </div>
+      )}
+      {/* 숨겨진 요소(모달, 탭 등)의 핀은 보고하지 않고 안내만 합니다. 스크롤해도 아래에 붙어 있습니다. */}
+      {hiddenPins.length > 0 && (
+        <p
+          role="status"
+          className="text-muted sticky bottom-3 z-30 mr-3 ml-auto w-fit rounded-[10px] bg-white px-3 py-1.5 text-xs font-semibold shadow-[0_2px_12px_rgba(24,24,27,0.12)]"
+        >
+          {hiddenPins.map((pin) => pin.number).join(', ')}번 핀은 지금 화면에 없어요
+        </p>
       )}
     </div>
   );

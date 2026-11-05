@@ -87,7 +87,12 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
           <h2 id={titleId} className="text-lg font-extrabold">
             요청 #{requestId}
           </h2>
-          {request && <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[request.status]} />}
+          {request && (
+            <RequestStatusBadge
+              label={CHANGE_REQUEST_STATUS_LABEL[request.status]}
+              status={request.status}
+            />
+          )}
           <button
             type="button"
             onClick={onClose}

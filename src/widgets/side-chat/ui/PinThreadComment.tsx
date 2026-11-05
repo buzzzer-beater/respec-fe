@@ -30,10 +30,14 @@ const PinThreadComment = ({
             {'·   '}
           </span>
           <span className="whitespace-nowrap">{PROJECT_ROLE_LABEL[authorRole]}</span>
-          <span aria-hidden className="font-semibold whitespace-pre">
-            {'·   '}
-          </span>
-          <span className="whitespace-nowrap">{timeLabel}</span>
+          {timeLabel && (
+            <>
+              <span aria-hidden className="font-semibold whitespace-pre">
+                {'·   '}
+              </span>
+              <span className="whitespace-nowrap">{timeLabel}</span>
+            </>
+          )}
         </p>
         <div
           className={cn(

@@ -1,26 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-
-import Image from 'next/image';
+import { useEffect, useState } from 'react';
 
 import type { Message } from '@/entities/message';
 import { MessageInput } from '@/features/send-message';
 
-import chatIcon from '../assets/chat.svg';
-import chatActiveIcon from '../assets/chat-active.svg';
-import pinIcon from '../assets/pin.svg';
-import pinActiveIcon from '../assets/pin-active.svg';
 import type { PinThread } from '../model/types';
 import ChatMessageList from './ChatMessageList';
 import PinThreadCard from './PinThreadCard';
 
-type Tab = 'chat' | 'pins';
-
-const TABS = [
-  { value: 'chat', label: '채팅', icon: chatIcon, activeIcon: chatActiveIcon },
-  { value: 'pins', label: '핀 요청', icon: pinIcon, activeIcon: pinActiveIcon },
-] as const;
+type Tab = 'pins' | 'chat';
 
 interface SideChatPanelProps {
   messages: Message[];
@@ -29,45 +18,51 @@ interface SideChatPanelProps {
 }
 
 const SideChatPanel = ({ messages, pinThreads, onSendMessage }: SideChatPanelProps) => {
-  const [tab, setTab] = useState<Tab>('chat');
+  const [tab, setTab] = useState<Tab>('pins');
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id.startsWith('pin-')) {
+      document.getElementById(id)?.scrollIntoView({ block: 'center' });
+    }
+  }, [pinThreads]);
+  const tabs = [
+    { value: 'pins', label: '요청', count: pinThreads.length },
+    { value: 'chat', label: '대화', count: messages.length },
+  ] as const;
 
   return (
-    <aside className="flex h-full w-[400px] shrink-0 flex-col items-center gap-5 overflow-clip pb-9">
-      <header className="border-line-strong flex h-16 w-full shrink-0 items-center justify-between border-b px-7 py-4">
-        <h2 className="text-ink-800 text-lg leading-[normal] font-medium">채널</h2>
-        <div role="tablist" aria-label="채널 보기" className="flex items-center gap-3">
-          {TABS.map(({ value, label, icon, activeIcon }) => {
-            const isSelected = tab === value;
+    <aside className="border-divider flex h-full w-[420px] shrink-0 flex-col border-l bg-white">
+      <div role="tablist" aria-label="패널 보기" className="flex gap-6 px-9 pt-8 pb-5">
+        {tabs.map(({ value, label, count }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+            className="text-faint hover:text-text aria-selected:text-ink text-xl font-extrabold transition-colors"
+          >
+            {label}
+            <span className="ml-1.5 text-sm font-semibold">{count}</span>
+          </button>
+        ))}
+      </div>
 
-            return (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                aria-label={label}
-                onClick={() => setTab(value)}
-              >
-                <Image
-                  src={isSelected ? activeIcon : icon}
-                  alt=""
-                  width={28}
-                  height={28}
-                  unoptimized
-                />
-              </button>
-            );
-          })}
-        </div>
-      </header>
-
-      <div role="tabpanel" className="min-h-0 w-full flex-1 overflow-y-auto">
+      <div
+        role="tabpanel"
+        className="border-divider min-h-0 w-full flex-1 overflow-y-auto border-t"
+      >
         {tab === 'chat' ? (
           <ChatMessageList messages={messages} />
+        ) : pinThreads.length === 0 ? (
+          <p className="text-muted px-9 py-7 text-sm leading-relaxed">
+            남아 있는 요청이 없어요. 핀 모드에서 사이트를 눌러 요청을 남겨 보세요.
+          </p>
         ) : (
-          <ul className="flex w-full flex-col gap-7 px-7">
+          // 요청 사이를 회색 띠로 나눕니다.
+          <ul className="bg-stage flex min-h-full flex-col gap-2">
             {pinThreads.map(({ id, ...thread }) => (
-              <li key={id}>
+              <li key={id} id={`pin-${id}`}>
                 <PinThreadCard {...thread} />
               </li>
             ))}
@@ -75,7 +70,7 @@ const SideChatPanel = ({ messages, pinThreads, onSendMessage }: SideChatPanelPro
         )}
       </div>
 
-      <div className="w-full shrink-0 px-6">
+      <div className="border-divider shrink-0 border-t px-9 pt-5 pb-8">
         <MessageInput onSend={onSendMessage} />
       </div>
     </aside>

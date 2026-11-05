@@ -5,7 +5,6 @@ import { type FormEvent, type KeyboardEvent, useState } from 'react';
 import Image from 'next/image';
 
 import plusIcon from '../assets/plus.svg';
-import submitArrowIcon from '../assets/submit-arrow.svg';
 
 const EXAMPLES = ['브랜드 소개 사이트', '이커머스 랜딩', 'SaaS 제품 소개', '포트폴리오'];
 
@@ -37,10 +36,10 @@ const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) =
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-6">
+    <div className="flex w-full flex-col items-center gap-5">
       <form
         onSubmit={handleSubmit}
-        className="rounded-small shadow-elevation-2 flex w-full flex-col gap-7 overflow-clip bg-white px-7 py-5"
+        className="border-field focus-within:border-ink flex w-full flex-col gap-6 rounded-2xl border bg-white px-6 pt-5 pb-4 transition-colors"
       >
         <label htmlFor="draft-prompt" className="sr-only">
           만들고 싶은 사이트 설명
@@ -53,7 +52,7 @@ const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) =
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder="Ex. 노트핏, 팀 회의록 SaaS를 소개하는 깔끔한 랜딩 페이지"
-          className="text-ink-900 placeholder:text-ink-300 field-sizing-content max-h-60 w-full resize-none leading-[normal] font-medium outline-none"
+          className="text-ink placeholder:text-faint field-sizing-content max-h-60 min-h-12 w-full resize-none text-base leading-normal outline-none"
         />
         <div className="flex w-full items-center justify-between">
           <button type="button" aria-label="파일 첨부" className="shrink-0">
@@ -63,23 +62,31 @@ const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) =
             type="submit"
             aria-label="초안 만들기"
             disabled={!trimmed || disabled}
-            className="flex size-8 shrink-0 items-center justify-center"
+            className="bg-ink disabled:bg-divider grid size-9 shrink-0 place-items-center rounded-[10px] text-white transition-transform active:scale-90"
           >
-            <Image src={submitArrowIcon} alt="" unoptimized className="-scale-y-100" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M12 19V5M5 12l7-7 7 7"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
       </form>
 
-      <div className="flex flex-col items-center gap-6">
-        <p className="text-ink-warm text-[12.5px] leading-[normal]">이렇게 시작해 보세요</p>
-        <ul className="flex flex-wrap justify-center gap-[15px]">
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-muted text-[13px]">이렇게 시작해 보세요</p>
+        <ul className="flex flex-wrap justify-center gap-1.5">
           {EXAMPLES.map((example) => (
             <li key={example}>
               <button
                 type="button"
                 onClick={() => setPrompt(example)}
                 disabled={disabled}
-                className="border-chip-line text-chip-text rounded-full border-[0.55px] bg-white px-2 py-1.5 text-sm leading-[normal] whitespace-nowrap"
+                className="border-field text-text hover:border-ink h-[30px] rounded-full border bg-white px-3 text-[13px] whitespace-nowrap transition-colors"
               >
                 {example}
               </button>

@@ -1,40 +1,35 @@
-import Image, { type StaticImageData } from 'next/image';
-
+import { type Device, DeviceToggle } from '@/features/switch-device';
 import { cn } from '@/shared/lib';
 
-import commentIcon from '../assets/comment.svg';
-import cursorIcon from '../assets/cursor.svg';
-import minusIcon from '../assets/minus.svg';
-import plusIcon from '../assets/plus.svg';
-import separator from '../assets/separator.svg';
 import type { ViewerMode } from '../model/types';
 
-const MODES: { value: ViewerMode; label: string; icon: StaticImageData }[] = [
-  { value: 'browse', label: '체험 모드', icon: cursorIcon },
-  { value: 'pin', label: '핀 모드', icon: commentIcon },
+const MODES: { value: ViewerMode; label: string }[] = [
+  { value: 'browse', label: '체험' },
+  { value: 'pin', label: '핀 남기기' },
 ];
 
 interface ViewerToolbarProps {
   mode: ViewerMode;
   onModeChange: (mode: ViewerMode) => void;
-  zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onFit: () => void;
+  device: Device;
+  onDeviceChange: (device: Device) => void;
+  isFull: boolean;
+  onToggleFull: () => void;
 }
 
+// 미리보기 아래 도구: 모드 · 화면 크기 · 전체 화면
 const ViewerToolbar = ({
   mode,
   onModeChange,
-  zoom,
-  onZoomIn,
-  onZoomOut,
-  onFit,
+  device,
+  onDeviceChange,
+  isFull,
+  onToggleFull,
 }: ViewerToolbarProps) => {
   return (
-    <div className="shadow-elevation-1 flex items-center gap-4 overflow-clip rounded-full bg-white px-3 py-2.5">
-      <div role="radiogroup" aria-label="뷰어 모드" className="flex items-center gap-2.5">
-        {MODES.map(({ value, label, icon }) => {
+    <div className="flex items-center gap-1.5 rounded-[14px] bg-white p-[5px] shadow-[0_2px_12px_rgba(24,24,27,0.12)]">
+      <div role="radiogroup" aria-label="뷰어 모드" className="flex gap-0.5">
+        {MODES.map(({ value, label }) => {
           const isSelected = mode === value;
 
           return (
@@ -43,42 +38,28 @@ const ViewerToolbar = ({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              aria-label={label}
               onClick={() => onModeChange(value)}
               className={cn(
-                'flex size-11 items-center justify-center rounded-full',
-                isSelected ? 'bg-primary-strong text-white' : 'text-ink-cool',
+                'h-10 rounded-[10px] px-4 text-sm font-semibold whitespace-nowrap transition-colors',
+                isSelected ? 'bg-ink text-white' : 'text-muted hover:text-ink',
               )}
             >
-              {/* 선택 상태에 따라 색을 바꾸려고 SVG를 마스크로 씁니다. */}
-              <span
-                aria-hidden
-                className="bg-current"
-                style={{ width: icon.width, height: icon.height, maskImage: `url(${icon.src})` }}
-              />
+              {label}
             </button>
           );
         })}
       </div>
-      <Image src={separator} alt="" unoptimized />
-      <div className="flex items-center gap-2.5">
-        <button type="button" aria-label="확대" onClick={onZoomIn}>
-          <Image src={plusIcon} alt="" unoptimized />
-        </button>
-        <span className="w-[68px] py-2.5 text-center text-base leading-[normal] font-semibold text-black">
-          {zoom}%
-        </span>
-        <button type="button" aria-label="축소" onClick={onZoomOut}>
-          <Image src={minusIcon} alt="" unoptimized />
-        </button>
-      </div>
-      <Image src={separator} alt="" unoptimized />
+      <span aria-hidden className="bg-divider h-[22px] w-px" />
+      <DeviceToggle value={device} onChange={onDeviceChange} />
+      <span aria-hidden className="bg-divider h-[22px] w-px" />
       <button
         type="button"
-        onClick={onFit}
-        className="bg-surface-strong rounded-xlarge px-4 py-2.5 text-sm leading-[normal] font-medium whitespace-nowrap text-black"
+        onClick={onToggleFull}
+        aria-pressed={isFull}
+        className="text-text hover:bg-hover h-10 rounded-[10px] px-3.5 text-sm font-semibold whitespace-nowrap"
       >
-        화면 맞춤
+        {isFull ? '나가기' : '전체 화면'}
+        <kbd className="ml-1.5 font-sans text-[11px] opacity-50">{isFull ? 'Esc' : 'F'}</kbd>
       </button>
     </div>
   );

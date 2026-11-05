@@ -12,7 +12,7 @@ const PinMarker = ({ authorName, authorAvatarUrl, className }: PinMarkerProps) =
   return (
     <span
       className={cn(
-        'bg-primary inline-flex w-fit shrink-0 rounded-full rounded-bl-none p-1.5',
+        'bg-brand inline-flex w-fit shrink-0 rounded-full rounded-bl-none p-1.5',
         className,
       )}
     >

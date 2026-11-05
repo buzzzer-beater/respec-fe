@@ -1,18 +1,17 @@
 import { Suspense } from 'react';
 
-import { ProjectSidebar } from '@/widgets/sidebar';
+import { ProjectTopBar } from '@/widgets/top-bar';
 
 const ProjectLayout = ({ children, params }: LayoutProps<'/projects/[projectId]'>) => {
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen flex-col">
       {/* projectId는 요청 시점에 정해지므로 Suspense 안에서 기다립니다. */}
-      <Suspense fallback={<div className="w-80 shrink-0" />}>
+      <Suspense fallback={<div className="border-divider h-[84px] shrink-0 border-b" />}>
         {params.then(({ projectId }) => (
-          <ProjectSidebar projectId={Number(projectId)} />
+          <ProjectTopBar projectId={Number(projectId)} />
         ))}
       </Suspense>
-      <div aria-hidden className="bg-line-subtle w-px shrink-0" />
-      {children}
+      <div className="flex min-h-0 flex-1">{children}</div>
     </div>
   );
 };

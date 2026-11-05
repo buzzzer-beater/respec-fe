@@ -1,26 +1,23 @@
 'use client';
 
-import { type MouseEvent, type ReactNode, useState } from 'react';
-
-import Image from 'next/image';
+import { type MouseEvent, type ReactNode, useEffect, useState } from 'react';
 
 import { NumberedPin } from '@/entities/pin';
+import type { Device } from '@/features/switch-device';
+import { cn } from '@/shared/lib';
 
-import arrowBackIcon from '../assets/arrow-back.svg';
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
-import BrowserFrame from './BrowserFrame';
 import ViewerToolbar from './ViewerToolbar';
 
-const ZOOM_STEP = 10;
-const ZOOM_MIN = 50;
-const ZOOM_MAX = 200;
-const ZOOM_FIT = 100;
+const DEVICE_WIDTH: Record<Device, string> = {
+  desktop: 'max-w-full',
+  tablet: 'max-w-[820px]',
+  mobile: 'max-w-[390px]',
+};
 
 interface SiteViewerProps {
   url: string;
   pins: ViewerPin[];
-  /** 없으면 "마지막 업데이트" 문구를 숨깁니다. */
-  lastUpdatedLabel?: string;
   onPlacePin?: (position: PinPosition) => void;
   /** 저장 전인 새 핀 위치와, 그 옆에 띄울 입력창 */
   draftPin?: PinPosition | null;
@@ -33,7 +30,6 @@ interface SiteViewerProps {
 const SiteViewer = ({
   url,
   pins,
-  lastUpdatedLabel,
   onPlacePin,
   onSelectPin,
   draftPin,
@@ -41,7 +37,22 @@ const SiteViewer = ({
   children,
 }: SiteViewerProps) => {
   const [mode, setMode] = useState<ViewerMode>('pin');
-  const [zoom, setZoom] = useState(ZOOM_FIT);
+  const [device, setDevice] = useState<Device>('desktop');
+  const [isFull, setIsFull] = useState(false);
+
+  // F로 전체 화면, Esc로 나갑니다. 입력 중일 때는 무시합니다.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('input, textarea, [contenteditable="true"]')) return;
+      if (event.key === 'Escape') setIsFull(false);
+      if (event.key.toLowerCase() === 'f' && !event.metaKey && !event.ctrlKey) {
+        setIsFull((value) => !value);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handlePlacePin = (event: MouseEvent<HTMLButtonElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -51,71 +62,94 @@ const SiteViewer = ({
     });
   };
 
+  const isPinMode = mode === 'pin';
+
   return (
-    <section className="relative flex h-full w-full flex-col items-center justify-center overflow-clip px-10 py-[17px]">
-      <div className="flex w-full flex-col gap-2.5 pb-20">
-        <div className="flex gap-2 px-2.5 py-2">
-          <button type="button" aria-label="뒤로" className="rounded-full bg-white p-2">
-            <Image src={arrowBackIcon} alt="" unoptimized />
-          </button>
-          <button type="button" aria-label="앞으로" className="rounded-full bg-white p-2">
-            <Image src={arrowBackIcon} alt="" unoptimized className="-scale-x-100" />
-          </button>
-        </div>
-
-        <div className="w-full origin-top" style={{ scale: zoom / 100 }}>
-          <BrowserFrame url={url}>
-            {children}
-            {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
-            {mode === 'pin' && (
-              <button
-                type="button"
-                aria-label="핀 추가할 위치 선택"
-                onClick={handlePlacePin}
-                className="absolute inset-0 cursor-crosshair"
-              />
-            )}
-            {pins.map((pin) => (
-              <button
-                key={pin.id}
-                type="button"
-                aria-label={`${pin.number}번 핀`}
-                onClick={() => onSelectPin?.(pin.id)}
-                className="absolute z-10 -translate-y-full"
-                style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-              >
-                <NumberedPin number={pin.number} muted={pin.muted} showBadge={pin.showBadge} />
-              </button>
-            ))}
-            {draftPin && (
-              <div
-                className="absolute z-20 flex items-start gap-2"
-                style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
-              >
-                <span className="-translate-y-full">
-                  <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} />
-                </span>
-                {draftPinContent}
-              </div>
-            )}
-          </BrowserFrame>
-        </div>
-
-        {lastUpdatedLabel && (
-          <p className="text-ink-450 self-end text-sm leading-[normal] whitespace-nowrap">
-            마지막 업데이트 - {lastUpdatedLabel}
+    <section
+      className={cn(
+        'flex justify-center',
+        isFull
+          ? 'fixed inset-0 z-30 bg-white'
+          : 'bg-stage relative h-full w-full min-w-0 px-10 pt-8 pb-[104px]',
+      )}
+    >
+      <div
+        className={cn(
+          'relative h-full w-full overflow-hidden bg-white transition-[max-width,box-shadow] duration-500',
+          DEVICE_WIDTH[device],
+          isFull
+            ? device !== 'desktop' && 'shadow-[0_0_0_1px_var(--color-divider)]'
+            : 'rounded-[10px] shadow-[0_0_0_1px_rgba(24,24,27,0.06),0_8px_30px_rgba(24,24,27,0.08)]',
+          // 핀 모드에서는 사이트 둘레를 진한 선으로 표시합니다.
+          isPinMode &&
+            (isFull
+              ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]'
+              : 'shadow-[0_0_0_2px_var(--color-ink),0_8px_30px_rgba(24,24,27,0.08)]'),
+        )}
+      >
+        {children ?? (
+          <p className="text-faint absolute inset-0 grid place-items-center px-6 text-center text-sm">
+            {url}
           </p>
+        )}
+        {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
+        {isPinMode && (
+          <button
+            type="button"
+            aria-label="핀 추가할 위치 선택"
+            onClick={handlePlacePin}
+            className="absolute inset-0 cursor-crosshair"
+          />
+        )}
+        {pins.map((pin) => (
+          <button
+            key={pin.id}
+            type="button"
+            aria-label={`${pin.number}번 핀`}
+            onClick={() => onSelectPin?.(pin.id)}
+            className="group absolute z-10 -translate-y-full hover:z-20"
+            style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+          >
+            <NumberedPin number={pin.number} muted={pin.muted} />
+          </button>
+        ))}
+        {draftPin && (
+          <div
+            className="absolute z-20 flex items-start gap-2"
+            style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
+          >
+            <span className="-translate-y-full">
+              <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
+            </span>
+            {draftPinContent}
+          </div>
         )}
       </div>
 
-      <div className="absolute bottom-[31px] left-1/2 -translate-x-1/2">
+      {isPinMode && !draftPin && (
+        <p
+          className={cn(
+            'bg-ink pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 rounded-[10px] px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap text-white',
+            isFull ? 'top-4' : 'top-12',
+          )}
+        >
+          사이트를 눌러 바꾸고 싶은 곳에 핀을 남기세요
+        </p>
+      )}
+
+      <div
+        className={cn(
+          'absolute left-1/2 z-30 -translate-x-1/2',
+          isFull ? 'bottom-4 opacity-35 transition-opacity hover:opacity-100' : 'bottom-8',
+        )}
+      >
         <ViewerToolbar
           mode={mode}
           onModeChange={setMode}
-          zoom={zoom}
-          onZoomIn={() => setZoom((value) => Math.min(value + ZOOM_STEP, ZOOM_MAX))}
-          onZoomOut={() => setZoom((value) => Math.max(value - ZOOM_STEP, ZOOM_MIN))}
-          onFit={() => setZoom(ZOOM_FIT)}
+          device={device}
+          onDeviceChange={setDevice}
+          isFull={isFull}
+          onToggleFull={() => setIsFull((value) => !value)}
         />
       </div>
     </section>

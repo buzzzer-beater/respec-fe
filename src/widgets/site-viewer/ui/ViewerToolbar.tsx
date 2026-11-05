@@ -11,6 +11,8 @@ const MODES: { value: ViewerMode; label: string }[] = [
 interface ViewerToolbarProps {
   mode: ViewerMode;
   onModeChange: (mode: ViewerMode) => void;
+  /** 있으면 핀 모드 버튼을 비활성화하고 이유를 툴팁으로 보여 줍니다. */
+  pinDisabledReason?: string | null;
   device: Device;
   onDeviceChange: (device: Device) => void;
   isFull: boolean;
@@ -21,6 +23,7 @@ interface ViewerToolbarProps {
 const ViewerToolbar = ({
   mode,
   onModeChange,
+  pinDisabledReason,
   device,
   onDeviceChange,
   isFull,
@@ -31,6 +34,7 @@ const ViewerToolbar = ({
       <div role="radiogroup" aria-label="뷰어 모드" className="flex gap-0.5">
         {MODES.map(({ value, label }) => {
           const isSelected = mode === value;
+          const isDisabled = value === 'pin' && !!pinDisabledReason;
 
           return (
             <button
@@ -39,9 +43,12 @@ const ViewerToolbar = ({
               role="radio"
               aria-checked={isSelected}
               onClick={() => onModeChange(value)}
+              disabled={isDisabled}
+              title={isDisabled ? (pinDisabledReason ?? undefined) : undefined}
               className={cn(
                 'h-10 rounded-[10px] px-4 text-sm font-semibold whitespace-nowrap transition-colors',
                 isSelected ? 'bg-ink text-white' : 'text-muted hover:text-ink',
+                'disabled:hover:text-muted disabled:cursor-not-allowed disabled:opacity-40',
               )}
             >
               {label}

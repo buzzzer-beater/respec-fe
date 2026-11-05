@@ -1,51 +1,79 @@
-import type { Message } from '@/entities/message';
+import type { PinLocationStatus, PinSource } from '@/entities/pin';
 import type { ChangeRequestStatus } from '@/entities/request';
 import type { ProjectRole } from '@/entities/user';
+import type { AiStatus } from '@/shared/api';
 
+/** 요청 상세 대화에 들어가는 핀 댓글. 요청 원문(첫 댓글)은 빼고 넣습니다. */
 export interface PinThreadComment {
   id: string;
+  /** 작성자 이메일. 백엔드에 이름이 없습니다. */
   authorName: string;
   authorRole: ProjectRole;
-  /** 내 코멘트는 오른쪽에 둡니다. */
-  isMine?: boolean;
-  authorAvatarUrl?: string;
+  /** 내 댓글은 오른쪽에 두고 수정/삭제할 수 있습니다. */
+  isMine: boolean;
   content: string;
-  /** AI 쉬운 설명. 있으면 원문과 함께 보여 줍니다. */
-  plainText?: string | null;
+  /** AI 변환본. 만드는 중이거나 실패하면 `null` */
+  plainText: string | null;
+  aiStatus: AiStatus;
   timeLabel: string;
-  /** 답글이면 부모 댓글 id. 최상위 댓글은 `null` */
-  parentId?: string | null;
-  /** 삭제된 댓글은 문구만 남기고 수정/삭제/답글을 막습니다. */
-  isDeleted?: boolean;
+  /** ISO 8601. 상태 이력과 섞어 시간 순서로 놓을 때 씁니다. */
+  createdAt: string;
+  edited: boolean;
+  /** 삭제된 댓글은 문구만 남기고 수정/삭제를 막습니다. */
+  isDeleted: boolean;
 }
 
-/** 핀 하나 = 코멘트 스레드 하나. 첫 코멘트가 요청 본문이고 나머지는 답글입니다. */
+/**
+ * 수정 요청 하나 = 요청 상세 하나. 핀이 있으면 핀 댓글이 대화가 되고,
+ * 채팅에서 핀 없이 등록한 요청은 대화 없이 상태 이력만 있습니다.
+ */
 export interface PinThread {
+  /** 선택 키. 핀이 있으면 핀 id, 핀 없는 요청은 `request-{요청 id}` (`toThreadId`) */
   id: string;
-  pinNumber: number;
-  /** 핀이 있는 페이지 경로. 패널에서 "이 페이지 요청"을 거를 때 씁니다. */
-  pagePath: string;
-  /** 목록 한 줄에 보여 줄 요청 내용 앞부분 */
-  preview?: string | null;
+  pinId: number | null;
+  /** 핀 번호(만든 순서). 핀 없는 요청은 `null` */
+  pinNumber: number | null;
+  /** 핀을 남긴 사이트. 핀 없는 요청은 `null` */
+  source: PinSource | null;
+  /** 핀이 있는 페이지 경로. 핀 없는 요청은 `null` */
+  pagePath: string | null;
+  /** 개발자가 검수 요청 때 배포본에 다시 찍은 반영 위치의 경로. 없으면 `null` */
+  reviewPagePath: string | null;
+  locationStatus: PinLocationStatus | null;
+  /** 요청 원문(첫 댓글 또는 등록한 채팅 메시지) */
+  title: string;
   status: ChangeRequestStatus;
-  /** 상태 버튼에 쓰는 수정 요청 id */
-  changeRequestId: number | null;
-  /** AI 개발 요청 정리(수정 요청의 `ai_summary`). 정리 전이거나 실패하면 `null` */
-  aiSummary?: string | null;
+  changeRequestId: number;
+  /** AI 개발 요청 정리(수정 요청의 `ai_summary`). 실패하면 `null` */
+  aiSummary: string | null;
+  /** 요청을 남긴 사람(이메일)과 시간 */
+  requestAuthorName: string | null;
+  requestTimeLabel: string;
   comments: PinThreadComment[];
 }
 
-/** 채팅에 카드로 공유된 핀. 핀 목록에서 못 찾으면 번호와 경로가 `null`입니다. */
-export interface SharedPin {
+/** 사이트에서 고른 요청. 같은 요청을 다시 눌러도 이동하도록 `seq`를 올립니다. */
+export interface SelectedPin {
+  /** `PinThread.id` */
   id: string;
-  pinNumber: number | null;
-  /** 카드를 누르면 이 경로의 화면으로 이동합니다. */
-  pagePath: string | null;
-  preview: string | null;
-  status: ChangeRequestStatus | null;
+  seq: number;
 }
 
-/** 대화 탭 메시지. 핀을 공유한 메시지는 본문 대신(또는 본문과 함께) 핀 카드를 보여 줍니다. */
-export interface SideChatMessage extends Message {
-  sharedPin?: SharedPin | null;
+/** 오른쪽 패널 화면. 목록과 새 요청은 좁게, 상세와 검수 요청은 넓게 씁니다. */
+export type PanelView = 'list' | 'detail' | 'new' | 'review';
+
+/** 사이트에서 핀 자리를 눌러 새 요청을 적는 중 */
+export interface NewRequestDraft {
+  pinNumber: number;
+  source: PinSource;
+  pagePath: string;
+  /** 찍은 요소 이름(섹션 이름 등). 모르면 `null` */
+  elementLabel: string | null;
+}
+
+/** 검수 요청 만드는 중. 열 때마다 `seq`를 올려 고른 항목을 새로 시작합니다. */
+export interface ReviewSession {
+  seq: number;
+  /** 처음부터 골라 둘 요청 id("검수 요청에 담기") */
+  preselectedIds: number[];
 }

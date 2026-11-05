@@ -1,2 +1,2 @@
 export * from './api/pin';
-export { default as PinCommentPopover } from './ui/PinCommentPopover';
+export { default as NewRequestForm } from './ui/NewRequestForm';

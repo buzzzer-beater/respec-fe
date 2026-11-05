@@ -11,9 +11,11 @@ import {
   type ChangeRequestStatus,
   isHiddenByDefault,
 } from '@/entities/request';
+import type { ReviewItem } from '@/entities/review';
 import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
-import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
+import type { ChatDrawerMessage, SharedPin } from '@/widgets/chat-drawer';
+import { type PinThread, type PinThreadComment, toThreadId } from '@/widgets/side-chat';
 import type { SitePage, ViewerPin } from '@/widgets/site-viewer';
 
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
@@ -67,33 +69,48 @@ export const toSitePages = (pins: ViewerPin[]): SitePage[] => {
     .sort((a, b) => (a.path === '/' ? -1 : b.path === '/' ? 1 : a.path.localeCompare(b.path)));
 };
 
-/** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
-const createAuthorName = (members: ProjectMember[], me: User | undefined) => {
-  const emails = new Map(members.map((member) => [member.id, member.email]));
-  return (authorId: number) => (authorId === me?.id ? '나' : (emails.get(authorId) ?? '참여자'));
+/**
+ * 작성자 id를 이메일과 역할로 바꿉니다. 백엔드에 이름이 없어서 이메일을 이름처럼 씁니다.
+ * 참여자 목록을 아직 못 받았으면 "참여자"와 개발자로 둡니다.
+ */
+const createPeople = (members: ProjectMember[]) => {
+  const byId = new Map(members.map((member) => [member.id, member]));
+  return {
+    nameOf: (userId: number) => byId.get(userId)?.email ?? '참여자',
+    roleOf: (userId: number): ProjectRole => byId.get(userId)?.role ?? 'developer',
+  };
 };
 
+/**
+ * 채팅 서랍 메시지. 이미 수정 요청으로 등록한 메시지는 표시해 "요청으로 등록"을 숨깁니다.
+ * 핀 번호는 생성 순서입니다.
+ */
 export const toMessages = (
   messages: ChatMessage[],
   pins: PinWithRequest[],
   members: ProjectMember[],
   me: User | undefined,
-): SideChatMessage[] => {
-  const authorName = createAuthorName(members, me);
+  requests: ChangeRequest[],
+): ChatDrawerMessage[] => {
+  const { nameOf, roleOf } = createPeople(members);
+  const registered = new Set(requests.map((request) => request.source_chat_message_id));
 
   return messages.map((message) => ({
     id: String(message.id),
-    authorName: authorName(message.author_id),
+    authorName: nameOf(message.author_id),
+    authorRole: roleOf(message.author_id),
     isMine: message.author_id === me?.id,
     // 핀 카드만 공유한 메시지는 본문이 없습니다.
     content: message.content ?? '',
     plainText: message.ai_plain_text,
+    aiStatus: message.ai_status,
     timeLabel: formatRelativeTime(message.created_at),
     sharedPin: message.shared_pin_id === null ? null : toSharedPin(message.shared_pin_id, pins),
+    isRegistered: registered.has(message.id),
   }));
 };
 
-/** 공유된 핀을 카드 정보로 바꿉니다. 핀 번호는 생성 순서입니다. */
+/** 공유된 핀을 카드 정보로 바꿉니다. 핀을 못 찾으면(삭제됨) 번호와 경로가 `null`입니다. */
 const toSharedPin = (pinId: number, pins: PinWithRequest[]): SharedPin => {
   const index = pins.findIndex((pin) => pin.id === pinId);
   const pin = pins[index];
@@ -102,15 +119,10 @@ const toSharedPin = (pinId: number, pins: PinWithRequest[]): SharedPin => {
     pinNumber: pin ? index + 1 : null,
     pagePath: pin?.page_path ?? null,
     preview: pin?.request_preview ?? null,
-    status: pin?.request_status ?? null,
   };
 };
 
-/** 채팅 메시지로 수정 요청을 만들 때 고를 수 있는 핀. 번호는 생성 순서입니다. */
-export const toRequestPinOptions = (pins: PinWithRequest[]) =>
-  pins.map((pin, index) => ({ id: pin.id, number: index + 1, preview: pin.request_preview }));
-
-/** 스레드로 보여 줄 핀. 수정 요청이 없는 핀은 빼고, 해결된 핀은 `showResolved`일 때만 넣습니다. */
+/** 수정 요청이 걸린 핀. 해결된 핀은 `showResolved`일 때만 넣습니다. 댓글을 받을 핀을 고를 때 씁니다. */
 export const getThreadPins = (pins: PinWithRequest[], showResolved = false) =>
   pins.filter(
     (pin): pin is PinWithRequest & { request_status: ChangeRequestStatus } =>
@@ -118,45 +130,115 @@ export const getThreadPins = (pins: PinWithRequest[], showResolved = false) =>
   );
 
 /**
- * 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서,
- * AI 개발 요청 정리는 수정 요청 목록에서 찾습니다.
+ * 반영 위치(마지막 검수 항목)를 받아 올 요청. 검수 대기 요청과, "완료 보기"를 켰으면 해결된 요청입니다.
+ * `useGetLatestReviewItems`에 넘깁니다.
  */
-export const toPinThreads = (
-  pins: PinWithRequest[],
-  commentsByPin: Map<number, PinComment[]>,
-  members: ProjectMember[],
-  me: User | undefined,
-  requests: ChangeRequest[],
-  showResolved = false,
-): PinThread[] => {
-  const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
-  const summaries = new Map(requests.map((request) => [request.id, request.ai_summary]));
-  const authorName = createAuthorName(members, me);
-  const roles = new Map(members.map((member) => [member.id, member.role]));
-  // 참여자 목록을 아직 못 받았으면 개발자로 둡니다.
-  const roleOf = (authorId: number): ProjectRole => roles.get(authorId) ?? 'developer';
+export const getReviewItemRequestIds = (requests: ChangeRequest[], showResolved = false) =>
+  requests
+    .filter(({ status }) => status === 'pending_review' || (showResolved && status === 'resolved'))
+    .map(({ id }) => id);
 
-  return getThreadPins(pins, showResolved).map((pin) => ({
-    id: String(pin.id),
-    pinNumber: pinNumber.get(pin.id) ?? 0,
-    pagePath: pin.page_path,
-    preview: pin.request_preview,
-    status: pin.request_status,
-    changeRequestId: pin.change_request_id,
-    aiSummary:
-      pin.change_request_id === null ? null : (summaries.get(pin.change_request_id) ?? null),
-    comments: [...(commentsByPin.get(pin.id) ?? [])]
-      .sort((a, b) => a.id - b.id)
-      .map((comment) => ({
-        id: String(comment.id),
-        authorName: authorName(comment.author_id),
-        authorRole: roleOf(comment.author_id),
-        isMine: comment.author_id === me?.id,
-        content: comment.content,
-        plainText: comment.ai_plain_text,
-        timeLabel: formatRelativeTime(comment.created_at),
-        parentId: comment.parent_comment_id === null ? null : String(comment.parent_comment_id),
-        isDeleted: isDeletedPinComment(comment),
-      })),
-  }));
+interface ThreadSources {
+  pins: PinWithRequest[];
+  commentsByPin: Map<number, PinComment[]>;
+  members: ProjectMember[];
+  me: User | undefined;
+  /** 수정 요청 전체(`status: 'all'`). AI 정리, 출처, 핀 없는 요청을 여기서 찾습니다. */
+  requests: ChangeRequest[];
+  /** 요청 id → 마지막 검수 항목. 배포본에서 반영 위치로 보여 줄 때 씁니다. */
+  reviewItems: Map<number, ReviewItem>;
+  /** 채팅에서 등록한 요청의 원문을 찾습니다. */
+  messages: ChatMessage[];
+}
+
+/**
+ * 수정 요청을 오른쪽 패널의 요청으로 바꿉니다. 해결된 요청도 넣고 목록에서 거릅니다.
+ * - 핀이 있는 요청: 첫 댓글이 요청 원문, 나머지 댓글이 대화입니다(채팅에서 등록하며 핀을 붙였으면 메시지가 원문).
+ * - 채팅에서 핀 없이 등록한 요청: 메시지가 원문이고 대화는 없습니다. 핀 요청 뒤에 둡니다.
+ */
+export const toPinThreads = ({
+  pins,
+  commentsByPin,
+  members,
+  me,
+  requests,
+  reviewItems,
+  messages,
+}: ThreadSources): PinThread[] => {
+  const { nameOf, roleOf } = createPeople(members);
+  const requestById = new Map(requests.map((request) => [request.id, request]));
+  const messageById = new Map(messages.map((message) => [message.id, message]));
+
+  const toComment = (comment: PinComment): PinThreadComment => ({
+    id: String(comment.id),
+    authorName: nameOf(comment.author_id),
+    authorRole: roleOf(comment.author_id),
+    isMine: comment.author_id === me?.id,
+    content: comment.content,
+    plainText: comment.ai_plain_text,
+    aiStatus: comment.ai_status,
+    timeLabel: formatRelativeTime(comment.created_at),
+    createdAt: comment.created_at,
+    edited: comment.edited,
+    isDeleted: isDeletedPinComment(comment),
+  });
+
+  const sourceMessage = (request: ChangeRequest | undefined) =>
+    request?.source_chat_message_id == null
+      ? undefined
+      : messageById.get(request.source_chat_message_id);
+
+  const pinned = pins.flatMap((pin, index): PinThread[] => {
+    if (pin.change_request_id === null || pin.request_status === null) return [];
+    const request = requestById.get(pin.change_request_id);
+    const message = sourceMessage(request);
+    const comments = [...(commentsByPin.get(pin.id) ?? [])].sort((a, b) => a.id - b.id);
+    // 채팅에서 등록한 요청이면 메시지가 원문이라 댓글은 모두 대화입니다.
+    const first = message ? undefined : comments[0];
+    const replies = message ? comments : comments.slice(1);
+    const author = message ?? first;
+
+    return [
+      {
+        id: toThreadId(pin.id, pin.change_request_id),
+        pinId: pin.id,
+        pinNumber: index + 1,
+        source: pin.source,
+        pagePath: pin.page_path,
+        reviewPagePath: reviewItems.get(pin.change_request_id)?.location?.page_path ?? null,
+        locationStatus: pin.location_status,
+        title: message?.content || first?.content || pin.request_preview || `핀 ${index + 1} 요청`,
+        status: pin.request_status,
+        changeRequestId: pin.change_request_id,
+        aiSummary: request?.ai_summary ?? null,
+        requestAuthorName: author ? nameOf(author.author_id) : null,
+        requestTimeLabel: formatRelativeTime(author?.created_at),
+        comments: replies.map(toComment),
+      },
+    ];
+  });
+
+  const pinless = requests
+    .filter((request) => request.pin_id === null)
+    .map((request): PinThread => {
+      const message = sourceMessage(request);
+      return {
+        id: toThreadId(null, request.id),
+        pinId: null,
+        pinNumber: null,
+        source: null,
+        pagePath: null,
+        reviewPagePath: reviewItems.get(request.id)?.location?.page_path ?? null,
+        locationStatus: null,
+        title: message?.content || '채팅에서 등록한 요청',
+        status: request.status,
+        changeRequestId: request.id,
+        aiSummary: request.ai_summary,
+        requestAuthorName: nameOf(message?.author_id ?? request.created_by),
+        requestTimeLabel: formatRelativeTime(message?.created_at),
+        comments: [],
+      };
+    });
+
+  return [...pinned, ...pinless];
 };

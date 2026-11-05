@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get } from '@/shared/api';
 import { POLLING_INTERVAL_MS } from '@/shared/config';
 
-import type { ChatMessage } from '../model/chat-message';
+import { type ChatMessage, hasPendingAi } from '../model/chat-message';
 
 export const messageQueryKeys = {
   all: (projectId: number) => ['projects', projectId, 'messages'] as const,
@@ -14,7 +14,11 @@ export const messageQueryKeys = {
 export const getMessages = (projectId: number, afterId?: number) =>
   get<ChatMessage[]>(`/projects/${projectId}/messages`, { params: { after_id: afterId } });
 
-/** 처음에는 전체를 받고, 이후 polling에서는 마지막 메시지 다음 것만 받아 이어 붙입니다. */
+/**
+ * 처음에는 전체를 받고, 이후 polling에서는 마지막 메시지 다음 것만 받아 이어 붙입니다.
+ * AI 쉬운 설명은 백그라운드에서 만들어져 이미 받은 메시지가 나중에 바뀌므로,
+ * `pending`인 메시지가 남아 있으면 `after_id` 없이 전체를 다시 받습니다.
+ */
 export const useGetMessages = (projectId: number) => {
   const queryClient = useQueryClient();
   const queryKey = messageQueryKeys.getMessages(projectId);
@@ -24,7 +28,7 @@ export const useGetMessages = (projectId: number) => {
     queryFn: async () => {
       const cached = queryClient.getQueryData<ChatMessage[]>(queryKey) ?? [];
       const lastId = cached.at(-1)?.id;
-      if (lastId === undefined) return getMessages(projectId);
+      if (lastId === undefined || hasPendingAi(cached)) return getMessages(projectId);
 
       const newer = await getMessages(projectId, lastId);
       return newer.length > 0 ? [...cached, ...newer] : cached;

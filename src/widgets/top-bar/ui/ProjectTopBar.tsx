@@ -1,10 +1,13 @@
 'use client';
 
-import { useGetProject, useGetProjectMembers } from '@/entities/project';
+import { usePathname } from 'next/navigation';
+
+import { useGetProject, useGetProjectDraft, useGetProjectMembers } from '@/entities/project';
 import { can, PROJECT_ROLE_LABEL } from '@/entities/user';
-import { ConnectDeploymentButton } from '@/features/connect-deployment';
+import { DeploymentChip } from '@/features/connect-deployment';
 import { DownloadDraftButton } from '@/features/download-draft';
 import { InviteDeveloperButton } from '@/features/invite-developer';
+import { SiteSelect } from '@/features/switch-site';
 import { Avatar } from '@/shared/ui';
 
 import TopBar from './TopBar';
@@ -16,11 +19,18 @@ interface ProjectTopBarProps {
 const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
   const { data: project } = useGetProject(projectId);
   const { data: members = [] } = useGetProjectMembers(projectId);
+  const { data: draft } = useGetProjectDraft(projectId);
   const base = `/projects/${projectId}`;
+  const isViewer = usePathname() === `${base}/viewer`;
 
   return (
     <TopBar
       title={project?.name}
+      titleAddon={
+        isViewer && project ? (
+          <SiteSelect hasDraft={!!draft} hasDeployment={!!project.deployment_url} />
+        ) : undefined
+      }
       links={[
         { href: `${base}/draft`, label: '초안' },
         { href: `${base}/viewer`, label: '작업 화면' },
@@ -28,9 +38,9 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
         { href: `${base}/review`, label: '검수' },
       ]}
     >
-      {/* 배포 전에는 초안을 보여 주므로 초안 코드를 받을 수 있게 합니다. */}
+      <DeploymentChip projectId={projectId} />
+      {/* 배포 전에는 개발자가 초안 코드로 시작하므로 코드를 받을 수 있게 합니다. */}
       {project && !project.deployment_url && <DownloadDraftButton projectId={projectId} />}
-      <ConnectDeploymentButton projectId={projectId} />
       {members.length > 0 && (
         <ul aria-label="참여자" className="hidden sm:flex">
           {members.map((member) => (

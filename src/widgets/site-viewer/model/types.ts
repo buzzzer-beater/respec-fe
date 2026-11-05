@@ -5,6 +5,9 @@ import type { PinAnchor, RestorableAnchor } from '@/shared/lib/pin-engine';
 // browse: 체험 모드(사이트를 평소처럼 사용), pin: 핀 모드(클릭한 위치에 핀 생성)
 export type ViewerMode = 'browse' | 'pin';
 
+/** 배포 사이트의 핀 스크립트(`respec-pin.js`) 연결 상태 */
+export type PinScriptStatus = 'connecting' | 'connected' | 'disconnected';
+
 export interface ViewerPin extends Pin {
   muted?: boolean;
   /** 연결된 수정 요청 상태. 마커 색을 정합니다. */

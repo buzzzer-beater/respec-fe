@@ -13,6 +13,7 @@ import {
   usePatchPinComment,
   usePostPinComment,
 } from '@/features/reply-pin';
+import { AddToReviewButton } from '@/features/request-review';
 import { ResolveRequestButtons } from '@/features/resolve-request';
 import { isApiError } from '@/shared/api';
 
@@ -37,6 +38,7 @@ const PinThreadCard = ({
   pinNumber,
   status,
   changeRequestId,
+  aiSummary,
   comments,
   role,
   action,
@@ -118,8 +120,18 @@ const PinThreadCard = ({
         </span>
         {changeRequestId !== null && (
           <>
+            {/* 카드가 여러 개라 반복되는 결정 버튼은 외곽선으로 둡니다. */}
             <ChangeRequestStatusButtons
               size="sm"
+              variant="secondary"
+              projectId={projectId}
+              requestId={changeRequestId}
+              status={status}
+              role={role}
+            />
+            <AddToReviewButton
+              size="sm"
+              variant="secondary"
               projectId={projectId}
               requestId={changeRequestId}
               status={status}
@@ -163,6 +175,23 @@ const PinThreadCard = ({
               onReply={(content) => reply(content, comment.id)}
               onDelete={() => remove(comment.id)}
             />
+            {/* 첫 댓글(요청 원문) 바로 아래에 AI가 개발 요청으로 정리한 내용을 둡니다. */}
+            {index === 0 && aiSummary?.trim() && (
+              <section
+                aria-label="AI 개발 요청 정리"
+                className="bg-ai mt-3 flex flex-col gap-1 rounded-[10px] px-3 py-2.5"
+              >
+                <h4 className="text-text flex items-center gap-1.5 text-xs font-bold">
+                  <span className="bg-hover text-muted rounded px-1 text-[10px] font-extrabold">
+                    AI
+                  </span>
+                  개발 요청 정리
+                </h4>
+                <p className="text-text text-[13px] leading-relaxed wrap-anywhere whitespace-pre-wrap">
+                  {aiSummary}
+                </p>
+              </section>
+            )}
           </div>
         ))}
       </div>

@@ -26,6 +26,8 @@ export interface PinThread {
   status: ChangeRequestStatus;
   /** 상태 버튼에 쓰는 수정 요청 id */
   changeRequestId: number | null;
+  /** AI 개발 요청 정리(수정 요청의 `ai_summary`). 정리 전이거나 실패하면 `null` */
+  aiSummary?: string | null;
   comments: PinThreadComment[];
 }
 

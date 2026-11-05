@@ -1,17 +1,15 @@
 import type { ChatMessage } from '@/entities/message';
 import { isDeletedPinComment, type PinComment, type PinWithRequest } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
-import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
+import {
+  type ChangeRequest,
+  type ChangeRequestStatus,
+  isHiddenByDefault,
+} from '@/entities/request';
 import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
-
-/**
- * 사이트 미리보기 방식이 정해지기 전까지는 요소를 고를 수 없어서,
- * 사이트 영역 전체를 앵커로 두고 영역 안 상대 좌표(0~1)만 저장합니다.
- */
-export const VIEWER_ANCHOR_SELECTOR = 'body';
 
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
 export const getPagePath = (deploymentUrl: string | null | undefined) => {
@@ -99,15 +97,20 @@ export const getThreadPins = (pins: PinWithRequest[], showResolved = false) =>
       pin.request_status !== null && (showResolved || !isHiddenByDefault(pin.request_status)),
   );
 
-/** 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서 찾습니다. */
+/**
+ * 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서,
+ * AI 개발 요청 정리는 수정 요청 목록에서 찾습니다.
+ */
 export const toPinThreads = (
   pins: PinWithRequest[],
   commentsByPin: Map<number, PinComment[]>,
   members: ProjectMember[],
   me: User | undefined,
+  requests: ChangeRequest[],
   showResolved = false,
 ): PinThread[] => {
   const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
+  const summaries = new Map(requests.map((request) => [request.id, request.ai_summary]));
   const authorName = createAuthorName(members, me);
   const roles = new Map(members.map((member) => [member.id, member.role]));
   // 참여자 목록을 아직 못 받았으면 개발자로 둡니다.
@@ -118,6 +121,8 @@ export const toPinThreads = (
     pinNumber: pinNumber.get(pin.id) ?? 0,
     status: pin.request_status,
     changeRequestId: pin.change_request_id,
+    aiSummary:
+      pin.change_request_id === null ? null : (summaries.get(pin.change_request_id) ?? null),
     comments: [...(commentsByPin.get(pin.id) ?? [])]
       .sort((a, b) => a.id - b.id)
       .map((comment) => ({

@@ -16,11 +16,13 @@ interface TopBarProps {
   /** 로고 오른쪽에 크게 보이는 제목. 보통 프로젝트 이름입니다. */
   title?: string;
   links?: TopBarLink[];
+  /** 제목 바로 오른쪽(작업 화면의 사이트 선택 등) */
+  titleAddon?: ReactNode;
   /** 오른쪽 끝 (참여자, 공유 버튼 등) */
   children?: ReactNode;
 }
 
-const TopBar = ({ title, links = [], children }: TopBarProps) => {
+const TopBar = ({ title, links = [], titleAddon, children }: TopBarProps) => {
   const pathname = usePathname();
 
   return (
@@ -47,6 +49,7 @@ const TopBar = ({ title, links = [], children }: TopBarProps) => {
           {title}
         </h1>
       )}
+      {titleAddon}
 
       <nav className="order-last -mb-2 flex h-11 w-full gap-5 overflow-x-auto max-lg:empty:hidden lg:order-none lg:mx-auto lg:mb-0 lg:h-auto lg:w-auto lg:gap-7 lg:self-stretch lg:overflow-visible">
         {links.map(({ href, label }) => {

@@ -36,6 +36,8 @@ interface SiteViewerProps {
   renderSite?: (mode: ViewerMode) => ReactNode;
   /** 핀을 남길 수 없는 이유. 있으면 핀 모드를 끄고 안내합니다. */
   pinDisabledReason?: string | null;
+  /** 핀을 막았을 때 기본 안내 문구 대신 보여 줄 안내(버튼이 있는 안내 등) */
+  pinDisabledNotice?: ReactNode;
   /** 지금 보고 있는 페이지 경로. 있으면 뷰어 위에 보여 줍니다. */
   pagePath?: string;
   /** 있으면 핀 모드로 고정하고 기본 안내 대신 보여 줍니다(핀 위치 다시 지정 등). */
@@ -56,6 +58,7 @@ const SiteViewer = ({
   children,
   renderSite,
   pinDisabledReason,
+  pinDisabledNotice,
   pagePath,
   pinPrompt,
   showResolved,
@@ -170,7 +173,17 @@ const SiteViewer = ({
         </p>
       )}
 
-      {pinDisabledReason && (
+      {pinDisabledReason && pinDisabledNotice && (
+        <div
+          className={cn(
+            'absolute left-1/2 z-30 max-w-[calc(100%-24px)] -translate-x-1/2',
+            isFull ? 'top-4' : 'top-12',
+          )}
+        >
+          {pinDisabledNotice}
+        </div>
+      )}
+      {pinDisabledReason && !pinDisabledNotice && (
         <p
           role="status"
           className={cn(

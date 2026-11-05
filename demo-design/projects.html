@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RE:SPEC — 내 프로젝트</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <script src="illust.js"></script>
+    <style>
+      /*
+       * 프로젝트 목록
+       * - 참여 중인 프로젝트를 카드로: 이름 · 배포 주소 · 남은 요청 · 내 차례
+       * - 카드를 누르면 작업 화면, 마지막 칸은 새 프로젝트(초안 생성)
+       * - 개발자가 없는 프로젝트는 카드 안에서 바로 초대
+       */
+      body {
+        overflow: auto;
+      }
+
+      .page {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 48px 40px 80px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+
+      .toolbar h2 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .summary {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .summary b {
+        color: var(--ink);
+      }
+
+      .summary .accent {
+        color: var(--ink);
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 240px;
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--muted);
+      }
+
+      .search-box:focus-within {
+        border-color: var(--ink);
+      }
+
+      .search-box input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        font-size: 14px;
+        outline: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      /* 카드: 위는 사이트 미리보기 자리(회색), 아래는 정보 */
+      .project {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px var(--line),
+          0 1px 2px rgba(24, 24, 27, 0.04);
+        cursor: pointer;
+        animation: pop-in 0.35s var(--ease-out) backwards;
+        transition:
+          transform 0.3s var(--spring),
+          box-shadow 0.2s;
+      }
+
+      .project:hover {
+        transform: translateY(-3px);
+        box-shadow:
+          0 0 0 1px var(--line),
+          0 12px 28px rgba(24, 24, 27, 0.1);
+      }
+
+      .shot {
+        position: relative;
+        height: 168px;
+        padding: 22px 26px 0;
+        background: #f1f1f4;
+      }
+
+      /* 사이트 화면을 흉내 낸 작은 창 */
+      .mini {
+        display: grid;
+        gap: 8px;
+        height: 100%;
+        padding: 14px 16px;
+        border-radius: 8px 8px 0 0;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(24, 24, 27, 0.05);
+      }
+
+      .mini i {
+        display: block;
+        height: 8px;
+        border-radius: 4px;
+        background: #ececf0;
+      }
+
+      .mini .hero {
+        height: 46px;
+        border-radius: 6px;
+        background: var(--tone, #e4e4e9);
+      }
+
+      .mini .row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+
+      .mini .row i {
+        height: 26px;
+        border-radius: 5px;
+      }
+
+      .shot .stage {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        padding: 4px 9px;
+        border-radius: var(--r-full);
+        background: #fff;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 1px 3px rgba(24, 24, 27, 0.08);
+      }
+
+      .info {
+        display: grid;
+        gap: 14px;
+        padding: 20px 22px 22px;
+      }
+
+      .name-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .name-row h3 {
+        overflow: hidden;
+        margin: 0;
+        font-size: 17px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .role {
+        flex-shrink: 0;
+        margin-left: auto;
+        padding: 3px 9px;
+        border-radius: var(--r-full);
+        background: var(--hover);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .url {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: -8px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .url span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .url.none {
+        color: var(--faint);
+      }
+
+      .stats {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        font-size: 13px;
+      }
+
+      .stat {
+        color: var(--muted);
+      }
+
+      .stat b {
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      .stats .mine {
+        margin-left: 2px;
+      }
+
+      .avatars {
+        display: flex;
+        margin-left: auto;
+      }
+
+      .avatars .avatar + .avatar {
+        margin-left: -7px;
+      }
+
+      .stats .btn {
+        margin-left: auto;
+      }
+
+      /* 새 프로젝트 칸 */
+      .new-card {
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 12px;
+        min-height: 320px;
+        border: 1.5px dashed #d4d4da;
+        border-radius: 16px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 15px;
+        font-weight: 700;
+        transition:
+          border-color 0.2s,
+          color 0.2s,
+          background 0.2s;
+      }
+
+      .new-card:hover {
+        border-color: var(--ink);
+        background: var(--hover);
+        color: var(--ink);
+      }
+
+      .new-card .plus {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--ink);
+        color: #fff;
+        transition: transform 0.3s var(--spring);
+      }
+
+      .new-card:hover .plus {
+        transform: rotate(90deg);
+      }
+
+      .empty {
+        grid-column: 1 / -1;
+        padding: 60px 0;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      /* 개발자 초대 창 */
+      .btn[hidden] {
+        display: none;
+      }
+
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="projects.html" aria-label="RE:SPEC 처음으로">
+        <img class="brand-logo" src="respec-logo.png" alt="" />
+      </a>
+      <h1 class="crumb">내 프로젝트</h1>
+      <span class="spacer"></span>
+      <div class="topbar-right">
+        <!-- 시연용: 실제 서비스에는 없음. 역할은 프로젝트 참여 역할(project_members.role)로 정해지고 화면에서 바꿀 수 없습니다. -->
+        <div class="demo-switch" title="시연용 · 실제 서비스에서는 바꿀 수 없어요">
+          <span class="demo-tag">시연용</span>
+          <div class="segmented" id="roleSwitch" role="group" aria-label="보는 시점 (시연용)">
+            <span class="thumb"></span>
+            <button data-value="client">고객</button>
+            <button data-value="developer">개발자</button>
+          </div>
+        </div>
+        <span class="me"><span class="avatar" data-role="client" id="meAvatar">김</span></span>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="toolbar">
+        <h2>프로젝트</h2>
+        <span class="summary" id="summary"></span>
+        <span class="spacer"></span>
+        <label class="search-box"><span data-icon="search" data-size="15" class="i"></span><input id="search" type="search" placeholder="프로젝트 검색" /></label>
+        <a class="btn btn-dark" id="newBtn" href="draft.html"><span data-icon="plus" data-size="16" class="i"></span>새 프로젝트</a>
+      </div>
+      <div class="grid" id="grid"></div>
+    </main>
+
+    <div class="modal-bg" id="invite" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
+        <div>
+          <h2 id="inviteTitle">개발자 초대</h2>
+          <p id="inviteDesc"></p>
+        </div>
+        <div>
+          <span class="field-label">초대 링크</span>
+          <div class="copy-row">
+            <input id="inviteLink" readonly aria-label="초대 링크" />
+            <button class="btn btn-dark" id="copyLink">복사</button>
+          </div>
+        </div>
+        <div class="modal-note">
+          <span>링크는 7일 동안 쓸 수 있어요</span>
+          <button id="disableLink">링크 끄기</button>
+        </div>
+        <div class="modal-foot"><button class="btn btn-line" id="closeInvite">닫기</button></div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="common.js"></script>
+    <script>
+      // 시연용 예시 프로젝트. 고객(김하늘)과 개발자(박도윤)가 참여한 프로젝트가 다릅니다.
+      // MORROW만 작업 화면과 연결돼 있고, 요청 수는 공용 요청 데이터에서 셉니다.
+      const PROJECTS = [
+        { id: 'morrow', name: 'MORROW 쇼핑몰', url: 'morrow-b.vercel.app', stage: '배포됨', in: { client: true, developer: true }, tone: '#e7e7ea', live: true },
+        { id: 'cafe', name: '동네 카페 예약', url: 'slowcafe-booking.vercel.app', stage: '배포됨', in: { client: true, developer: true }, tone: '#ecebfd', open: 2, turn: { client: 1, developer: 1 } },
+        { id: 'studio', name: '필라테스 스튜디오 소개', url: null, stage: '초안', in: { client: true, developer: false }, tone: '#f1efe9', open: 0, turn: { client: 0, developer: 0 } },
+        { id: 'folio', name: '포트폴리오 리뉴얼', url: 'jin-folio.vercel.app', stage: '배포됨', in: { client: false, developer: true }, tone: '#e9eef0', open: 1, turn: { client: 0, developer: 1 } },
+      ];
+      // 초대는 링크로만 받습니다(받은 초대 목록 API 없음). 초대 화면(invite.html)에서 수락했으면 반영합니다.
+      try {
+        if (sessionStorage.getItem('respec-invite-studio') === 'accepted') Object.assign(PROJECTS[2].in, { developer: true });
+      } catch {
+        // 저장소를 못 쓰면 받은 초대를 그대로 보여 줍니다.
+      }
+      const view = { query: '' };
+      let inviting = null;
+
+      const byId = (id) => PROJECTS.find((p) => p.id === id);
+      const hasDeveloper = (p) => p.in.developer;
+
+      function counts(p) {
+        if (!p.live) return { open: p.open, mine: p.turn[currentRole] };
+        return {
+          open: requests.filter((r) => r.status !== 'done').length,
+          mine: requests.filter((r) => isMyTurnFor(r, currentRole)).length,
+        };
+      }
+
+      function render() {
+        const isDev = currentRole === 'developer';
+        const joined = PROJECTS.filter((p) => p.in[currentRole]);
+        const list = joined.filter((p) => !view.query || p.name.includes(view.query));
+        const totalMine = joined.reduce((sum, p) => sum + counts(p).mine, 0);
+        $('#summary').replaceChildren(`참여 중 `, h('b', {}, joined.length), ` · 내 차례 요청 `, h('b', { class: 'accent' }, totalMine));
+
+        // 프로젝트는 고객이 만듭니다. 개발자는 초대를 받아 들어옵니다.
+        $('#newBtn').hidden = isDev;
+        $('#grid').replaceChildren(
+          ...[
+            ...list.map(renderProject),
+            !list.length
+              ? h('p', { class: 'empty' }, view.query ? '찾는 프로젝트가 없어요' : '아직 참여한 프로젝트가 없어요')
+              : !isDev && h('a', { class: 'new-card', href: linkTo('draft.html') }, h('span', { class: 'plus', html: RESPEC.icon('plus', 20) }), '새 프로젝트 만들기'),
+          ].filter(Boolean),
+        );
+        syncSegment($('#roleSwitch'), currentRole);
+        $('#meAvatar').dataset.role = currentRole;
+        $('#meAvatar').textContent = PEOPLE[currentRole].initial;
+        saveData();
+      }
+
+      function renderProject(p, index) {
+        const { open, mine } = counts(p);
+        const people = hasDeveloper(p) ? ['client', 'developer'] : ['client'];
+
+        // 개발자가 없으면 요청 대신 초대 버튼을 보여 줍니다. 초대는 고객만 할 수 있어요.
+        const foot = !hasDeveloper(p)
+          ? [h('span', { class: 'stat' }, '아직 개발자가 없어요'), currentRole === 'client' && h('button', { class: 'btn btn-line btn-sm', onclick: (e) => { e.stopPropagation(); openInvite(p); } }, '개발자 초대')]
+          : [
+              h('span', { class: 'stat' }, '남은 요청 ', h('b', {}, open)),
+              mine > 0 && h('span', { class: 'mine' }, `내 차례 ${mine}`),
+              h('span', { class: 'avatars' }, people.map(avatar)),
+            ];
+
+        return h(
+          'article',
+          { class: 'project', style: `animation-delay:${index * 50}ms`, tabindex: 0, onclick: () => openProject(p), onkeydown: (e) => e.key === 'Enter' && openProject(p) },
+          h(
+            'div',
+            { class: 'shot' },
+            h('span', { class: 'stage' }, p.stage),
+            h('div', { class: 'mini', style: `--tone:${p.tone}` }, h('i', { style: 'width:40%' }), h('i', { class: 'hero' }), h('div', { class: 'row' }, h('i'), h('i'), h('i'))),
+          ),
+          h(
+            'div',
+            { class: 'info' },
+            h('div', { class: 'name-row' }, h('h3', {}, p.name), h('span', { class: 'role' }, `${PEOPLE[currentRole].label}로 참여`)),
+            p.url
+              ? h('div', { class: 'url' }, icon('link', 13), h('span', {}, p.url))
+              : h('div', { class: 'url none' }, h('span', {}, '배포 전 · 초안만 있어요')),
+            h('div', { class: 'stats' }, ...foot),
+          ),
+        );
+      }
+
+      function openProject(p) {
+        if (p.live) location.href = linkTo('workspace.html');
+        else if (!p.url && currentRole === 'client') location.href = linkTo('draft.html', { project: p.id });
+        else toast('시연에서는 MORROW 쇼핑몰만 열 수 있어요');
+      }
+
+      function openInvite(p) {
+        inviting = p;
+        $('#inviteDesc').textContent = `${p.name}에 함께할 개발자에게 링크를 보내 주세요. 링크로 들어오면 개발자로 참여해요.`;
+        $('#inviteLink').value = `respec.app/invite/${p.id}-7f3k2q`;
+        $('#invite').classList.add('open');
+        $('#invite').setAttribute('aria-hidden', 'false');
+        $('#copyLink').focus();
+      }
+
+      function closeInvite() {
+        $('#invite').classList.remove('open');
+        $('#invite').setAttribute('aria-hidden', 'true');
+        inviting = null;
+      }
+
+      $('#copyLink').addEventListener('click', () => {
+        navigator.clipboard?.writeText($('#inviteLink').value).catch(() => {});
+        toast('초대 링크를 복사했어요');
+      });
+      $('#disableLink').addEventListener('click', () => {
+        toast('초대 링크를 껐어요. 다시 열면 새 링크가 만들어져요');
+        closeInvite();
+      });
+      $('#closeInvite').addEventListener('click', closeInvite);
+      $('#invite').addEventListener('click', (e) => e.target === e.currentTarget && closeInvite());
+      document.addEventListener('keydown', (e) => e.key === 'Escape' && inviting && closeInvite());
+
+      onSegment($('#roleSwitch'), (role) => {
+        currentRole = role;
+        render();
+      });
+      $('#search').addEventListener('input', (e) => {
+        view.query = e.target.value.trim();
+        render();
+      });
+      $('#newBtn').href = linkTo('draft.html');
+
+      document.addEventListener('DOMContentLoaded', () => {
+        RESPEC.hydrate();
+        render();
+      });
+    </script>
+  </body>
+</html>

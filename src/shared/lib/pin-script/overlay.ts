@@ -1,4 +1,4 @@
-import type { BridgePinTone } from '../pin-bridge';
+import type { BridgePinKind, BridgePinTone } from '../pin-bridge';
 import { PIN_COLORS, PIN_EASING, PIN_TONE_COLORS } from './theme';
 
 /** 사이트 CSS의 `div { ... }` 같은 규칙이 걸리지 않도록 사용자 정의 태그를 씁니다. */
@@ -13,6 +13,7 @@ const TONE_STYLE = (Object.keys(PIN_TONE_COLORS) as BridgePinTone[])
   .join('\n');
 
 // 앱의 `PinMarkerButton` + `NumberedPin`과 같은 모양입니다. 왼쪽 아래 뾰족한 모서리가 핀이 가리키는 지점입니다.
+// 위치는 스크롤할 때마다 다시 계산하므로 `left`/`top`에 transition을 두지 않습니다(두면 스크롤을 늦게 따라옵니다).
 const STYLE = `
 :host { all: initial; }
 .layer {
@@ -43,17 +44,9 @@ ${TONE_STYLE}
   width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%;
   background: ${PIN_COLORS.alert};
 }
-.marker[data-needs-check] .pin { border: 2px dashed currentColor; opacity: 0.6; }
-.tip {
-  position: absolute; top: 0; left: 100%; margin-left: 8px; box-sizing: border-box;
-  width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 10px;
-  background: ${PIN_COLORS.ink}; color: #fff; font: 600 13px/1.375 ${FONT};
-  overflow-wrap: anywhere; word-break: keep-all; white-space: normal;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
-  pointer-events: none; visibility: hidden; opacity: 0; transition: opacity 150ms;
-}
-.tip:empty { display: none; }
-.marker:hover .tip, .marker:focus-visible .tip { visibility: visible; opacity: 1; }
+.marker[data-kind='review'] .pin { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px ${PIN_COLORS.ink}; }
+.marker[data-kind='draft'] { pointer-events: none; cursor: default; }
+.marker[data-kind='draft'] .pin { background: ${PIN_COLORS.ink}; }
 @keyframes pin-drop { from { opacity: 0; translate: 0 -20px; } }
 `;
 
@@ -67,10 +60,7 @@ export type OverlayMarker = {
   /** 내가 움직일 차례. 빨간 점을 붙입니다(고른 핀 제외). */
   alert: boolean;
   selected: boolean;
-  /** 요소를 다시 찾지 못해 저장된 좌표에 그리는 핀. 흐린 점선으로 그립니다. */
-  needsCheck: boolean;
-  /** 마우스를 올리면 보여 줄 요청 내용 */
-  preview: string | null;
+  kind: BridgePinKind;
 };
 
 export type Overlay = {
@@ -111,10 +101,7 @@ export function createOverlay(doc: Document): Overlay {
     button.setAttribute(MARKER_ATTRIBUTE, pinId);
     const pin = doc.createElement('span');
     pin.className = 'pin';
-    const tip = doc.createElement('span');
-    tip.className = 'tip';
-    tip.setAttribute('aria-hidden', 'true');
-    button.append(pin, tip);
+    button.append(pin);
     return button;
   };
 
@@ -128,26 +115,20 @@ export function createOverlay(doc: Document): Overlay {
         buttons.set(item.pinId, button);
         markers.append(button);
       }
-      const [pin, tip] = button.children;
-      pin.textContent = String(item.number);
-      // 사이트 문서에 넣는 값이라 `textContent`로만 씁니다.
-      tip.textContent = item.preview ?? '';
-      button.setAttribute(
-        'aria-label',
-        [
-          `${item.number}번 핀`,
-          item.alert && '내 차례',
-          item.needsCheck && '위치 확인 필요',
-          item.preview,
-        ]
-          .filter(Boolean)
-          .join(', '),
-      );
+      const isDraft = item.kind === 'draft';
+      button.children[0].textContent = String(item.number);
+      button.setAttribute('aria-label', `핀 ${item.number}`);
+      if (item.kind === 'review') button.title = `핀 ${item.number} 반영 위치`;
+      else button.removeAttribute('title');
+      // 아직 보내지 않은 위치는 누를 수 없어서 키보드 순서와 화면 읽기에서도 뺍니다.
+      button.tabIndex = isDraft ? -1 : 0;
+      if (isDraft) button.setAttribute('aria-hidden', 'true');
+      else button.removeAttribute('aria-hidden');
       button.setAttribute('aria-pressed', String(item.selected));
       button.setAttribute('data-tone', item.tone);
-      button.toggleAttribute('data-alert', item.alert);
-      button.toggleAttribute('data-selected', item.selected);
-      button.toggleAttribute('data-needs-check', item.needsCheck);
+      button.setAttribute('data-kind', item.kind);
+      button.toggleAttribute('data-alert', item.alert && !isDraft);
+      button.toggleAttribute('data-selected', item.selected && !isDraft);
       button.style.left = `${item.clientX}px`;
       button.style.top = `${item.clientY}px`;
     }

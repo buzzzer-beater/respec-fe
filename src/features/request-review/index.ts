@@ -1,3 +1,3 @@
 export * from './api/review-request';
-export { default as AddToReviewButton } from './ui/AddToReviewButton';
-export { default as RequestReviewButton } from './ui/RequestReviewButton';
+export * from './model/review-draft';
+export { default as ReviewRequestPanel } from './ui/ReviewRequestPanel';

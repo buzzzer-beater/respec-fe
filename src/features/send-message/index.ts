@@ -1,2 +1,2 @@
 export * from './api/message';
-export { default as MessageInput } from './ui/MessageInput';
+export { default as ChatComposer } from './ui/ChatComposer';

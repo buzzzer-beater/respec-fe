@@ -14,3 +14,7 @@ export interface ChatMessage {
   /** ISO 8601 */
   created_at: string;
 }
+
+/** AI 변환을 아직 만드는 중인 항목이 있는지. 있으면 목록 전체를 다시 받아 변환본을 채웁니다. */
+export const hasPendingAi = (items: readonly { ai_status: AiStatus }[]) =>
+  items.some((item) => item.ai_status === 'pending');

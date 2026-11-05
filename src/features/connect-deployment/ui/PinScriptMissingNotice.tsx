@@ -4,17 +4,21 @@ import { useState } from 'react';
 
 import { useGetProject } from '@/entities/project';
 import { can } from '@/entities/user';
+import { Icon } from '@/shared/ui';
 
 import ConnectDeploymentDialog from './ConnectDeploymentDialog';
 
 export const PIN_SCRIPT_MISSING_MESSAGE = '이 사이트에 핀 스크립트가 없어서 핀을 찍을 수 없어요';
+
+/** 핀 스크립트가 없는 사이트에서 핀 버튼이나 C를 눌렀을 때 띄우는 안내 */
+export const PIN_SCRIPT_MISSING_TOAST = '이 사이트에는 핀 스크립트가 없어서 핀을 찍을 수 없어요';
 
 interface PinScriptMissingNoticeProps {
   projectId: number;
 }
 
 /**
- * 배포 사이트에 핀 스크립트가 없을 때 뷰어 위에 띄우는 주황 안내(FE#80).
+ * 배포 사이트에 핀 스크립트가 없을 때 뷰어 위에 띄우는 주황 안내(demo-design `.script-guide`).
  * 개발자는 "설치 방법"으로 배포 연결 대화상자를 열고, 고객은 개발자에게 설치를 요청하도록 안내합니다.
  */
 const PinScriptMissingNotice = ({ projectId }: PinScriptMissingNoticeProps) => {
@@ -26,9 +30,10 @@ const PinScriptMissingNotice = ({ projectId }: PinScriptMissingNoticeProps) => {
     <>
       <div
         role="status"
-        className="text-warn flex w-max max-w-full items-center gap-2 rounded-xl bg-[#fff4e8] py-2 pr-2 pl-3.5 text-[13px] font-semibold shadow-[0_2px_10px_rgba(178,92,12,0.12)]"
+        className="bg-warn-soft text-warn-strong flex w-max items-center gap-2 rounded-xl py-2 pr-2 pl-3.5 text-[13px] font-semibold whitespace-nowrap shadow-[0_2px_10px_rgba(178,92,12,0.12)]"
       >
-        <span className={canConnect ? undefined : 'pr-1.5'}>
+        <Icon name="link" size={16} />
+        <span>
           {PIN_SCRIPT_MISSING_MESSAGE}
           {!canConnect && ' · 개발자에게 설치를 요청해 주세요'}
         </span>
@@ -36,7 +41,7 @@ const PinScriptMissingNotice = ({ projectId }: PinScriptMissingNoticeProps) => {
           <button
             type="button"
             onClick={() => setIsOpen(true)}
-            className="text-ink shrink-0 rounded-lg bg-white px-2.5 py-1 text-xs font-bold hover:bg-white/80"
+            className="bg-warn-strong h-7 shrink-0 rounded-lg px-2.5 text-xs font-bold text-white"
           >
             설치 방법
           </button>

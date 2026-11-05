@@ -27,7 +27,10 @@ const getInitialPath = (url: string) => {
   }
 };
 
-/** iframe으로 보낼 핀. 위치와 마커 표시에 필요한 값만 보내고, 요청 내용은 툴팁용 앞부분만 보냅니다. */
+/** 저장 전인 새 핀을 사이트 마커로 그릴 때 쓰는 id. 서버 핀 id(숫자)와 겹치지 않습니다. */
+const NEW_PIN_MARKER_ID = 'new-pin';
+
+/** iframe으로 보낼 핀. 위치와 마커 표시에 필요한 값만 보내고 요청 내용은 보내지 않습니다. */
 const toBridgePins = (pins: ViewerPin[], path: string): BridgePin[] =>
   pins.flatMap((pin) =>
     pin.pagePath === path && pin.anchor
@@ -42,7 +45,7 @@ const toBridgePins = (pins: ViewerPin[], path: string): BridgePin[] =>
             location_context: pin.anchor.location_context ?? null,
             tone: pin.tone ?? 'brand',
             alert: !!pin.alert,
-            request_preview: pin.preview ?? null,
+            kind: pin.kind ?? 'pin',
             location_status: pin.locationStatus ?? 'located',
           },
         ]
@@ -69,9 +72,14 @@ interface DeployedSiteFrameProps {
   onPathChange?: (path: string) => void;
   /** 핀 스크립트 연결 상태가 바뀔 때. 처음 마운트할 때 `connecting`으로 한 번 부릅니다. */
   onStatusChange?: (status: PinScriptStatus) => void;
-  /** 저장 전인 새 핀 위치(iframe 화면 기준 %)와, 그 옆에 띄울 입력창 */
+  /**
+   * 저장 전인 새 핀 위치와, 그 옆에 띄울 입력창. 핀은 사이트 안에 검정 마커로 그려서 스크롤을 따라가고,
+   * 입력창은 누른 자리(iframe 화면 기준 %)에 띄웁니다.
+   */
   draftPin?: PinPosition | null;
   draftPinContent?: ReactNode;
+  /** 새 핀에 붙일 번호. 없으면 `pins`의 가장 큰 번호 + 1입니다. */
+  draftPinNumber?: number;
 }
 
 /**
@@ -93,6 +101,7 @@ const DeployedSiteFrame = ({
   onStatusChange,
   draftPin,
   draftPinContent,
+  draftPinNumber,
 }: DeployedSiteFrameProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const origin = toOrigin(url);
@@ -178,11 +187,28 @@ const DeployedSiteFrame = ({
     iframeRef.current?.contentWindow?.postMessage(message, origin);
   }, [isConnected, origin, mode, readyCount]);
 
+  const newPinNumber = draftPinNumber ?? Math.max(0, ...pins.map((pin) => pin.number)) + 1;
+  const newPinAnchor = draftPin?.anchor;
+  const markerPins: ViewerPin[] = newPinAnchor
+    ? [
+        ...pins,
+        {
+          id: NEW_PIN_MARKER_ID,
+          number: newPinNumber,
+          pagePath: newPinAnchor.page_path,
+          x: draftPin.x,
+          y: draftPin.y,
+          kind: 'draft',
+          anchor: newPinAnchor,
+        },
+      ]
+    : pins;
+
   // 핀 목록은 주기적으로 다시 받으므로 내용이 바뀔 때만 보냅니다.
   const selectedPinId = focusPin?.id ?? null;
   const pinsMessage = JSON.stringify({
     type: 'respec:show-pins',
-    pins: toBridgePins(pins, path),
+    pins: toBridgePins(markerPins, path),
     selectedPinId,
   } satisfies ParentMessage);
 
@@ -226,14 +252,19 @@ const DeployedSiteFrame = ({
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads"
         className="block size-full border-0"
       />
-      {draftPin && (
+      {draftPin && (!newPinAnchor || draftPinContent) && (
         <div
           className="absolute z-20 flex items-start gap-2"
           style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
         >
-          <span className="-translate-y-full">
-            <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
-          </span>
+          {/* 앵커가 있으면 핀은 사이트 안에 그리므로 자리만 비워 둡니다. */}
+          {newPinAnchor ? (
+            <span aria-hidden className="w-[38px] shrink-0" />
+          ) : (
+            <span className="-translate-y-full">
+              <NumberedPin number={newPinNumber} kind="draft" />
+            </span>
+          )}
           {draftPinContent}
         </div>
       )}

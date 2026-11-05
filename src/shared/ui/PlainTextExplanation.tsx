@@ -1,3 +1,8 @@
+'use client';
+
+import { useState } from 'react';
+
+import type { AiStatus } from '@/shared/api';
 import { cn } from '@/shared/lib';
 
 export type PlainTextExplanationProps = {
@@ -38,5 +43,79 @@ export const PlainTextExplanation = ({
         <dd className={cn(textClassName, 'text-text text-[13px] leading-relaxed')}>{plainText}</dd>
       </div>
     </dl>
+  );
+};
+
+/** demo-design `.ai-badge`: AI가 만든 내용 앞에 붙이는 작은 회색 표시 */
+export const AiBadge = () => (
+  <span className="bg-chip text-text rounded-md px-1.5 py-px text-[10px] font-extrabold">AI</span>
+);
+
+const inlineClassName = 'text-muted inline-flex items-center gap-1.5 text-xs font-semibold';
+
+export type AiPlainTextProps = {
+  /** AI 변환본. 완료 전이거나 실패하면 `null` */
+  plainText: string | null | undefined;
+  status: AiStatus | null | undefined;
+  /** "쉬운 풀이"(개발자가 쓴 글) 또는 "개발자용 정리"(고객이 쓴 글) */
+  label: string;
+  /** 만드는 중 문구. 기본은 "정리하는 중…" */
+  pendingLabel?: string;
+  className?: string;
+};
+
+/**
+ * 원문 아래에 접어 두는 AI 설명 (demo-design `.ai-inline`).
+ * 원문은 말풍선에 항상 보이고, 이 줄은 눌러야 펼쳐집니다. 만드는 중이면 문구만, 실패·생략이면 아무것도 그리지 않습니다.
+ */
+export const AiPlainText = ({
+  plainText,
+  status,
+  label,
+  pendingLabel = '정리하는 중…',
+  className,
+}: AiPlainTextProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (status === 'pending') {
+    return (
+      <div className={cn(inlineClassName, className)}>
+        <AiBadge />
+        {pendingLabel}
+      </div>
+    );
+  }
+  if (!plainText?.trim()) return null;
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        aria-expanded={false}
+        className={cn(inlineClassName, 'hover:text-ink transition-colors', className)}
+      >
+        <AiBadge />
+        {label} 보기
+      </button>
+    );
+  }
+
+  return (
+    <div className={cn('bg-ai block max-w-full rounded-[10px] px-3 py-2.5 text-xs', className)}>
+      <div className="text-text mb-1 flex items-center gap-1.5 font-bold">
+        <AiBadge />
+        {label}
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          aria-expanded
+          className="text-muted hover:text-ink ml-auto text-xs"
+        >
+          접기
+        </button>
+      </div>
+      <p className={cn(textClassName, 'text-text text-[13px] leading-[1.6]')}>{plainText}</p>
+    </div>
   );
 };

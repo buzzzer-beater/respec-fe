@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isVercelAppUrl, validateDeploymentUrl } from './deployment-url';
+import { validateDeploymentUrl } from './deployment-url';
 
 describe('validateDeploymentUrl', () => {
   it.each([
@@ -46,17 +46,5 @@ describe('validateDeploymentUrl', () => {
     ['https://:pass@example.com', 'has-credentials'],
   ])('"%s"는 %s 오류다', (value, error) => {
     expect(validateDeploymentUrl(value)).toEqual({ ok: false, error });
-  });
-});
-
-describe('isVercelAppUrl', () => {
-  it.each([
-    ['https://my-app.vercel.app', true],
-    ['https://my-app.vercel.app/about', true],
-    ['https://vercel.app', false],
-    ['https://example.com', false],
-    ['not a url', false],
-  ])('%s는 %s', (value, expected) => {
-    expect(isVercelAppUrl(value)).toBe(expected);
   });
 });

@@ -69,33 +69,22 @@ function startPinScript({ win, parent, allowedOrigins }) {
     };
     const currentPins = () => pins.filter((pin) => pin.page_path === path);
     const getLocationState = (pin) => { var _a; return (_a = locationStates.get(pin.id)) !== null && _a !== void 0 ? _a : (pin.location_status === 'needs_check' ? 'missing' : 'found'); };
-    const getSavedPosition = (pin, fallback) => {
-        var _a, _b;
-        const root = doc.documentElement;
-        const pageX = (_a = fallback === null || fallback === void 0 ? void 0 : fallback.pageX) !== null && _a !== void 0 ? _a : pin.relative_x * root.scrollWidth;
-        const pageY = (_b = fallback === null || fallback === void 0 ? void 0 : fallback.pageY) !== null && _b !== void 0 ? _b : pin.relative_y * root.scrollHeight;
-        return { clientX: pageX - win.scrollX, clientY: pageY - win.scrollY };
-    };
     const render = () => {
         frame = 0;
         const markers = [];
         for (const pin of currentPins()) {
             const result = (0, pin_engine_1.restoreAnchor)(doc, pin);
-            if (result.status === 'hidden')
+            if (result.status !== 'found')
                 continue;
-            if (result.status === 'missing' && getLocationState(pin) !== 'missing')
-                continue;
-            const position = result.status === 'found' ? result.position : getSavedPosition(pin, result.fallback);
             markers.push({
                 pinId: pin.id,
                 number: pin.number,
-                clientX: position.clientX,
-                clientY: position.clientY,
+                clientX: result.position.clientX,
+                clientY: result.position.clientY,
                 tone: pin.tone,
                 alert: pin.alert,
                 selected: pin.id === selectedPinId,
-                needsCheck: result.status === 'missing',
-                preview: pin.request_preview,
+                kind: pin.kind,
             });
         }
         overlay.render(markers);
@@ -106,20 +95,18 @@ function startPinScript({ win, parent, allowedOrigins }) {
     };
     const checkLocations = () => {
         checkTimer = undefined;
-        let changed = false;
         for (const pin of currentPins()) {
+            if (pin.kind !== 'pin')
+                continue;
             const { status } = (0, pin_engine_1.restoreAnchor)(doc, pin);
             if (status === 'hidden' || status === getLocationState(pin))
                 continue;
             locationStates.set(pin.id, status);
-            changed = true;
             post({
                 type: status === 'missing' ? 'respec:pin-missing' : 'respec:pin-found',
                 pinId: pin.id,
             });
         }
-        if (changed)
-            scheduleRender();
     };
     const scheduleLocationCheck = (restart) => {
         if (checkTimer !== undefined && !restart)
@@ -237,10 +224,10 @@ function startPinScript({ win, parent, allowedOrigins }) {
 function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toOrigin = exports.PIN_SCRIPT_PATH = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_BRIDGE_VERSION = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PREVIEW_MAX_LENGTH = exports.BRIDGE_PIN_TONES = void 0;
+exports.toOrigin = exports.PIN_SCRIPT_PATH = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_BRIDGE_VERSION = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PIN_TONES = exports.BRIDGE_PIN_KINDS = void 0;
 var protocol_1 = __require(3);
+Object.defineProperty(exports, "BRIDGE_PIN_KINDS", { enumerable: true, get: function () { return protocol_1.BRIDGE_PIN_KINDS; } });
 Object.defineProperty(exports, "BRIDGE_PIN_TONES", { enumerable: true, get: function () { return protocol_1.BRIDGE_PIN_TONES; } });
-Object.defineProperty(exports, "BRIDGE_PREVIEW_MAX_LENGTH", { enumerable: true, get: function () { return protocol_1.BRIDGE_PREVIEW_MAX_LENGTH; } });
 Object.defineProperty(exports, "isPagePath", { enumerable: true, get: function () { return protocol_1.isPagePath; } });
 Object.defineProperty(exports, "parseParentMessage", { enumerable: true, get: function () { return protocol_1.parseParentMessage; } });
 Object.defineProperty(exports, "parseSiteMessage", { enumerable: true, get: function () { return protocol_1.parseSiteMessage; } });
@@ -253,13 +240,13 @@ Object.defineProperty(exports, "toOrigin", { enumerable: true, get: function () 
 function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toOrigin = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PREVIEW_MAX_LENGTH = exports.BRIDGE_PIN_TONES = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_SCRIPT_PATH = exports.PIN_BRIDGE_VERSION = void 0;
-exports.PIN_BRIDGE_VERSION = 3;
+exports.toOrigin = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PIN_KINDS = exports.BRIDGE_PIN_TONES = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_SCRIPT_PATH = exports.PIN_BRIDGE_VERSION = void 0;
+exports.PIN_BRIDGE_VERSION = 4;
 exports.PIN_SCRIPT_PATH = '/respec-pin.js';
 exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = 'data-respec-origin';
 const PREFIX = 'respec:';
 exports.BRIDGE_PIN_TONES = ['brand', 'quiet', 'done'];
-exports.BRIDGE_PREVIEW_MAX_LENGTH = 200;
+exports.BRIDGE_PIN_KINDS = ['pin', 'review', 'draft'];
 const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 const isRatio = (value) => isFiniteNumber(value) && value >= 0 && value <= 1;
@@ -297,12 +284,12 @@ const toAnchor = (value) => {
     return anchor;
 };
 const isTone = (value) => exports.BRIDGE_PIN_TONES.includes(value);
-const toPreview = (value) => isNonEmptyString(value) ? value.slice(0, exports.BRIDGE_PREVIEW_MAX_LENGTH) : null;
+const isKind = (value) => exports.BRIDGE_PIN_KINDS.includes(value);
 const toBridgePin = (value) => {
     var _a;
     if (!isRecord(value))
         return null;
-    const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert } = value;
+    const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert, kind } = value;
     if (!isNonEmptyString(id) || !isFiniteNumber(number) || !(0, exports.isPagePath)(page_path))
         return null;
     if (!isNonEmptyString(element_selector))
@@ -319,7 +306,7 @@ const toBridgePin = (value) => {
         location_context: (_a = toLocationContext(value.location_context)) !== null && _a !== void 0 ? _a : null,
         tone: isTone(tone) ? tone : 'brand',
         alert: alert === true,
-        request_preview: toPreview(value.request_preview),
+        kind: isKind(kind) ? kind : 'pin',
         location_status: value.location_status === 'needs_check' ? 'needs_check' : 'located',
     };
 };
@@ -791,17 +778,9 @@ ${TONE_STYLE}
   width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%;
   background: ${theme_1.PIN_COLORS.alert};
 }
-.marker[data-needs-check] .pin { border: 2px dashed currentColor; opacity: 0.6; }
-.tip {
-  position: absolute; top: 0; left: 100%; margin-left: 8px; box-sizing: border-box;
-  width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 10px;
-  background: ${theme_1.PIN_COLORS.ink}; color: #fff; font: 600 13px/1.375 ${FONT};
-  overflow-wrap: anywhere; word-break: keep-all; white-space: normal;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
-  pointer-events: none; visibility: hidden; opacity: 0; transition: opacity 150ms;
-}
-.tip:empty { display: none; }
-.marker:hover .tip, .marker:focus-visible .tip { visibility: visible; opacity: 1; }
+.marker[data-kind='review'] .pin { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px ${theme_1.PIN_COLORS.ink}; }
+.marker[data-kind='draft'] { pointer-events: none; cursor: default; }
+.marker[data-kind='draft'] .pin { background: ${theme_1.PIN_COLORS.ink}; }
 @keyframes pin-drop { from { opacity: 0; translate: 0 -20px; } }
 `;
 function createOverlay(doc) {
@@ -823,14 +802,10 @@ function createOverlay(doc) {
         button.setAttribute(MARKER_ATTRIBUTE, pinId);
         const pin = doc.createElement('span');
         pin.className = 'pin';
-        const tip = doc.createElement('span');
-        tip.className = 'tip';
-        tip.setAttribute('aria-hidden', 'true');
-        button.append(pin, tip);
+        button.append(pin);
         return button;
     };
     const render = (items) => {
-        var _a;
         const seen = new Set();
         for (const item of items) {
             seen.add(item.pinId);
@@ -840,22 +815,23 @@ function createOverlay(doc) {
                 buttons.set(item.pinId, button);
                 markers.append(button);
             }
-            const [pin, tip] = button.children;
-            pin.textContent = String(item.number);
-            tip.textContent = (_a = item.preview) !== null && _a !== void 0 ? _a : '';
-            button.setAttribute('aria-label', [
-                `${item.number}번 핀`,
-                item.alert && '내 차례',
-                item.needsCheck && '위치 확인 필요',
-                item.preview,
-            ]
-                .filter(Boolean)
-                .join(', '));
+            const isDraft = item.kind === 'draft';
+            button.children[0].textContent = String(item.number);
+            button.setAttribute('aria-label', `핀 ${item.number}`);
+            if (item.kind === 'review')
+                button.title = `핀 ${item.number} 반영 위치`;
+            else
+                button.removeAttribute('title');
+            button.tabIndex = isDraft ? -1 : 0;
+            if (isDraft)
+                button.setAttribute('aria-hidden', 'true');
+            else
+                button.removeAttribute('aria-hidden');
             button.setAttribute('aria-pressed', String(item.selected));
             button.setAttribute('data-tone', item.tone);
-            button.toggleAttribute('data-alert', item.alert);
-            button.toggleAttribute('data-selected', item.selected);
-            button.toggleAttribute('data-needs-check', item.needsCheck);
+            button.setAttribute('data-kind', item.kind);
+            button.toggleAttribute('data-alert', item.alert && !isDraft);
+            button.toggleAttribute('data-selected', item.selected && !isDraft);
             button.style.left = `${item.clientX}px`;
             button.style.top = `${item.clientY}px`;
         }

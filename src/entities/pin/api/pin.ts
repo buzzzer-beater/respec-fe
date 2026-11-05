@@ -35,7 +35,10 @@ export const useGetPins = (projectId: number) =>
     refetchInterval: POLLING_INTERVAL_MS,
   });
 
-/** 여러 핀의 댓글을 한 번에 조회합니다. 아직 받지 못한 핀은 결과에 없습니다. */
+/**
+ * 여러 핀의 댓글을 한 번에 조회합니다. 아직 받지 못한 핀은 결과에 없습니다.
+ * AI 쉬운 설명은 백그라운드에서 채워지므로(`ai_status: pending`) 매번 목록 전체를 다시 받습니다.
+ */
 export const useGetPinCommentsByPin = (projectId: number, pinIds: number[]) =>
   useQueries({
     queries: pinIds.map((pinId) => ({

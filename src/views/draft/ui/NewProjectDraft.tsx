@@ -55,6 +55,8 @@ const NewProjectDraft = () => {
       onSiteTypeChange={setSiteType}
       onSubmit={handleSubmit}
       isPending={isPending}
+      projectStep={postProject.isPending ? 'pending' : 'done'}
+      isDone={putDraft.isSuccess}
       error={error}
     />
   );

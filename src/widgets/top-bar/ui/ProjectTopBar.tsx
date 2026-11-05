@@ -1,7 +1,8 @@
 'use client';
 
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
-import { PROJECT_ROLE_LABEL } from '@/entities/user';
+import { can, PROJECT_ROLE_LABEL } from '@/entities/user';
+import { InviteDeveloperButton } from '@/features/invite-developer';
 import { Avatar } from '@/shared/ui';
 
 import TopBar from './TopBar';
@@ -40,6 +41,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
           ))}
         </ul>
       )}
+      {can(project?.my_role, 'invite-developer') && <InviteDeveloperButton projectId={projectId} />}
     </TopBar>
   );
 };

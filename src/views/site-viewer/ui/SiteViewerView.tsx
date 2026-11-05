@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
-import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
+import { PinLocationBadge, useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import {
   useGetDraftPreviewHtml,
   useGetProject,
@@ -12,6 +12,12 @@ import {
 } from '@/entities/project';
 import { isHiddenByDefault, useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
+import {
+  RelocatePinButton,
+  RelocatePinPrompt,
+  useRelocatePin,
+  useReportPinLocation,
+} from '@/features/check-pin-location';
 import { DeploymentEmptyState } from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { MessageRequestMenu } from '@/features/create-request-from-message';
@@ -60,16 +66,21 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const registeredMessageIds = new Set(requests.map((request) => request.source_chat_message_id));
   const postPin = usePostPin(projectId);
   const postMessage = usePostMessage(projectId);
+  const relocatePin = useRelocatePin(projectId);
+  const { reportMissing, reportFound } = useReportPinLocation(projectId);
+
+  // 초안은 요소 기준 앵커가 있고, 배포 사이트는 아직 영역 기준 좌표만 저장합니다.
+  const toAnchor = (position: PinPosition) =>
+    position.anchor ?? {
+      page_path: getPagePath(project?.deployment_url),
+      element_selector: VIEWER_ANCHOR_SELECTOR,
+      relative_x: position.x / 100,
+      relative_y: position.y / 100,
+    };
 
   const handleSubmitPin = (content: string) => {
     if (!draftPin || !project) return;
-    // 초안은 요소 기준 앵커가 있고, 배포 사이트는 아직 영역 기준 좌표만 저장합니다.
-    const anchor = draftPin.anchor ?? {
-      page_path: getPagePath(project.deployment_url),
-      element_selector: VIEWER_ANCHOR_SELECTOR,
-      relative_x: draftPin.x / 100,
-      relative_y: draftPin.y / 100,
-    };
+    const anchor = toAnchor(draftPin);
     postPin.mutate(
       { role: project.my_role, ...anchor, request_content: content },
       {
@@ -86,6 +97,11 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   };
 
   const handlePlacePin = (position: PinPosition) => {
+    // 위치 다시 지정 중이면 새 핀 대신 그 핀을 옮깁니다.
+    if (relocatePin.pinId !== null) {
+      relocatePin.place(toAnchor(position));
+      return;
+    }
     postPin.reset();
     setNotice(null);
     setDraftPin(position);
@@ -114,6 +130,12 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
       ? '초안을 만들거나 배포 사이트를 연결하면 핀을 남길 수 있어요'
       : null;
 
+  const startRelocate = (pinId: number) => {
+    setDraftPin(null);
+    relocatePin.start(pinId);
+  };
+  const relocatingNumber = pins.findIndex((pin) => pin.id === relocatePin.pinId) + 1;
+
   const pinPopover = (
     <PinCommentPopover
       onSubmit={handleSubmitPin}
@@ -135,6 +157,16 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           draftPin={draftPin}
           draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
+          pinPrompt={
+            relocatingNumber > 0 ? (
+              <RelocatePinPrompt
+                pinNumber={relocatingNumber}
+                isPending={relocatePin.isPending}
+                errorMessage={relocatePin.errorMessage}
+                onCancel={relocatePin.cancel}
+              />
+            ) : undefined
+          }
           showResolved={showResolved}
           onShowResolvedChange={setShowResolved}
           renderSite={
@@ -150,6 +182,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     selectedPinId={selectedPin?.id ?? null}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}
+                    onPinMissing={(id) => reportMissing(Number(id))}
+                    onPinFound={(id) => reportFound(Number(id))}
                   />
                 )
               : undefined
@@ -177,7 +211,16 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         onSendMessage={(content) => postMessage.mutate({ content })}
         onSelectPin={handleSelectPin}
         renderPinThreadAction={({ id }) => (
-          <SharePinButton projectId={projectId} pinId={Number(id)} />
+          <>
+            {pins.find((pin) => pin.id === Number(id))?.location_status === 'needs_check' && (
+              <PinLocationBadge />
+            )}
+            <RelocatePinButton
+              isActive={relocatePin.pinId === Number(id)}
+              onClick={() => startRelocate(Number(id))}
+            />
+            <SharePinButton projectId={projectId} pinId={Number(id)} />
+          </>
         )}
         renderMessageAction={({ id, content }) => {
           if (!canCreateRequest || !content) return null;

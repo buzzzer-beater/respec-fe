@@ -12,6 +12,8 @@ export interface MarkerPlacement {
   /** 레이어 안 위치(%) */
   x: number;
   y: number;
+  /** 요소를 다시 찾지 못해 저장된 좌표에 그리는 핀 */
+  needsCheck?: boolean;
 }
 
 interface PinMarkerLayerProps {
@@ -47,7 +49,7 @@ const PinMarkerLayer = ({ markers, selectedPinId, onSelectPin }: PinMarkerLayerP
 
   return (
     <div ref={ref} className="pointer-events-none absolute inset-0">
-      {markers.map(({ pin, x, y }, index) => (
+      {markers.map(({ pin, x, y, needsCheck }, index) => (
         <PinMarkerButton
           key={pin.id}
           number={pin.number}
@@ -55,6 +57,7 @@ const PinMarkerLayer = ({ markers, selectedPinId, onSelectPin }: PinMarkerLayerP
           muted={pin.muted}
           preview={pin.preview}
           selected={pin.id === selectedPinId}
+          needsCheck={needsCheck}
           onClick={() => onSelectPin?.(pin.id)}
           className="pointer-events-auto"
           style={{ left: `calc(${x}% + ${offsets[index] ?? 0}px)`, top: `${y}%` }}

@@ -12,6 +12,8 @@ interface PinMarkerButtonProps {
   /** 해결됐거나 요청이 없는 핀. 작은 점으로 그립니다(선택하면 원래 크기). */
   muted?: boolean;
   selected?: boolean;
+  /** 요소를 다시 찾지 못한 핀. 저장된 좌표에 흐린 점선 핀으로 그립니다. */
+  needsCheck?: boolean;
   /** 마우스를 올리면 보여 줄 요청 내용 */
   preview?: string | null;
   onClick?: () => void;
@@ -28,6 +30,7 @@ const PinMarkerButton = ({
   status,
   muted = false,
   selected = false,
+  needsCheck = false,
   preview,
   onClick,
   style,
@@ -37,7 +40,9 @@ const PinMarkerButton = ({
   return (
     <button
       type="button"
-      aria-label={preview ? `${number}번 핀: ${preview}` : `${number}번 핀`}
+      aria-label={[`${number}번 핀`, needsCheck && '위치 확인 필요', preview]
+        .filter(Boolean)
+        .join(', ')}
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
@@ -51,7 +56,10 @@ const PinMarkerButton = ({
         number={number}
         muted={muted && !selected}
         tone={status ? CHANGE_REQUEST_STATUS_TONE[status] : 'brand'}
-        className={cn(selected && 'ring-brand/30 scale-110 ring-4')}
+        className={cn(
+          selected && 'ring-brand/30 scale-110 ring-4',
+          needsCheck && 'border-2 border-dashed border-current opacity-60',
+        )}
       />
       {preview && (
         <span

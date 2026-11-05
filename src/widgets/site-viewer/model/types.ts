@@ -13,6 +13,6 @@ export interface ViewerPin extends Pin {
 export interface PinPosition {
   x: number;
   y: number;
-  /** 요소를 찾아 만든 앵커. 초안 미리보기에서만 있습니다. */
+  /** 요소를 찾아 만든 앵커. 초안 미리보기와 핀 스크립트가 연결된 배포 사이트에서만 있습니다. */
   anchor?: PinAnchor;
 }

@@ -18,7 +18,12 @@ import { MessageRequestMenu } from '@/features/create-request-from-message';
 import { usePostMessage } from '@/features/send-message';
 import { SharePinButton } from '@/features/share-pin';
 import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
-import { DraftPreviewFrame, type PinPosition, SiteViewer } from '@/widgets/site-viewer';
+import {
+  DeployedSiteFrame,
+  DraftPreviewFrame,
+  type PinPosition,
+  SiteViewer,
+} from '@/widgets/site-viewer';
 
 import {
   getPagePath,
@@ -45,6 +50,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const { data: pins = [] } = useGetPins(projectId);
   const { data: messages = [] } = useGetMessages(projectId);
   const { data: draft } = useGetProjectDraft(projectId);
+  const deploymentUrl = project?.deployment_url ?? null;
   // 배포 URL이 없고 초안이 있으면 초안을 띄웁니다.
   const showDraft = !!project && !project.deployment_url && !!draft;
   const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
@@ -61,7 +67,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   const handleSubmitPin = (content: string) => {
     if (!draftPin || !project) return;
-    // 초안은 요소 기준 앵커가 있고, 배포 사이트는 아직 영역 기준 좌표만 저장합니다.
+    // 초안과 핀 스크립트가 연결된 배포 사이트는 요소 기준 앵커가 있고,
+    // 스크립트가 연결되지 않은 배포 사이트는 영역 기준 좌표만 저장합니다.
     const anchor = draftPin.anchor ?? {
       page_path: getPagePath(project.deployment_url),
       element_selector: VIEWER_ANCHOR_SELECTOR,
@@ -89,8 +96,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
     setDraftPin(position);
   };
 
-  // 지금은 배포 사이트의 한 경로만 보여 줘서 경로 이동 없이 핀만 강조합니다.
-  // 여러 경로를 보여 주게 되면 `pagePath`로 뷰어를 옮깁니다.
+  // 배포 사이트는 고른 핀의 `pagePath`로 옮겨 핀으로 스크롤합니다(`DeployedSiteFrame`).
   // 같은 핀을 다시 눌러도 이동하도록 `seq`를 올립니다.
   const handleSelectPin = (pinId: string) =>
     setSelectedPin((prev) => ({ id: pinId, seq: (prev?.seq ?? 0) + 1 }));
@@ -130,20 +136,34 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
           renderSite={
-            showDraft
+            deploymentUrl
               ? (mode) => (
-                  <DraftPreviewFrame
-                    html={draftPreview.data}
-                    error={draftPreview.error}
+                  <DeployedSiteFrame
+                    key={deploymentUrl}
+                    url={deploymentUrl}
                     mode={mode}
                     pins={toViewerPins(pins)}
+                    focusPin={selectedPin}
                     onPlacePin={handlePlacePin}
                     onSelectPin={handleSelectPin}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}
                   />
                 )
-              : undefined
+              : showDraft
+                ? (mode) => (
+                    <DraftPreviewFrame
+                      html={draftPreview.data}
+                      error={draftPreview.error}
+                      mode={mode}
+                      pins={toViewerPins(pins)}
+                      onPlacePin={handlePlacePin}
+                      onSelectPin={handleSelectPin}
+                      draftPin={draftPin}
+                      draftPinContent={pinPopover}
+                    />
+                  )
+                : undefined
           }
         >
           {/* `false`를 넘기면 URL 문구 대신 빈칸이 되므로 undefined로 둡니다. */}

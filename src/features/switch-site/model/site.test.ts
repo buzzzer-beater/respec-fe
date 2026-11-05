@@ -10,9 +10,13 @@ describe('resolveViewerSite', () => {
     expect(resolveViewerSite('deployed', both)).toBe('deployed');
   });
 
-  it('고르지 않았으면 배포본을 먼저 본다', () => {
-    expect(resolveViewerSite(null, both)).toBe('deployed');
-    expect(resolveViewerSite('unknown', both)).toBe('deployed');
+  it('고르지 않았으면 초안을 먼저 본다', () => {
+    expect(resolveViewerSite(null, both)).toBe('draft');
+    expect(resolveViewerSite('unknown', both)).toBe('draft');
+  });
+
+  it('초안이 없으면 배포본을 본다', () => {
+    expect(resolveViewerSite(null, { hasDraft: false, hasDeployment: true })).toBe('deployed');
   });
 
   it('배포 전에 배포본을 고르면 초안을 본다', () => {

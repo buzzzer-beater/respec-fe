@@ -142,7 +142,7 @@ const ConnectDeploymentDialog = ({
                 text={scriptTag}
                 copiedMessage="핀 스크립트를 복사했어요"
                 className={buttonClassName({
-                  className: 'h-8 bg-[#3f3f46] px-3 text-[13px] hover:bg-[#3f3f46]',
+                  className: 'h-8 shrink-0 bg-[#3f3f46] px-3 text-[13px] hover:bg-[#3f3f46]',
                 })}
               />
             </div>

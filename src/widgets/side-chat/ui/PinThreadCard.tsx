@@ -3,6 +3,8 @@
 import { useState } from 'react';
 
 import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
+import type { ProjectRole } from '@/entities/user';
+import { ChangeRequestStatusButtons } from '@/features/change-request-status';
 import {
   getPinCommentErrorMessage,
   type PinCommentAction,
@@ -11,6 +13,7 @@ import {
   usePatchPinComment,
   usePostPinComment,
 } from '@/features/reply-pin';
+import { ResolveRequestButtons } from '@/features/resolve-request';
 import { isApiError } from '@/shared/api';
 
 import { orderThreadComments } from '../model/thread';
@@ -19,12 +22,22 @@ import PinThreadCommentItem from './PinThreadCommentItem';
 
 interface PinThreadCardProps extends PinThread {
   projectId: number;
+  /** 있으면 역할에 맞는 상태 버튼을 보여 줍니다. */
+  role?: ProjectRole;
 }
 
 /** 답글을 다는 댓글, 또는 고치는 댓글 */
 type Draft = { type: 'reply' | 'edit'; commentId: string } | null;
 
-const PinThreadCard = ({ projectId, id, pinNumber, status, comments }: PinThreadCardProps) => {
+const PinThreadCard = ({
+  projectId,
+  id,
+  pinNumber,
+  status,
+  changeRequestId,
+  comments,
+  role,
+}: PinThreadCardProps) => {
   const pinId = Number(id);
   const [isExpanded, setIsExpanded] = useState(false);
   const [draft, setDraft] = useState<Draft>(null);
@@ -91,7 +104,7 @@ const PinThreadCard = ({ projectId, id, pinNumber, status, comments }: PinThread
 
   return (
     <article className="flex w-full flex-col gap-4 bg-white px-9 py-7">
-      <header className="flex items-center gap-2.5">
+      <header className="flex flex-wrap items-center gap-2.5">
         <span className="bg-brand grid size-6 place-items-center rounded-full rounded-bl-[4px] text-xs font-extrabold text-white">
           {pinNumber}
         </span>
@@ -99,6 +112,24 @@ const PinThreadCard = ({ projectId, id, pinNumber, status, comments }: PinThread
         <span className="ml-auto">
           <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
         </span>
+        {changeRequestId !== null && (
+          <>
+            <ChangeRequestStatusButtons
+              size="sm"
+              projectId={projectId}
+              requestId={changeRequestId}
+              status={status}
+              role={role}
+            />
+            <ResolveRequestButtons
+              size="sm"
+              projectId={projectId}
+              requestId={changeRequestId}
+              status={status}
+              role={role}
+            />
+          </>
+        )}
       </header>
 
       <div className="flex flex-col gap-4">

@@ -23,5 +23,7 @@ export interface PinThread {
   id: string;
   pinNumber: number;
   status: ChangeRequestStatus;
+  /** 상태 버튼에 쓰는 수정 요청 id */
+  changeRequestId: number | null;
   comments: PinThreadComment[];
 }

@@ -117,6 +117,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         messages={toMessages(messages, pins, members, me)}
         pinThreads={toPinThreads(pins, commentsByPin, members, me)}
         onSendMessage={(content) => postMessage.mutate({ content })}
+        role={project?.my_role}
       />
     </div>
   );

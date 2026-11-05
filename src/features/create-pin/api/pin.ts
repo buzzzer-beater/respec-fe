@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type PinCreateReqType, pinQueryKeys, postPin } from '@/entities/pin';
 import { changeRequestQueryKeys, postChangeRequest } from '@/entities/request';
 import type { ProjectRole } from '@/entities/user';
-import { isApiError } from '@/shared/api';
 
 /**
  * 핀과 첫 댓글을 만들고, 고객이면 그 댓글로 수정 요청도 만듭니다.
@@ -15,25 +14,24 @@ import { isApiError } from '@/shared/api';
 const createPinWithRequest = async (
   projectId: number,
   body: PinCreateReqType,
-  role: ProjectRole | undefined,
+  role: ProjectRole,
 ) => {
   const pin = await postPin(projectId, body);
-  if (role === 'developer') return { pin, requestFailed: false };
+  if (role !== 'client') return { pin, requestFailed: false };
 
   try {
     await postChangeRequest(projectId, { source_pin_comment_id: pin.first_comment_id });
     return { pin, requestFailed: false };
-  } catch (error) {
-    // 역할을 모를 때(`my_role` 미지원)는 일단 시도하고, 개발자라서 거절되면 핀만 남깁니다.
-    const isDeveloper = role === undefined && isApiError(error, 'FORBIDDEN');
-    return { pin, requestFailed: !isDeveloper };
+  } catch {
+    return { pin, requestFailed: true };
   }
 };
 
-export const usePostPin = (projectId: number, role: ProjectRole | undefined) => {
+export const usePostPin = (projectId: number) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: PinCreateReqType) => createPinWithRequest(projectId, body, role),
+    mutationFn: ({ role, ...body }: PinCreateReqType & { role: ProjectRole }) =>
+      createPinWithRequest(projectId, body, role),
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: pinQueryKeys.all(projectId) }),

@@ -11,8 +11,9 @@ export interface ReviewRequestCreateReqType {
   /**
    * 1개 이상, 중복 불가. 모두 `in_progress`여야 합니다.
    * `location`은 개발자가 배포본에 다시 찍은 반영 위치입니다. 원본 핀은 옮기지 않습니다.
+   * `implementation_note`는 무엇을 고쳤는지 쓴 설명입니다. 빈 문자열은 거절하므로 없으면 뺍니다.
    */
-  items: { change_request_id: number; location?: PinPosition }[];
+  items: { change_request_id: number; location?: PinPosition; implementation_note?: string }[];
 }
 
 /** 개발자만 보낼 수 있습니다. 제출한 요청은 `pending_review`가 됩니다. */

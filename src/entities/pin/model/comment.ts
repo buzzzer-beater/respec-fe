@@ -14,13 +14,14 @@ export interface PinComment {
   ai_status: AiStatus;
   /** ISO 8601 */
   created_at: string;
+  /** ISO 8601 */
+  updated_at: string;
+  /** 수정한 적이 있으면 `true`. 삭제된 댓글은 `false`입니다. */
+  edited: boolean;
 }
 
 /** `PATCH .../comments/{comment_id}` 응답 */
-export interface EditedPinComment extends PinComment {
-  /** ISO 8601 */
-  updated_at: string;
-}
+export type EditedPinComment = PinComment;
 
 /** 삭제된 댓글의 `content`. 백엔드는 소프트 삭제 후 이 문구를 돌려줍니다. */
 export const DELETED_COMMENT_CONTENT = '삭제된 댓글입니다';

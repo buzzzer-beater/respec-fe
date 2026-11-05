@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib';
-import { Avatar } from '@/shared/ui';
+import { Avatar, PlainTextExplanation } from '@/shared/ui';
 
 import type { Message } from '../model/types';
 
@@ -11,6 +11,7 @@ const MessageItem = ({
   authorName,
   authorAvatarUrl,
   content,
+  plainText,
   timeLabel,
   variant = 'default',
 }: MessageItemProps) => {
@@ -38,10 +39,18 @@ const MessageItem = ({
       <div className="flex min-w-0 flex-1 flex-col gap-1 py-1 leading-[normal]">
         <div className="text-ink-600 flex items-center gap-1.5 text-sm">
           <span className="whitespace-nowrap">{authorName}</span>
-          <span aria-hidden className="bg-ink-600 size-0.5 rounded-full" />
-          <span className="whitespace-nowrap">{timeLabel}</span>
+          {timeLabel && (
+            <>
+              <span aria-hidden className="bg-ink-600 size-0.5 rounded-full" />
+              <span className="whitespace-nowrap">{timeLabel}</span>
+            </>
+          )}
         </div>
-        <p className="text-ink-800 font-medium break-words">{content}</p>
+        {plainText?.trim() ? (
+          <PlainTextExplanation original={content} plainText={plainText} />
+        ) : (
+          <p className="text-ink-800 font-medium break-words">{content}</p>
+        )}
       </div>
     </div>
   );

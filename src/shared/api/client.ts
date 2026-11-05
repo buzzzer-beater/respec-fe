@@ -1,6 +1,6 @@
-import axios from 'axios';
+import { createApiClient } from './factory';
 
-export const axiosInstance = axios.create({
+export const axiosInstance = createApiClient({
   baseURL: '/backend',
   timeout: 10000,
 });

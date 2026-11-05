@@ -23,6 +23,10 @@ interface DownloadDraftButtonProps {
   projectId: number;
   /** `button`은 상단바 버튼, `link`는 안내 문장 안의 링크 모양입니다. */
   variant?: keyof typeof VARIANT_CLASS;
+  /** 버튼 문구. 기본은 "코드 받기"입니다. */
+  label?: string;
+  /** 부모 너비를 채웁니다(결과 화면의 버튼 줄). */
+  fullWidth?: boolean;
   className?: string;
 }
 
@@ -30,6 +34,8 @@ interface DownloadDraftButtonProps {
 const DownloadDraftButton = ({
   projectId,
   variant = 'button',
+  label = '코드 받기',
+  fullWidth = false,
   className,
 }: DownloadDraftButtonProps) => {
   const { data: project } = useGetProject(projectId);
@@ -39,7 +45,7 @@ const DownloadDraftButton = ({
   if (!draft) return null;
 
   return (
-    <span className="relative inline-flex">
+    <span className={cn('relative inline-flex', fullWidth && 'flex-1')}>
       <button
         type="button"
         onClick={() => download.mutate(toDraftZipFilename(project?.name))}
@@ -51,7 +57,7 @@ const DownloadDraftButton = ({
           className,
         )}
       >
-        {download.isPending ? '내려받는 중…' : '코드 받기'}
+        {download.isPending ? '내려받는 중…' : label}
       </button>
       {download.error && !download.isPending && (
         <span

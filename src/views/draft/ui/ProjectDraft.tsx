@@ -3,7 +3,6 @@
 import { type ReactNode, useState } from 'react';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 import { isSiteType, type SiteType, useGetProject, useGetProjectDraft } from '@/entities/project';
 import { can } from '@/entities/user';
@@ -12,6 +11,7 @@ import { usePutProjectDraft } from '@/features/generate-draft';
 import { formatRelativeTime } from '@/shared/lib';
 
 import DraftComposer from './DraftComposer';
+import DraftResult from './DraftResult';
 
 interface ProjectDraftProps {
   projectId: number;
@@ -19,13 +19,13 @@ interface ProjectDraftProps {
 
 /** 이미 있는 프로젝트에 초안을 생성합니다. 초안이 있으면 덮어쓰기 전에 확인합니다. */
 const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
-  const router = useRouter();
   const project = useGetProject(projectId);
   const draft = useGetProjectDraft(projectId);
   const putDraft = usePutProjectDraft();
   // 고르기 전에는 기존 초안의 유형을 기본값으로 씁니다.
   const [pickedSiteType, setPickedSiteType] = useState<SiteType | null | undefined>();
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+  const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
 
   const viewerHref = `/projects/${projectId}/viewer`;
 
@@ -73,10 +73,8 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
 
   const generate = (prompt: string) => {
     setPendingPrompt(null);
-    putDraft.mutate(
-      { projectId, prompt, ...(siteType && { site_type: siteType }) },
-      { onSuccess: () => router.push(viewerHref) },
-    );
+    setSubmittedPrompt(prompt);
+    putDraft.mutate({ projectId, prompt, ...(siteType && { site_type: siteType }) });
   };
 
   const handleSubmit = (prompt: string) => {
@@ -87,17 +85,21 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
 
   return (
     <DraftComposer
-      description={
-        <>
-          <strong className="text-ink">{project.data.name}</strong> 프로젝트에서 원하는 사이트를
-          설명해 주시면, 화면 구조와 기획 초안을 먼저 정리해 드릴게요.
-        </>
-      }
       siteType={siteType}
       onSiteTypeChange={setPickedSiteType}
       onSubmit={handleSubmit}
+      // 덮어쓰기는 처음 보낼 때 이미 확인했으므로 다시 시도는 바로 만듭니다.
+      onRetry={generate}
       isPending={putDraft.isPending}
-      isDone={putDraft.isSuccess}
+      result={
+        putDraft.isSuccess ? (
+          <DraftResult
+            projectId={projectId}
+            prompt={submittedPrompt}
+            onRemake={() => putDraft.reset()}
+          />
+        ) : undefined
+      }
       disabled={draft.isPending}
       error={putDraft.error}
       header={

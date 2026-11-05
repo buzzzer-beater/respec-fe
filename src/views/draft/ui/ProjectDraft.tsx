@@ -1,37 +1,53 @@
 'use client';
 
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 
 import Link from 'next/link';
 
-import { isSiteType, type SiteType, useGetProject, useGetProjectDraft } from '@/entities/project';
+import {
+  isSiteType,
+  SITE_TYPE_LABEL,
+  type SiteType,
+  useGetProject,
+  useGetProjectDraft,
+} from '@/entities/project';
 import { can } from '@/entities/user';
 import { DownloadDraftButton } from '@/features/download-draft';
 import { usePutProjectDraft } from '@/features/generate-draft';
-import { formatRelativeTime } from '@/shared/lib';
+import { Button } from '@/shared/ui';
 
+import { useDraftFlow } from '../model/use-draft-flow';
 import DraftComposer from './DraftComposer';
+import DraftProgress from './DraftProgress';
 import DraftResult from './DraftResult';
 
 interface ProjectDraftProps {
   projectId: number;
 }
 
-/** 이미 있는 프로젝트에 초안을 생성합니다. 초안이 있으면 덮어쓰기 전에 확인합니다. */
+/**
+ * 이미 있는 프로젝트에 초안을 생성합니다. 프로젝트 이름은 바꿀 수 없습니다(백엔드에 이름 수정이 없습니다).
+ * 초안이 이미 있으면 덮어쓰기 전에 한 번 확인합니다. 이전 초안은 되돌릴 수 없어서입니다.
+ */
 const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
   const project = useGetProject(projectId);
   const draft = useGetProjectDraft(projectId);
   const putDraft = usePutProjectDraft();
-  // 고르기 전에는 기존 초안의 유형을 기본값으로 씁니다.
-  const [pickedSiteType, setPickedSiteType] = useState<SiteType | null | undefined>();
-  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-  const [submittedPrompt, setSubmittedPrompt] = useState<string | null>(null);
+  // 고르기 전에는 기존 초안의 유형과 설명을 기본값으로 씁니다.
+  const [pickedSiteType, setPickedSiteType] = useState<SiteType | undefined>();
+  const [editedPrompt, setEditedPrompt] = useState<string | undefined>();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
 
-  const viewerHref = `/projects/${projectId}/viewer`;
+  const draftSiteType = draft.data?.site_type;
+  const siteType = pickedSiteType ?? (isSiteType(draftSiteType) ? draftSiteType : 'shop');
+  const prompt = editedPrompt ?? draft.data?.prompt ?? '';
 
-  if (project.isPending) {
-    return <StatusMessage>프로젝트를 불러오고 있어요.</StatusMessage>;
-  }
+  const flow = useDraftFlow(() =>
+    putDraft.mutateAsync({ projectId, prompt: prompt.trim(), site_type: siteType }),
+  );
+
+  if (project.isPending) return <StatusMessage>프로젝트를 불러오고 있어요.</StatusMessage>;
   if (project.isError) {
     return (
       <StatusMessage role="alert">
@@ -50,13 +66,13 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
         {draft.data ? (
           <>
             고객이 만든 초안이 있어요.{' '}
-            <Link href={viewerHref} className="text-ink font-semibold underline">
+            <Link
+              href={`/projects/${projectId}/viewer`}
+              className="text-ink font-semibold underline"
+            >
               작업 화면에서 보기
             </Link>
-            <DownloadDraftButton
-              projectId={projectId}
-              className="bg-ink hover:bg-ink mt-1 h-10 border-transparent px-4 text-white"
-            />
+            <DownloadDraftButton projectId={projectId} className="mt-1" />
           </>
         ) : (
           '고객이 초안을 만들면 작업 화면에서 확인할 수 있어요.'
@@ -65,86 +81,75 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
     );
   }
 
-  const draftSiteType = draft.data?.site_type;
-  const existingSiteType = isSiteType(draftSiteType) ? draftSiteType : null;
-  const siteType = pickedSiteType === undefined ? existingSiteType : pickedSiteType;
-  // 초안이 없다고 확인된 경우(`null`)에만 바로 만들고, 그 밖에는 덮어쓰기를 확인합니다.
-  const needsConfirm = draft.data !== null;
-
-  const generate = (prompt: string) => {
-    setPendingPrompt(null);
-    setSubmittedPrompt(prompt);
-    putDraft.mutate({ projectId, prompt, ...(siteType && { site_type: siteType }) });
+  const handleSubmit = () => {
+    if (draft.data) setIsConfirming(true);
+    else flow.start();
   };
 
-  const handleSubmit = (prompt: string) => {
-    putDraft.reset();
-    if (needsConfirm) setPendingPrompt(prompt);
-    else generate(prompt);
+  const backToInput = () => {
+    flow.backToInput();
+    requestAnimationFrame(() => promptRef.current?.focus());
   };
 
   return (
-    <DraftComposer
-      siteType={siteType}
-      onSiteTypeChange={setPickedSiteType}
-      onSubmit={handleSubmit}
-      // 덮어쓰기는 처음 보낼 때 이미 확인했으므로 다시 시도는 바로 만듭니다.
-      onRetry={generate}
-      isPending={putDraft.isPending}
-      result={
-        putDraft.isSuccess ? (
-          <DraftResult
-            projectId={projectId}
-            prompt={submittedPrompt}
-            onRemake={() => putDraft.reset()}
-          />
-        ) : undefined
-      }
-      disabled={draft.isPending}
-      error={putDraft.error}
-      header={
-        draft.data && (
-          <p className="bg-stage text-text rounded-full px-4 py-2 text-sm">
-            이미 만든 초안이 있어요 · {formatRelativeTime(draft.data.updated_at)}{' '}
-            <Link href={viewerHref} className="text-ink font-semibold underline">
-              작업 화면에서 보기
-            </Link>
-            {' · '}
-            <DownloadDraftButton projectId={projectId} variant="link" />
-          </p>
-        )
-      }
-      footer={
-        pendingPrompt !== null &&
-        !putDraft.isPending && (
-          <div
-            role="alertdialog"
-            aria-labelledby="draft-overwrite-title"
-            className="border-divider flex w-full flex-col gap-3 rounded-2xl border p-5"
-          >
-            <p id="draft-overwrite-title" className="text-sm font-semibold">
-              다시 만들면 기존 초안을 덮어써요. 이전 초안은 되돌릴 수 없어요.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingPrompt(null)}
-                className="border-field hover:border-ink h-9 rounded-[10px] border px-4 text-sm font-semibold"
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {flow.step === 'input' && (
+        <DraftComposer
+          projectName={project.data.name}
+          prompt={prompt}
+          onPromptChange={setEditedPrompt}
+          siteType={siteType}
+          onSiteTypeChange={setPickedSiteType}
+          onSubmit={handleSubmit}
+          disabled={draft.isPending}
+          promptRef={promptRef}
+          footer={
+            isConfirming && (
+              <div
+                role="alertdialog"
+                aria-labelledby="draft-overwrite-title"
+                className="bg-warn-soft text-warn-strong grid gap-3 rounded-[14px] p-[18px]"
               >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => generate(pendingPrompt)}
-                className="bg-ink h-9 rounded-[10px] px-4 text-sm font-semibold text-white"
-              >
-                덮어쓰고 만들기
-              </button>
-            </div>
-          </div>
-        )
-      }
-    />
+                <p id="draft-overwrite-title" className="text-sm font-semibold">
+                  다시 만들면 지금 초안을 덮어써요. 이전 초안은 되돌릴 수 없어요.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setIsConfirming(false)}
+                    className="h-[42px] flex-1"
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsConfirming(false);
+                      flow.start();
+                    }}
+                    className="h-[42px] flex-1"
+                  >
+                    덮어쓰고 만들기
+                  </Button>
+                </div>
+              </div>
+            )
+          }
+        />
+      )}
+      {flow.step === 'making' && (
+        <DraftProgress
+          key={flow.attempt}
+          siteTypeLabel={SITE_TYPE_LABEL[siteType]}
+          status={flow.status}
+          onBack={backToInput}
+          // 덮어쓰기는 처음 보낼 때 이미 확인했으므로 다시 시도는 바로 만듭니다.
+          onRetry={flow.start}
+        />
+      )}
+      {flow.step === 'done' && (
+        <DraftResult projectId={projectId} prompt={prompt.trim()} onRemake={backToInput} />
+      )}
+    </div>
   );
 };
 

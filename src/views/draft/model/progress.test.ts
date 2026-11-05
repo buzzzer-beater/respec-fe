@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatElapsed, getDraftProgressPercent, getDraftStepIndex } from './progress';
+import { getDraftProgressPercent, getDraftStepIndex, getDraftTasks } from './progress';
 
 describe('getDraftStepIndex', () => {
   it('경과 시간에 맞는 단계를 고른다', () => {
@@ -27,9 +27,8 @@ describe('getDraftProgressPercent', () => {
   });
 });
 
-describe('formatElapsed', () => {
-  it('분:초 형식으로 바꾼다', () => {
-    expect(formatElapsed(7)).toBe('0:07');
-    expect(formatElapsed(102)).toBe('1:42');
+describe('getDraftTasks', () => {
+  it('세 번째 단계에 사이트 유형을 넣는다', () => {
+    expect(getDraftTasks('쇼핑몰')[2].label).toBe('쇼핑몰 부품 조합하기');
   });
 });

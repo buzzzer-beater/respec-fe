@@ -51,7 +51,7 @@ const DownloadDraftButton = ({
           className,
         )}
       >
-        {download.isPending ? '내려받는 중…' : '코드 다운로드'}
+        {download.isPending ? '내려받는 중…' : '코드 받기'}
       </button>
       {download.error && !download.isPending && (
         <span

@@ -9,6 +9,15 @@ export const PIN_SOURCES = ['draft', 'deployment'] as const;
 
 export type PinSource = (typeof PIN_SOURCES)[number];
 
+/** 사이트 이름. 초안은 A, 배포본은 B로 부릅니다. (demo-design `SITE_LABEL`) */
+export const PIN_SOURCE_LABEL: Record<PinSource, string> = {
+  draft: '초안 A',
+  deployment: '배포본 B',
+};
+
+/** 화면에 보여 줄 페이지 이름. 첫 화면(`/`)은 "메인", 나머지는 경로 그대로입니다. */
+export const toPageLabel = (pagePath: string) => (pagePath === '/' ? '메인' : pagePath);
+
 /** 재배포 후 핀 요소를 찾았는지. 못 찾아도 핀은 지우지 않고 `needs_check`로 둡니다. */
 export const PIN_LOCATION_STATUSES = ['located', 'needs_check'] as const;
 

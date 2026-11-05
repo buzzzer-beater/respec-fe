@@ -27,7 +27,7 @@ const AddToReviewDialog = ({ projectId, requestId, onClose }: AddToReviewDialogP
       projectId={projectId}
       candidates={requests.filter((request) => request.status === 'in_progress')}
       initialSelectedIds={[requestId]}
-      defaultDeploymentUrl={project.deployment_url ?? ''}
+      hasDeployment={!!project.deployment_url}
       onClose={onClose}
     />
   );

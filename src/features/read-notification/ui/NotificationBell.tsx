@@ -8,7 +8,7 @@ import { useGetNotifications } from '@/entities/notification';
 import { cn } from '@/shared/lib';
 import { Icon } from '@/shared/ui';
 
-import { usePatchNotificationRead } from '../api/notification';
+import { usePatchNotificationRead, usePostNotificationsReadAll } from '../api/notification';
 import { useNotificationRows } from '../model/use-notification-rows';
 
 /** demo-design `.bell`: 상단 바의 알림 버튼과 목록 */
@@ -20,6 +20,7 @@ const NotificationBell = () => {
   const { data: notifications = [], isError } = useGetNotifications();
   const rows = useNotificationRows(notifications);
   const { mutate: markRead } = usePatchNotificationRead();
+  const readAll = usePostNotificationsReadAll();
   const unread = notifications.filter(({ read_at }) => read_at === null);
 
   // 열려 있을 때 바깥 클릭이나 Esc로 닫습니다.
@@ -43,8 +44,7 @@ const NotificationBell = () => {
     };
   }, [isOpen]);
 
-  // 백엔드에 한꺼번에 읽는 API가 없어서 하나씩 읽음 처리합니다.
-  const markAllRead = () => unread.forEach(({ id }) => markRead(id));
+  const markAllRead = () => readAll.mutate();
 
   return (
     <div ref={containerRef} className="relative">
@@ -80,6 +80,7 @@ const NotificationBell = () => {
               <button
                 type="button"
                 onClick={markAllRead}
+                disabled={readAll.isPending}
                 className="text-muted hover:text-ink text-xs font-semibold"
               >
                 모두 읽음

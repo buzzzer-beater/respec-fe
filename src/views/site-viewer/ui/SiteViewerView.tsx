@@ -8,7 +8,7 @@ import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { useGetMe } from '@/entities/user';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { usePostMessage } from '@/features/send-message';
-import { SideChatPanel } from '@/widgets/side-chat';
+import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
 import { type PinPosition, SiteViewer } from '@/widgets/site-viewer';
 
 import {
@@ -27,6 +27,7 @@ interface SiteViewerViewProps {
 const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
 
   const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
@@ -84,6 +85,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           url={project?.deployment_url ?? '배포 사이트가 아직 연결되지 않았어요'}
           pins={toViewerPins(pins)}
           onPlacePin={handlePlacePin}
+          onSelectPin={(id) => setSelectedPin((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 }))}
           draftPin={draftPin}
           draftPinContent={
             <PinCommentPopover
@@ -104,6 +106,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         )}
       </main>
       <SideChatPanel
+        projectId={projectId}
+        selectedPin={selectedPin}
         messages={toMessages(messages, pins, members, me)}
         pinThreads={toPinThreads(pins, commentsByPin, members, me)}
         onSendMessage={(content) => postMessage.mutate({ content })}

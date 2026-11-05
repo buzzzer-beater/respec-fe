@@ -35,6 +35,8 @@ interface SiteViewerProps {
   renderSite?: (mode: ViewerMode) => ReactNode;
   /** 핀을 남길 수 없는 이유. 있으면 핀 모드를 끄고 안내합니다. */
   pinDisabledReason?: string | null;
+  /** 지금 보고 있는 페이지 경로. 있으면 뷰어 위에 보여 줍니다. */
+  pagePath?: string;
   /** 있으면 핀 모드로 고정하고 기본 안내 대신 보여 줍니다(핀 위치 다시 지정 등). */
   pinPrompt?: ReactNode;
   /** 해결된 핀 보기. `onShowResolvedChange`를 주면 도구 막대에 "완료 보기" 토글을 둡니다. */
@@ -53,6 +55,7 @@ const SiteViewer = ({
   children,
   renderSite,
   pinDisabledReason,
+  pagePath,
   pinPrompt,
   showResolved,
   onShowResolvedChange,
@@ -93,7 +96,7 @@ const SiteViewer = ({
         'flex justify-center',
         isFull
           ? 'fixed inset-0 z-30 bg-white'
-          : 'bg-stage relative h-full w-full min-w-0 px-10 pt-8 pb-[104px]',
+          : 'bg-stage relative h-full w-full min-w-0 px-3 pt-8 pb-[76px] lg:px-10 lg:pb-[104px]',
       )}
     >
       <div
@@ -145,11 +148,20 @@ const SiteViewer = ({
         )}
       </div>
 
+      {pagePath && !isFull && (
+        <p className="text-muted absolute inset-x-3 top-0 flex h-8 items-center gap-1.5 text-xs font-semibold lg:inset-x-10">
+          <span className="shrink-0">페이지</span>
+          <span className="text-ink truncate font-mono" title={pagePath}>
+            {pagePath}
+          </span>
+        </p>
+      )}
+
       {pinDisabledReason && (
         <p
           role="status"
           className={cn(
-            'text-muted pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 rounded-[10px] bg-white px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap shadow-[0_2px_12px_rgba(24,24,27,0.12)]',
+            'text-muted pointer-events-none absolute left-1/2 z-30 w-max max-w-[calc(100%-24px)] -translate-x-1/2 rounded-[10px] bg-white px-3.5 py-2 text-center text-[13px] font-semibold shadow-[0_2px_12px_rgba(24,24,27,0.12)]',
             isFull ? 'top-4' : 'top-12',
           )}
         >
@@ -160,7 +172,7 @@ const SiteViewer = ({
       {isPinMode && !draftPin && !pinPrompt && (
         <p
           className={cn(
-            'bg-ink pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 rounded-[10px] px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap text-white',
+            'bg-ink pointer-events-none absolute left-1/2 z-30 w-max max-w-[calc(100%-24px)] -translate-x-1/2 rounded-[10px] px-3.5 py-2 text-center text-[13px] font-semibold text-white',
             isFull ? 'top-4' : 'top-12',
           )}
         >
@@ -176,7 +188,9 @@ const SiteViewer = ({
       <div
         className={cn(
           'absolute left-1/2 z-30 -translate-x-1/2',
-          isFull ? 'bottom-4 opacity-35 transition-opacity hover:opacity-100' : 'bottom-8',
+          isFull
+            ? 'bottom-4 opacity-35 transition-opacity hover:opacity-100'
+            : 'bottom-3 lg:bottom-8',
         )}
       >
         <ViewerToolbar

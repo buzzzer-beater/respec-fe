@@ -37,10 +37,10 @@ const DraftComposer = ({
   footer,
 }: DraftComposerProps) => {
   return (
-    <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-white px-8">
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-y-auto bg-white px-5 sm:px-8">
       <div className="flex w-full max-w-2xl flex-col items-center gap-10 py-10 pb-20">
         <div className="flex flex-col items-center gap-3">
-          <h1 className="text-[40px] font-extrabold tracking-[-0.02em] whitespace-nowrap">
+          <h1 className="text-[28px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-[40px]">
             어떤 사이트를 만들까요?
           </h1>
           <p className="text-muted w-min min-w-full text-center text-base leading-relaxed">

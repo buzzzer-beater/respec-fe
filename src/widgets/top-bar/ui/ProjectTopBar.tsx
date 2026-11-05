@@ -32,7 +32,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
       {project && !project.deployment_url && <DownloadDraftButton projectId={projectId} />}
       <ConnectDeploymentButton projectId={projectId} />
       {members.length > 0 && (
-        <ul aria-label="참여자" className="flex">
+        <ul aria-label="참여자" className="hidden sm:flex">
           {members.map((member) => (
             <li
               key={member.id}

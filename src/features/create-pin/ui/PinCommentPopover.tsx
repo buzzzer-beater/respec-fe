@@ -31,9 +31,10 @@ const PinCommentPopover = ({
   };
 
   return (
+    // 좁은 화면에서는 핀 옆에 두면 잘려서 화면 위쪽에 고정합니다.
     <form
       onSubmit={handleSubmit}
-      className="flex w-80 animate-[slide-in_0.3s_var(--ease-out-soft)] flex-col gap-3 rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_var(--color-divider),0_12px_32px_rgba(24,24,27,0.14)]"
+      className="flex w-80 animate-[slide-in_0.3s_var(--ease-out-soft)] flex-col gap-3 rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_var(--color-divider),0_12px_32px_rgba(24,24,27,0.14)] max-lg:fixed max-lg:inset-x-3 max-lg:top-3 max-lg:w-auto"
     >
       <textarea
         autoFocus

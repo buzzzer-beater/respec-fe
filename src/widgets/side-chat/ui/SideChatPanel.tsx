@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
-import type { Message } from '@/entities/message';
 import type { ProjectRole } from '@/entities/user';
 import { MessageInput } from '@/features/send-message';
+import { cn } from '@/shared/lib';
 
-import type { PinThread } from '../model/types';
+import type { PinThread, SideChatMessage } from '../model/types';
 import ChatMessageList from './ChatMessageList';
 import PinThreadCard from './PinThreadCard';
 
@@ -20,10 +20,14 @@ export interface SelectedPin {
 
 interface SideChatPanelProps {
   projectId: number;
-  messages: Message[];
+  messages: SideChatMessage[];
   pinThreads: PinThread[];
   onSendMessage: (content: string) => void;
   selectedPin?: SelectedPin | null;
+  /** 공유된 핀 카드를 눌렀을 때. 다른 경로의 핀이면 `pagePath`로 뷰어를 옮깁니다. */
+  onSelectPin?: (pinId: string, pagePath: string) => void;
+  renderPinThreadAction?: (thread: PinThread) => ReactNode;
+  renderMessageAction?: (message: SideChatMessage) => ReactNode;
   /** 있으면 핀 스레드에 역할에 맞는 상태 버튼을 보여 줍니다. */
   role?: ProjectRole;
 }
@@ -34,6 +38,9 @@ const SideChatPanel = ({
   pinThreads,
   onSendMessage,
   selectedPin,
+  onSelectPin,
+  renderPinThreadAction,
+  renderMessageAction,
   role,
 }: SideChatPanelProps) => {
   const [tab, setTab] = useState<Tab>('pins');
@@ -56,6 +63,9 @@ const SideChatPanel = ({
       { duration: 1600, easing: 'ease-out' },
     );
   }, [selectedPin]);
+
+  // 공유된 핀 카드는 부모가 선택을 바꾸면 위 처리로 요청 탭의 스레드로 이동합니다.
+  const handleOpenSharedPin = (pinId: string, pagePath: string) => onSelectPin?.(pinId, pagePath);
 
   // 주소의 `#pin-{id}`로는 스레드가 처음 보일 때 한 번만 스크롤합니다.
   // 폴링으로 다시 그릴 때마다 스크롤하면 답글을 쓰는 중에 화면이 튑니다.
@@ -97,7 +107,11 @@ const SideChatPanel = ({
         className="border-divider min-h-0 w-full flex-1 overflow-y-auto border-t"
       >
         {tab === 'chat' ? (
-          <ChatMessageList messages={messages} />
+          <ChatMessageList
+            messages={messages}
+            onOpenSharedPin={handleOpenSharedPin}
+            renderMessageAction={renderMessageAction}
+          />
         ) : pinThreads.length === 0 ? (
           <p className="text-muted px-9 py-7 text-sm leading-relaxed">
             남아 있는 요청이 없어요. 핀 모드에서 사이트를 눌러 요청을 남겨 보세요.
@@ -106,8 +120,20 @@ const SideChatPanel = ({
           // 요청 사이를 회색 띠로 나눕니다.
           <ul className="bg-stage flex min-h-full flex-col gap-2">
             {pinThreads.map((thread) => (
-              <li key={thread.id} id={`pin-${thread.id}`}>
-                <PinThreadCard projectId={projectId} role={role} {...thread} />
+              <li
+                key={thread.id}
+                id={`pin-${thread.id}`}
+                aria-current={selectedPin?.id === thread.id || undefined}
+                className={cn(
+                  selectedPin?.id === thread.id && 'outline-brand outline-2 -outline-offset-2',
+                )}
+              >
+                <PinThreadCard
+                  projectId={projectId}
+                  role={role}
+                  {...thread}
+                  action={renderPinThreadAction?.(thread)}
+                />
               </li>
             ))}
           </ul>

@@ -1,10 +1,10 @@
-import type { ChatMessage, Message } from '@/entities/message';
+import type { ChatMessage } from '@/entities/message';
 import { isDeletedPinComment, type PinComment, type PinWithRequest } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
 import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
 import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
-import type { PinThread } from '@/widgets/side-chat';
+import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
 
 /**
@@ -46,27 +46,37 @@ export const toMessages = (
   pins: PinWithRequest[],
   members: ProjectMember[],
   me: User | undefined,
-): Message[] => {
-  const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
+): SideChatMessage[] => {
   const authorName = createAuthorName(members, me);
 
-  return messages.map((message) => {
-    const sharedPin =
-      message.shared_pin_id === null ? null : `${pinNumber.get(message.shared_pin_id) ?? '?'}번 핀`;
-    const content = [message.content, sharedPin && `${sharedPin}을 공유했어요`]
-      .filter(Boolean)
-      .join('\n');
-
-    return {
-      id: String(message.id),
-      authorName: authorName(message.author_id),
-      isMine: message.author_id === me?.id,
-      content,
-      plainText: message.ai_plain_text,
-      timeLabel: formatRelativeTime(message.created_at),
-    };
-  });
+  return messages.map((message) => ({
+    id: String(message.id),
+    authorName: authorName(message.author_id),
+    isMine: message.author_id === me?.id,
+    // 핀 카드만 공유한 메시지는 본문이 없습니다.
+    content: message.content ?? '',
+    plainText: message.ai_plain_text,
+    timeLabel: formatRelativeTime(message.created_at),
+    sharedPin: message.shared_pin_id === null ? null : toSharedPin(message.shared_pin_id, pins),
+  }));
 };
+
+/** 공유된 핀을 카드 정보로 바꿉니다. 핀 번호는 생성 순서입니다. */
+const toSharedPin = (pinId: number, pins: PinWithRequest[]): SharedPin => {
+  const index = pins.findIndex((pin) => pin.id === pinId);
+  const pin = pins[index];
+  return {
+    id: String(pinId),
+    pinNumber: pin ? index + 1 : null,
+    pagePath: pin?.page_path ?? null,
+    preview: pin?.request_preview ?? null,
+    status: pin?.request_status ?? null,
+  };
+};
+
+/** 채팅 메시지로 수정 요청을 만들 때 고를 수 있는 핀. 번호는 생성 순서입니다. */
+export const toRequestPinOptions = (pins: PinWithRequest[]) =>
+  pins.map((pin, index) => ({ id: pin.id, number: index + 1, preview: pin.request_preview }));
 
 /** 스레드로 보여 줄 핀. 수정 요청이 없거나 해결된 핀은 기본 화면에서 뺍니다. */
 export const getThreadPins = (pins: PinWithRequest[]) =>

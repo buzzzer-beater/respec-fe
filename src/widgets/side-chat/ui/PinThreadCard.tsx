@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
 import type { ProjectRole } from '@/entities/user';
@@ -24,6 +24,8 @@ interface PinThreadCardProps extends PinThread {
   projectId: number;
   /** 있으면 역할에 맞는 상태 버튼을 보여 줍니다. */
   role?: ProjectRole;
+  /** 머리글 오른쪽 액션(대화에 공유 등) */
+  action?: ReactNode;
 }
 
 /** 답글을 다는 댓글, 또는 고치는 댓글 */
@@ -37,6 +39,7 @@ const PinThreadCard = ({
   changeRequestId,
   comments,
   role,
+  action,
 }: PinThreadCardProps) => {
   const pinId = Number(id);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -109,7 +112,8 @@ const PinThreadCard = ({
           {pinNumber}
         </span>
         <h3 className="text-base font-extrabold">{pinNumber}번 요청</h3>
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          {action}
           <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
         </span>
         {changeRequestId !== null && (

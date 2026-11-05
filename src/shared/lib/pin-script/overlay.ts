@@ -9,12 +9,7 @@ const MARKER_ATTRIBUTE = 'data-pin-id';
 const FONT = `'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
 
 const TONE_STYLE = (Object.keys(PIN_TONE_COLORS) as BridgePinTone[])
-  .map((tone) => {
-    const { fill, hover } = PIN_TONE_COLORS[tone];
-    const hoverRule = hover ? `background: ${hover};` : 'filter: brightness(0.9);';
-    return `.marker[data-tone='${tone}'] .pin { background: ${fill}; }
-.marker[data-tone='${tone}']:hover .pin { ${hoverRule} }`;
-  })
+  .map((tone) => `.marker[data-tone='${tone}'] .pin { background: ${PIN_TONE_COLORS[tone]}; }`)
   .join('\n');
 
 // 앱의 `PinMarkerButton` + `NumberedPin`과 같은 모양입니다. 왼쪽 아래 뾰족한 모서리가 핀이 가리키는 지점입니다.
@@ -28,24 +23,25 @@ const STYLE = `
 .marker {
   all: initial; position: fixed; display: block; box-sizing: border-box; z-index: 1;
   pointer-events: auto; cursor: pointer; transform: translateY(-100%);
-  font: 800 13px/1 ${FONT}; color: #fff; text-align: left;
+  font: 800 15px/1 ${FONT}; color: #fff; text-align: left;
 }
 .marker[data-selected] { z-index: 2; }
 .marker:hover, .marker:focus-visible { z-index: 3; }
 .marker:focus-visible { outline: 2px solid ${PIN_COLORS.ink}; outline-offset: 2px; }
 .pin {
-  box-sizing: border-box; display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 50% 50% 50% 6px; font-size: 13px;
-  transition-property: width, height, scale, background-color;
+  position: relative; box-sizing: border-box; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 50% 50% 50% 8px; font-size: 15px;
+  transform-origin: bottom left; transition-property: scale, background-color;
   transition-duration: 300ms; transition-timing-function: ${PIN_EASING.spring};
   animation: pin-drop 0.45s ${PIN_EASING['out-soft']} both;
 }
 ${TONE_STYLE}
-.marker:hover .pin { scale: 1.1; }
-.marker[data-muted] .pin { width: 12px; height: 12px; font-size: 0; }
-.marker[data-muted]:hover .pin { width: 28px; height: 28px; font-size: 12px; scale: 1; }
-.marker[data-selected] .pin {
-  scale: 1.1; box-shadow: 0 0 0 4px color-mix(in oklab, ${PIN_COLORS.brand} 30%, transparent);
+.marker:hover .pin { scale: 1.2; }
+.marker[data-selected] .pin { scale: 1.2; background: ${PIN_COLORS['brand-strong']}; }
+.marker[data-alert]:not([data-selected]) .pin::after {
+  content: ''; position: absolute; top: 1px; right: 1px; box-sizing: border-box;
+  width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%;
+  background: ${PIN_COLORS.alert};
 }
 .marker[data-needs-check] .pin { border: 2px dashed currentColor; opacity: 0.6; }
 .tip {
@@ -68,7 +64,8 @@ export type OverlayMarker = {
   clientX: number;
   clientY: number;
   tone: BridgePinTone;
-  muted: boolean;
+  /** 내가 움직일 차례. 빨간 점을 붙입니다(고른 핀 제외). */
+  alert: boolean;
   selected: boolean;
   /** 요소를 다시 찾지 못해 저장된 좌표에 그리는 핀. 흐린 점선으로 그립니다. */
   needsCheck: boolean;
@@ -137,13 +134,18 @@ export function createOverlay(doc: Document): Overlay {
       tip.textContent = item.preview ?? '';
       button.setAttribute(
         'aria-label',
-        [`${item.number}번 핀`, item.needsCheck && '위치 확인 필요', item.preview]
+        [
+          `${item.number}번 핀`,
+          item.alert && '내 차례',
+          item.needsCheck && '위치 확인 필요',
+          item.preview,
+        ]
           .filter(Boolean)
           .join(', '),
       );
       button.setAttribute('aria-pressed', String(item.selected));
       button.setAttribute('data-tone', item.tone);
-      button.toggleAttribute('data-muted', item.muted && !item.selected);
+      button.toggleAttribute('data-alert', item.alert);
       button.toggleAttribute('data-selected', item.selected);
       button.toggleAttribute('data-needs-check', item.needsCheck);
       button.style.left = `${item.clientX}px`;

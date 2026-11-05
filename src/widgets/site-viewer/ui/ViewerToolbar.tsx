@@ -1,6 +1,5 @@
 import type { StaticImageData } from 'next/image';
 
-import { type Device, DeviceToggle } from '@/features/switch-device';
 import { cn } from '@/shared/lib';
 
 import cursorIcon from '../assets/cursor.svg';
@@ -9,20 +8,12 @@ import minusIcon from '../assets/minus.svg';
 import plusIcon from '../assets/plus.svg';
 import type { ViewerMode } from '../model/types';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '../model/zoom';
+import MaskIcon from './MaskIcon';
 
-const MODES: { value: ViewerMode; label: string; icon: StaticImageData }[] = [
-  { value: 'browse', label: '체험', icon: cursorIcon },
-  { value: 'pin', label: '핀 남기기', icon: messageIcon },
+const MODES: { value: ViewerMode; label: string; shortcut: string; icon: StaticImageData }[] = [
+  { value: 'browse', label: '체험', shortcut: 'V', icon: cursorIcon },
+  { value: 'pin', label: '핀 남기기', shortcut: 'C', icon: messageIcon },
 ];
-
-// 상태에 따라 색을 바꾸려고 SVG를 마스크로 씁니다.
-const MaskIcon = ({ icon }: { icon: StaticImageData }) => (
-  <span
-    aria-hidden
-    className="bg-current"
-    style={{ width: icon.width, height: icon.height, maskImage: `url(${icon.src})` }}
-  />
-);
 
 const Divider = () => <span aria-hidden className="bg-divider h-[26px] w-px shrink-0" />;
 
@@ -34,33 +25,25 @@ interface ViewerToolbarProps {
   /** 확대 배율(%) */
   zoom: number;
   onZoomChange: (zoom: number) => void;
-  device: Device;
-  onDeviceChange: (device: Device) => void;
-  isFull: boolean;
-  onToggleFull: () => void;
-  /** 주면 해결된 핀을 보이고 숨기는 "완료 보기" 토글을 둡니다. */
-  showResolved?: boolean;
-  onShowResolvedChange?: (value: boolean) => void;
 }
 
-// 미리보기 아래 도구: 모드 · 확대 · 화면 크기 · 완료 보기 · 전체 화면
+// 미리보기 아래 도구: 체험·핀 남기기 | 확대 + 100% − | 화면 맞춤.
+// 화면 크기, 완료 보기, 전체 화면은 틀 위쪽(`BrowserBar`)에 있습니다.
 const ViewerToolbar = ({
   mode,
   onModeChange,
   pinDisabledReason,
   zoom,
   onZoomChange,
-  device,
-  onDeviceChange,
-  isFull,
-  onToggleFull,
-  showResolved = false,
-  onShowResolvedChange,
 }: ViewerToolbarProps) => {
   return (
-    <div className="flex items-center gap-4 rounded-full bg-white px-3 py-2.5 shadow-[0_3px_10px_rgba(0,0,0,0.02)]">
+    <div
+      role="toolbar"
+      aria-label="미리보기 도구"
+      className="flex items-center gap-4 rounded-full bg-white px-3 py-2.5 shadow-[0_3px_10px_rgba(0,0,0,0.02)]"
+    >
       <div role="radiogroup" aria-label="뷰어 모드" className="flex gap-2.5">
-        {MODES.map(({ value, label, icon }) => {
+        {MODES.map(({ value, label, shortcut, icon }) => {
           const isSelected = mode === value;
           const isDisabled = value === 'pin' && !!pinDisabledReason;
 
@@ -70,10 +53,11 @@ const ViewerToolbar = ({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              aria-label={label}
+              aria-label={`${label} (${shortcut})`}
+              aria-keyshortcuts={shortcut}
               onClick={() => onModeChange(value)}
               disabled={isDisabled}
-              title={isDisabled ? (pinDisabledReason ?? label) : label}
+              title={isDisabled ? (pinDisabledReason ?? label) : `${label} · ${shortcut}`}
               className={cn(
                 'grid size-11 place-items-center rounded-full transition-colors',
                 isSelected ? 'bg-brand text-white' : 'text-text hover:bg-hover',
@@ -99,15 +83,12 @@ const ViewerToolbar = ({
         >
           <MaskIcon icon={plusIcon} />
         </button>
-        <button
-          type="button"
-          aria-label={`확대 배율 ${zoom}%, 누르면 100%로 돌아가기`}
-          title="100%로 돌아가기"
-          onClick={() => onZoomChange(100)}
-          className="min-w-[78px] rounded-[20px] px-4 py-2.5 text-base leading-none font-semibold text-black tabular-nums"
+        <output
+          aria-label={`확대 배율 ${zoom}%`}
+          className="min-w-[62px] text-center text-base leading-none font-semibold text-black tabular-nums"
         >
           {zoom}%
-        </button>
+        </output>
         <button
           type="button"
           aria-label="축소"
@@ -120,37 +101,15 @@ const ViewerToolbar = ({
         </button>
       </div>
 
-      {/* 좁은 화면에서는 화면이 이미 작아서 크기 선택을 숨깁니다. */}
-      <div className="hidden items-center gap-4 lg:flex">
-        <Divider />
-        <DeviceToggle value={device} onChange={onDeviceChange} />
-      </div>
-
-      {onShowResolvedChange && (
-        <>
-          <Divider />
-          <button
-            type="button"
-            onClick={() => onShowResolvedChange(!showResolved)}
-            aria-pressed={showResolved}
-            className="text-text hover:bg-hover aria-pressed:bg-brand-soft aria-pressed:text-brand h-10 rounded-full px-3.5 text-sm font-semibold whitespace-nowrap"
-          >
-            완료 보기
-          </button>
-        </>
-      )}
-
       <Divider />
+      {/* 미리보기 상자는 이미 틀 너비에 맞춰 그리므로 100%가 화면에 맞는 배율입니다. */}
       <button
         type="button"
-        onClick={onToggleFull}
-        aria-pressed={isFull}
-        className="text-text hover:bg-hover h-10 rounded-full px-3.5 text-sm font-semibold whitespace-nowrap"
+        onClick={() => onZoomChange(100)}
+        disabled={zoom === 100}
+        className="bg-hover text-ink disabled:hover:bg-hover h-10 rounded-full px-4 text-sm font-semibold whitespace-nowrap hover:bg-[#e8e8ec] disabled:opacity-50"
       >
-        {isFull ? '나가기' : '전체 화면'}
-        <kbd className="ml-1.5 hidden font-sans text-[11px] opacity-50 lg:inline">
-          {isFull ? 'Esc' : 'F'}
-        </kbd>
+        화면 맞춤
       </button>
     </div>
   );

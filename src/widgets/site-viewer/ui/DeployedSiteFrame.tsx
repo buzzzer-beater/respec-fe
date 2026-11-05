@@ -3,7 +3,6 @@
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { NumberedPin } from '@/entities/pin';
-import { CHANGE_REQUEST_STATUS_TONE } from '@/entities/request';
 import {
   type BridgePin,
   type ParentMessage,
@@ -41,8 +40,8 @@ const toBridgePins = (pins: ViewerPin[], path: string): BridgePin[] =>
             relative_x: pin.anchor.relative_x,
             relative_y: pin.anchor.relative_y,
             location_context: pin.anchor.location_context ?? null,
-            tone: pin.status ? CHANGE_REQUEST_STATUS_TONE[pin.status] : 'brand',
-            muted: !!pin.muted,
+            tone: pin.tone ?? 'brand',
+            alert: !!pin.alert,
             request_preview: pin.preview ?? null,
             location_status: pin.locationStatus ?? 'located',
           },
@@ -58,6 +57,8 @@ interface DeployedSiteFrameProps {
   pins: ViewerPin[];
   /** 고른 핀. 다른 경로면 그 경로로 옮기고 핀으로 스크롤합니다. 같은 핀을 다시 고르면 `seq`가 바뀝니다. */
   focusPin?: { id: string; seq: number } | null;
+  /** 옮겨 갈 경로(뒤로/앞으로, 주소창). 같은 경로로 다시 가도 `seq`가 바뀝니다. */
+  navigateTo?: { path: string; seq: number } | null;
   onPlacePin?: (position: PinPosition) => void;
   onSelectPin?: (pinId: string) => void;
   /** 사이트 DOM에 핀의 요소가 아예 없음. `needs_check` 보고는 호출부가 합니다. */
@@ -83,6 +84,7 @@ const DeployedSiteFrame = ({
   mode,
   pins,
   focusPin,
+  navigateTo,
   onPlacePin,
   onSelectPin,
   onPinMissing,
@@ -195,6 +197,18 @@ const DeployedSiteFrame = ({
     pendingFocusRef.current = pin.pagePath === path ? null : { id: pin.id, path: pin.pagePath };
     post({ type: 'respec:navigate', path: pin.pagePath, pinId: pin.id });
   });
+
+  const navigatePath = useEffectEvent((next: string) => {
+    if (!isConnected || next === path) return;
+    pendingFocusRef.current = null;
+    post({ type: 'respec:navigate', path: next, pinId: null });
+  });
+
+  const navigateTarget = navigateTo?.path;
+  const navigateSeq = navigateTo?.seq;
+  useEffect(() => {
+    if (navigateTarget) navigatePath(navigateTarget);
+  }, [navigateTarget, navigateSeq]);
 
   const focusId = focusPin?.id;
   const focusSeq = focusPin?.seq;

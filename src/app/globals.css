@@ -19,6 +19,10 @@
   --color-stage: #f1f1f4;
   --color-ai: #f6f6f8;
   --color-warn: #c4670f;
+  /* 핀: 상대 차례는 연보라, 완료는 회색. 내 차례는 빨간 점(알림 숫자도 같은 빨강) */
+  --color-brand-quiet: #b7b0f2;
+  --color-pin-done: #c4c4cc;
+  --color-alert: #e5484d;
 
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);

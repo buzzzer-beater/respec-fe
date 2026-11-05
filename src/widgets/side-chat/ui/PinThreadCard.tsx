@@ -2,7 +2,12 @@
 
 import { type ReactNode, useState } from 'react';
 
-import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
+import {
+  CHANGE_REQUEST_STATUS_LABEL,
+  CHANGE_REQUEST_STATUSES,
+  isMyTurn,
+  RequestStatusBadge,
+} from '@/entities/request';
 import type { ProjectRole } from '@/entities/user';
 import { ChangeRequestStatusButtons } from '@/features/change-request-status';
 import {
@@ -114,9 +119,18 @@ const PinThreadCard = ({
           {pinNumber}
         </span>
         <h3 className="text-base font-extrabold">{pinNumber}번 요청</h3>
-        <span className="ml-auto flex items-center gap-2">
+        {isMyTurn(status, role) && (
+          <span className="text-alert flex items-center gap-1 text-xs font-bold">
+            <span aria-hidden className="bg-alert size-1.5 rounded-full" />내 차례
+          </span>
+        )}
+        <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {action}
-          <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} status={status} />
+          {/* 다섯 단계 중 몇 번째인지 함께 보여 줍니다. */}
+          <RequestStatusBadge
+            label={`${CHANGE_REQUEST_STATUS_LABEL[status]} · ${CHANGE_REQUEST_STATUSES.indexOf(status) + 1}/${CHANGE_REQUEST_STATUSES.length}`}
+            status={status}
+          />
         </span>
         {changeRequestId !== null && (
           <>

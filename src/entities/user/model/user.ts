@@ -1,4 +1,4 @@
-/** `POST /auth/signup` 응답 */
+/** `POST /auth/signup`, `GET /auth/me` 응답 */
 export interface User {
   id: number;
   email: string;

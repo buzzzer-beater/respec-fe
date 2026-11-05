@@ -1,11 +1,8 @@
 import type { ChatMessage, Message } from '@/entities/message';
 import type { PinComment, PinWithRequest } from '@/entities/pin';
-import {
-  type ChangeRequest,
-  type ChangeRequestStatus,
-  isHiddenByDefault,
-} from '@/entities/request';
-import type { ProjectRole, SessionUser } from '@/entities/user';
+import type { ProjectMember } from '@/entities/project';
+import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
+import { PROJECT_ROLE_LABEL, type ProjectRole, type User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
@@ -39,16 +36,20 @@ export const toViewerPins = (pins: PinWithRequest[]): ViewerPin[] =>
     muted: pin.request_status === null || pin.request_status === 'resolved',
   }));
 
-// 참여자/내 정보 API가 없어서 이름 대신 "나"와 "참여자"로만 구분합니다.
-const authorName = (authorId: number, me: SessionUser | null) =>
-  authorId === me?.id ? '나' : '참여자';
+/** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
+const createAuthorName = (members: ProjectMember[], me: User | undefined) => {
+  const emails = new Map(members.map((member) => [member.id, member.email]));
+  return (authorId: number) => (authorId === me?.id ? '나' : (emails.get(authorId) ?? '참여자'));
+};
 
 export const toMessages = (
   messages: ChatMessage[],
   pins: PinWithRequest[],
-  me: SessionUser | null,
+  members: ProjectMember[],
+  me: User | undefined,
 ): Message[] => {
   const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
+  const authorName = createAuthorName(members, me);
 
   return messages.map((message) => {
     const sharedPin =
@@ -59,7 +60,7 @@ export const toMessages = (
 
     return {
       id: String(message.id),
-      authorName: authorName(message.author_id, me),
+      authorName: authorName(message.author_id),
       content,
       plainText: message.ai_plain_text,
       timeLabel: formatRelativeTime(message.created_at),
@@ -74,23 +75,18 @@ export const getThreadPins = (pins: PinWithRequest[]) =>
       pin.request_status !== null && !isHiddenByDefault(pin.request_status),
   );
 
-/**
- * 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다.
- * 댓글 작성자 역할을 주는 API가 없어서, 수정 요청을 만든 사람(고객만 가능)은 고객, 나머지는 개발자로 봅니다.
- */
+/** 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서 찾습니다. */
 export const toPinThreads = (
   pins: PinWithRequest[],
   commentsByPin: Map<number, PinComment[]>,
-  requests: ChangeRequest[],
-  me: SessionUser | null,
-  myRole: ProjectRole | undefined,
+  members: ProjectMember[],
+  me: User | undefined,
 ): PinThread[] => {
   const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
-  const clientIds = new Set(requests.map((request) => request.created_by));
-  const roleOf = (authorId: number): ProjectRole => {
-    if (authorId === me?.id && myRole) return myRole;
-    return clientIds.has(authorId) ? 'client' : 'developer';
-  };
+  const authorName = createAuthorName(members, me);
+  const roles = new Map(members.map((member) => [member.id, member.role]));
+  // 참여자 목록을 아직 못 받았으면 개발자로 둡니다.
+  const roleOf = (authorId: number): ProjectRole => roles.get(authorId) ?? 'developer';
 
   return getThreadPins(pins).map((pin) => ({
     id: String(pin.id),
@@ -100,7 +96,7 @@ export const toPinThreads = (
       .sort((a, b) => a.id - b.id)
       .map((comment) => ({
         id: String(comment.id),
-        authorName: authorName(comment.author_id, me),
+        authorName: authorName(comment.author_id),
         authorRole: roleOf(comment.author_id),
         content: comment.content,
         plainText: comment.ai_plain_text,
@@ -109,16 +105,15 @@ export const toPinThreads = (
   }));
 };
 
-/** 참여자 API가 없어서 나와 채팅에 등장한 사람만 보여 줍니다. */
+/** 참여자 목록을 못 받으면 나만 보여 줍니다. */
 export const toParticipants = (
-  messages: ChatMessage[],
-  me: SessionUser | null,
+  members: ProjectMember[],
+  me: User | undefined,
 ): WorkspaceParticipant[] => {
-  const ids = new Set(messages.map((message) => message.author_id));
-  if (me) ids.delete(me.id);
+  if (members.length === 0) return me ? [{ id: String(me.id), name: me.email }] : [];
 
-  return [
-    ...(me ? [{ id: String(me.id), name: me.email ?? '나' }] : []),
-    ...[...ids].map((id) => ({ id: String(id), name: '참여자' })),
-  ];
+  return members.map((member) => ({
+    id: String(member.id),
+    name: `${member.email} (${PROJECT_ROLE_LABEL[member.role]})`,
+  }));
 };

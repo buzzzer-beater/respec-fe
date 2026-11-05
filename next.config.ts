@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
-const apiBaseUrl = process.env.API_BASE_URL;
+// 끝에 `/`가 있으면 rewrite 결과가 `https://host//projects`가 되어 백엔드에서 404가 납니다.
+const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/+$/, '');
 
 if (!apiBaseUrl) {
   throw new Error('API_BASE_URL is required');

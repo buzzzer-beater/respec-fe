@@ -4,15 +4,19 @@ import type { ProjectRole } from '@/entities/user/@x/project';
 export interface Project {
   id: number;
   name: string;
-  /**
-   * 현재 사용자의 프로젝트 역할. 백엔드에 추가를 요청한 필드라 아직 오지 않을 수 있습니다.
-   * 없으면 역할을 모르는 것으로 보고 프론트에서 임의로 채우지 않습니다.
-   */
-  my_role?: ProjectRole;
+  /** 현재 사용자의 프로젝트 역할 */
+  my_role: ProjectRole;
   /** 연결된 배포 사이트. 연결 전에는 `null` */
   deployment_url: string | null;
   /** `resolved`가 아닌 수정 요청 수 */
   unresolved_request_count: number;
+}
+
+/** `GET /projects/{id}/members` 항목. 고객이 먼저, 그다음 사용자 id 오름차순입니다. */
+export interface ProjectMember {
+  id: number;
+  email: string;
+  role: ProjectRole;
 }
 
 /** `PUT /projects/{id}/deployment` 응답 */

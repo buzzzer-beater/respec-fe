@@ -42,3 +42,10 @@
   --shadow-elevation-2: 0px 4px 12px 0px rgba(0, 0, 0, 0.04);
   --shadow-segment: 0px 1px 2px 0px rgba(16, 16, 33, 0.122);
 }
+
+@theme {
+  --color-ink-400: #7c7c7c;
+  --color-ink-warm: #6e6e67;
+  --color-chip-text: #3a3a33;
+  --color-chip-line: #e6e6e0;
+}

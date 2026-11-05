@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RE:SPEC — 로그인</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <script src="illust.js"></script>
+    <style>
+      /*
+       * 로그인 · 회원가입
+       * 왼쪽: 서비스가 하는 일을 한 장면으로 (사이트 위 핀 + 대화)
+       * 오른쪽: 이메일 + 비밀번호. ?mode=signup 이면 회원가입, ?next=invite 면 끝나고 초대 화면으로
+       */
+      .auth {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
+        height: 100vh;
+      }
+
+      /* ── 왼쪽 장면 ── */
+      .scene {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-width: 0;
+        padding: 40px 48px 48px;
+        background: #f1f1f4;
+      }
+
+      .scene .brand {
+        border-right: none;
+      }
+
+      .pitch h2 {
+        margin: 0;
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.35;
+        letter-spacing: -0.02em;
+      }
+
+      .pitch p {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .mock {
+        position: relative;
+        width: min(560px, 100%);
+        margin: 40px 0;
+        padding: 24px;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px rgba(24, 24, 27, 0.05),
+          0 12px 36px rgba(24, 24, 27, 0.08);
+        animation: pop-in 0.5s var(--ease-out);
+      }
+
+      .mock i {
+        display: block;
+        height: 10px;
+        border-radius: 5px;
+        background: #ececf0;
+      }
+
+      .mock .hero {
+        height: 120px;
+        margin: 14px 0;
+        border-radius: 8px;
+        background: #f4f4f6;
+      }
+
+      .mock .row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .mock .row i {
+        height: 56px;
+        border-radius: 8px;
+      }
+
+      .mock .cta {
+        position: absolute;
+        top: 112px;
+        left: 50%;
+        width: 120px;
+        height: 34px;
+        border-radius: 8px;
+        background: #d9d9de;
+        transform: translateX(-50%);
+      }
+
+      .mock .pin {
+        position: absolute;
+        top: 104px;
+        left: calc(50% + 50px);
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50% 50% 50% 6px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 800;
+        transform: translateY(-100%);
+        animation: drop 0.5s 0.4s var(--ease-out) both;
+      }
+
+      @keyframes drop {
+        from {
+          opacity: 0;
+          transform: translateY(calc(-100% - 20px));
+        }
+      }
+
+      .talk {
+        position: absolute;
+        top: 64px;
+        left: calc(50% + 92px);
+        display: grid;
+        gap: 8px;
+        width: 230px;
+      }
+
+      .bubble {
+        padding: 10px 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        box-shadow: 0 6px 18px rgba(24, 24, 27, 0.1);
+        animation: pop-in 0.4s var(--ease-out) backwards;
+      }
+
+      .bubble.from-client {
+        border-radius: 4px 14px 14px 14px;
+        background: #fff;
+        animation-delay: 0.8s;
+      }
+
+      .bubble.from-dev {
+        justify-self: end;
+        border-radius: 14px 4px 14px 14px;
+        background: var(--accent-soft);
+        animation-delay: 1.3s;
+      }
+
+      .bubble small {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      /* ── 오른쪽 폼 ── */
+      .side {
+        display: grid;
+        place-items: center;
+        padding: 40px;
+        overflow-y: auto;
+      }
+
+      .form {
+        display: grid;
+        gap: 28px;
+        width: min(380px, 100%);
+        animation: pop-in 0.4s var(--ease-out);
+      }
+
+      .form h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .form .sub {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .fields {
+        display: grid;
+        gap: 16px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .field span {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .field input {
+        height: 50px;
+        padding: 0 16px;
+        border: 1px solid #dcdce2;
+        border-radius: 12px;
+        font-size: 15px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      .field input:focus {
+        border-color: var(--ink);
+      }
+
+      .field small {
+        color: var(--faint);
+        font-size: 12px;
+      }
+
+      .field[hidden] {
+        display: none;
+      }
+
+      .error {
+        margin: -12px 0 0;
+        color: #c4670f;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .error:empty {
+        display: none;
+      }
+
+      .submit {
+        height: 52px;
+        font-size: 15px;
+      }
+
+      .submit:disabled {
+        opacity: 0.6;
+      }
+
+      .switch-mode {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        text-align: center;
+      }
+
+      .switch-mode button {
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--ink);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+      }
+
+      .invite-note {
+        display: flex;
+        gap: 10px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #f6f6f8;
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .invite-note[hidden] {
+        display: none;
+      }
+
+      @media (max-width: 960px) {
+        .auth {
+          grid-template-columns: 1fr;
+        }
+
+        .scene {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth">
+      <section class="scene" aria-hidden="true">
+        <a class="brand" href="projects.html">
+          <svg width="30" height="30" viewBox="0 0 26 26">
+            <rect x="10" y="1" width="15" height="15" rx="4" fill="#18181b" />
+            <rect x="1" y="10" width="15" height="15" rx="4" fill="#5647e0" />
+          </svg>
+          RE:SPEC
+        </a>
+
+        <div class="mock">
+          <i style="width: 30%"></i>
+          <i class="hero"></i>
+          <span class="cta"></span>
+          <span class="pin">1</span>
+          <div class="talk">
+            <p class="bubble from-client"><small>김하늘 · 고객</small>이 버튼이 폰에서 너무 작아요</p>
+            <p class="bubble from-dev"><small>박도윤 · 개발자</small>크게 바꿔서 올렸어요. 확인해 주세요!</p>
+          </div>
+          <div class="row"><i></i><i></i><i></i></div>
+        </div>
+
+        <div class="pitch">
+          <h2>사이트 위를 바로 짚어서<br />고쳐 달라고 말하세요</h2>
+          <p>고객과 개발자가 같은 화면을 보며 수정 요청을 주고받아요.</p>
+        </div>
+      </section>
+
+      <main class="side">
+        <form class="form" id="form" novalidate>
+          <div>
+            <h1 id="title">로그인</h1>
+            <p class="sub" id="sub">이메일과 비밀번호로 들어가요</p>
+          </div>
+
+          <p class="invite-note" id="inviteNote" hidden>
+            <span data-icon="link" data-size="16" class="i"></span>
+            <span>로그인하면 <b>필라테스 스튜디오 소개</b> 초대를 바로 볼 수 있어요</span>
+          </p>
+
+          <div class="fields">
+            <label class="field">
+              <span>이메일</span>
+              <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required />
+            </label>
+            <label class="field">
+              <span>비밀번호</span>
+              <input id="password" type="password" autocomplete="current-password" required />
+              <small id="pwHint" hidden>4자 이상, 영문·숫자·. ! _ - 만 쓸 수 있어요</small>
+            </label>
+            <label class="field" id="confirmField" hidden>
+              <span>비밀번호 확인</span>
+              <input id="confirm" type="password" autocomplete="new-password" />
+            </label>
+          </div>
+
+          <p class="error" id="error" role="alert"></p>
+
+          <button class="btn btn-dark submit" id="submit" type="submit">로그인</button>
+
+          <p class="switch-mode"><span id="switchText">아직 계정이 없나요?</span> <button type="button" id="switchBtn">회원가입</button></p>
+        </form>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="common.js"></script>
+    <script>
+      // 백엔드 Credentials 검증과 같은 규칙입니다.
+      const PASSWORD_PATTERN = /^[A-Za-z0-9.!_-]{4,256}$/;
+      const params = new URLSearchParams(location.search);
+      const COPY = {
+        login: { title: '로그인', sub: '이메일과 비밀번호로 들어가요', submit: '로그인', switchText: '아직 계정이 없나요?', switchLabel: '회원가입' },
+        signup: { title: '회원가입', sub: '이메일 하나면 바로 시작할 수 있어요', submit: '가입하기', switchText: '이미 계정이 있나요?', switchLabel: '로그인' },
+      };
+      let mode = params.get('mode') === 'signup' ? 'signup' : 'login';
+
+      function render() {
+        const copy = COPY[mode];
+        $('#title').textContent = copy.title;
+        $('#sub').textContent = copy.sub;
+        $('#submit').textContent = copy.submit;
+        $('#switchText').textContent = copy.switchText;
+        $('#switchBtn').textContent = copy.switchLabel;
+        $('#confirmField').hidden = mode !== 'signup';
+        $('#pwHint').hidden = mode !== 'signup';
+        $('#password').autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+        $('#error').textContent = '';
+        document.title = `RE:SPEC — ${copy.title}`;
+      }
+
+      function check() {
+        const email = $('#email');
+        if (!email.value.trim() || !email.checkValidity()) return '이메일 형식을 확인해 주세요.';
+        if (mode === 'signup') {
+          if (!PASSWORD_PATTERN.test($('#password').value)) return '비밀번호는 4자 이상, 영문·숫자·. ! _ - 만 쓸 수 있어요.';
+          if ($('#password').value !== $('#confirm').value) return '비밀번호가 서로 달라요.';
+        }
+        // 시연용: 비밀번호를 비우면 로그인 실패 화면을 보여 줍니다.
+        if (!$('#password').value) return '이메일 또는 비밀번호가 맞지 않아요.';
+        return '';
+      }
+
+      $('#form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const error = check();
+        $('#error').textContent = error;
+        if (error) return;
+        $('#submit').disabled = true;
+        $('#submit').textContent = '잠시만요…';
+        setTimeout(() => (location.href = params.get('next') === 'invite' ? 'invite.html?project=studio' : 'projects.html'), 700);
+      });
+
+      $('#switchBtn').addEventListener('click', () => {
+        mode = mode === 'login' ? 'signup' : 'login';
+        render();
+        $('#email').focus();
+      });
+
+      $('#inviteNote').hidden = params.get('next') !== 'invite';
+      document.addEventListener('DOMContentLoaded', () => {
+        RESPEC.hydrate();
+        render();
+      });
+    </script>
+  </body>
+</html>

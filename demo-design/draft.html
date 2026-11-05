@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RE:SPEC — 초안 생성</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <script src="illust.js"></script>
+    <style>
+      /*
+       * 초안 생성 — 한 화면에서 세 단계
+       * 1. 입력: 프로젝트 이름 · 사이트 유형 · 원하는 방향
+       * 2. 만드는 중: 지금 하는 일을 단계별로
+       * 3. 결과: 왼쪽 미리보기(직접 써 보기) + 오른쪽 요약과 전달 방법
+       */
+      .app {
+        display: grid;
+        grid-template-rows: 84px minmax(0, 1fr);
+        height: 100vh;
+      }
+
+      .stage {
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .step {
+        display: none;
+      }
+
+      .app[data-step='input'] .step-input,
+      .app[data-step='making'] .step-making,
+      .app[data-step='done'] .step-done {
+        display: flex;
+      }
+
+      /* ── 1. 입력 ── */
+      .step-input {
+        flex-direction: column;
+        align-items: center;
+        padding: 44px 40px 56px;
+        animation: pop-in 0.4s var(--ease-out);
+      }
+
+      /* 왼쪽: 이름과 설명(넓게) / 오른쪽: 사이트 유형(회색 상자) */
+      .form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 28px 32px;
+        width: min(1200px, 100%);
+      }
+
+      .hero {
+        grid-column: 1 / -1;
+      }
+
+      .hero h2 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .hero p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .main-col {
+        display: grid;
+        align-content: start;
+        gap: 24px;
+        min-width: 0;
+      }
+
+      .side-col {
+        align-self: start;
+        padding: 20px;
+        border-radius: 16px;
+        background: #f1f1f4;
+      }
+
+      .block {
+        display: grid;
+        gap: 12px;
+      }
+
+      .block-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .block-title em {
+        color: var(--faint);
+        font-size: 13px;
+        font-style: normal;
+        font-weight: 600;
+      }
+
+      .name-input {
+        width: 100%;
+        height: 52px;
+        padding: 0 16px;
+        border: 1px solid #dcdce2;
+        border-radius: 12px;
+        font-size: 16px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      .name-input:focus {
+        border-color: var(--ink);
+      }
+
+      /* 사이트 유형: 고른 칸만 진하게 */
+      .types {
+        display: grid;
+        gap: 8px;
+      }
+
+      .type {
+        display: grid;
+        gap: 4px;
+        padding: 16px 18px;
+        border: none;
+        border-radius: 12px;
+        background: #fff;
+        text-align: left;
+        transition:
+          transform 0.3s var(--spring),
+          background 0.2s,
+          color 0.2s;
+      }
+
+      .type:hover {
+        transform: translateY(-2px);
+      }
+
+      .type:active {
+        transform: scale(0.97);
+      }
+
+      .type b {
+        font-size: 15px;
+        font-weight: 800;
+      }
+
+      .type span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .type[aria-pressed='true'] {
+        background: var(--ink);
+        color: #fff;
+      }
+
+      .type[aria-pressed='true'] span {
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .composer {
+        display: grid;
+        gap: 12px;
+        padding: 18px 18px 14px 20px;
+        border: 1px solid #dcdce2;
+        border-radius: 16px;
+        transition: border-color 0.2s;
+      }
+
+      .composer:focus-within {
+        border-color: var(--ink);
+      }
+
+      .composer textarea {
+        min-height: 200px;
+        padding: 0;
+        border: none;
+        resize: none;
+        font-size: 16px;
+        line-height: 1.6;
+        outline: none;
+      }
+
+      .composer-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .composer-foot .count {
+        color: var(--faint);
+        font-size: 12px;
+      }
+
+      .composer-foot .btn {
+        margin-left: auto;
+        height: 44px;
+        padding: 0 20px;
+      }
+
+      .btn-dark:disabled {
+        background: var(--line);
+        color: var(--faint);
+        cursor: default;
+      }
+
+      .examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .examples span {
+        align-self: center;
+        margin-right: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .examples button {
+        height: 30px;
+        padding: 0 12px;
+        border: 1px solid #dcdce2;
+        border-radius: var(--r-full);
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        transition: border-color 0.2s;
+      }
+
+      .examples button:hover {
+        border-color: var(--ink);
+      }
+
+      /* ── 2. 만드는 중 ── */
+      .step-making {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        padding: 40px;
+      }
+
+      .making {
+        display: grid;
+        gap: 28px;
+        width: min(440px, 100%);
+      }
+
+      .making h2 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .making p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .progress {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 3px;
+        background: #f1f1f4;
+      }
+
+      .progress i {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: 3px;
+        background: var(--accent);
+        transition: width 0.6s var(--ease-out);
+      }
+
+      .tasks {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tasks li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 48px;
+        padding: 0 16px;
+        border-radius: 12px;
+        color: var(--faint);
+        font-size: 15px;
+        font-weight: 600;
+        transition:
+          background 0.2s,
+          color 0.2s;
+      }
+
+      .tasks .dot {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #f1f1f4;
+        color: #fff;
+      }
+
+      .tasks li.is-now {
+        background: #f6f6f8;
+        color: var(--ink);
+      }
+
+      .tasks li.is-now .dot {
+        background: none;
+        box-shadow: inset 0 0 0 2px var(--ink);
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .tasks li.is-done {
+        color: var(--text);
+      }
+
+      .tasks li.is-done .dot {
+        background: var(--ink);
+      }
+
+      @keyframes pulse {
+        50% {
+          transform: scale(0.8);
+        }
+      }
+
+      .cancel {
+        justify-self: start;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--muted);
+        font-size: 13px;
+        text-decoration: underline;
+      }
+
+      /* ── 3. 결과: 작업 화면과 같은 틀 ── */
+      .step-done {
+        display: none;
+        height: 100%;
+      }
+
+      .app[data-step='done'] .step-done {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 440px;
+      }
+
+      .preview {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        min-width: 0;
+        min-height: 0;
+        padding: 32px 40px 104px;
+        background: #f1f1f4;
+      }
+
+      .site-frame {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px rgba(24, 24, 27, 0.06),
+          0 8px 30px rgba(24, 24, 27, 0.08);
+        animation: pop-in 0.45s var(--ease-out);
+        transition: max-width 0.45s var(--ease-out);
+      }
+
+      .site-frame[data-device='tablet'] {
+        max-width: 820px;
+      }
+
+      .site-frame[data-device='mobile'] {
+        max-width: 390px;
+      }
+
+      .site-frame iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .dock {
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(24, 24, 27, 0.12);
+        transform: translateX(-50%);
+      }
+
+      .dock .segmented {
+        padding: 0;
+        background: transparent;
+      }
+
+      .dock .segmented .thumb {
+        top: 0;
+        bottom: 0;
+        background: var(--hover);
+        box-shadow: none;
+      }
+
+      .dock .segmented button {
+        height: 40px;
+        padding: 0 10px;
+      }
+
+      .dock .divider {
+        width: 1px;
+        height: 22px;
+        background: var(--line);
+      }
+
+      .dock-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 14px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .dock-btn:hover {
+        background: var(--hover);
+      }
+
+      .panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        border-left: 1px solid #e2e2e7;
+        background: #f1f1f4;
+        animation: slide-in 0.35s var(--ease-out);
+      }
+
+      @keyframes slide-in {
+        from {
+          opacity: 0;
+          transform: translateX(12px);
+        }
+      }
+
+      .panel-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .sec {
+        padding: 32px 36px;
+        background: #fff;
+      }
+
+      .sec + .sec {
+        margin-top: 8px;
+      }
+
+      .sec h3 {
+        margin: 0 0 14px;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .done-title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+      }
+
+      .done-sub {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .pages {
+        display: grid;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pages li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 48px;
+        border-bottom: 1px solid var(--line);
+        font-size: 15px;
+      }
+
+      .pages li:last-child {
+        border-bottom: none;
+      }
+
+      .pages li span {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .prompt-quote {
+        margin: 0;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .prompt-meta {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      /* 코드 전달 방법: 고른 칸만 진하게 */
+      .handoff {
+        display: grid;
+        gap: 8px;
+      }
+
+      .handoff button {
+        display: grid;
+        gap: 2px;
+        padding: 14px 16px;
+        border: none;
+        border-radius: 12px;
+        background: #f1f1f4;
+        text-align: left;
+        transition: background 0.2s;
+      }
+
+      .handoff b {
+        font-size: 15px;
+      }
+
+      .handoff span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .handoff button[aria-pressed='true'] {
+        background: var(--ink);
+        color: #fff;
+      }
+
+      .handoff button[aria-pressed='true'] span {
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .panel-foot {
+        display: grid;
+        gap: 8px;
+        padding: 20px 36px 32px;
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .panel-foot .row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .panel-foot .btn {
+        flex: 1;
+        height: 48px;
+        font-size: 15px;
+      }
+
+      @media (max-width: 1360px) {
+        .app[data-step='done'] .step-done {
+          grid-template-columns: minmax(0, 1fr) 380px;
+        }
+      }
+
+      @media (max-width: 960px) {
+        .form {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app" id="app" data-step="input">
+      <header class="topbar">
+        <a class="brand" href="projects.html" id="toProjects" aria-label="RE:SPEC 처음으로">
+          <svg width="30" height="30" viewBox="0 0 26 26" aria-hidden="true">
+            <rect x="10" y="1" width="15" height="15" rx="4" fill="#18181b" />
+            <rect x="1" y="10" width="15" height="15" rx="4" fill="#5647e0" />
+          </svg>
+          RE:SPEC
+        </a>
+        <h1 class="crumb" id="crumb">새 프로젝트</h1>
+        <span style="flex: 1"></span>
+        <div class="topbar-right">
+          <span class="me"><span class="avatar" data-role="client">김</span></span>
+        </div>
+      </header>
+
+      <div class="stage">
+        <!-- 1. 입력 -->
+        <section class="step step-input" aria-label="초안 정보 입력">
+          <form class="form" id="form">
+            <div class="hero">
+              <h2>어떤 사이트를 만들까요?</h2>
+              <p>유형을 고르고 원하는 느낌을 적어 주세요. 바로 써 볼 수 있는 초안을 만들어 드려요.</p>
+            </div>
+
+            <div class="main-col">
+              <div class="block">
+                <label class="block-title" for="name">프로젝트 이름</label>
+                <input class="name-input" id="name" placeholder="예) MORROW 쇼핑몰" maxlength="40" autocomplete="off" />
+              </div>
+
+              <div class="block">
+                <label class="block-title" for="prompt">원하는 방향 <em>자세할수록 초안이 정확해요</em></label>
+                <div class="composer">
+                  <textarea id="prompt" placeholder="예) 신발 편집숍이에요. 상품 사진이 크게 보이고, 사이즈를 고르기 쉬웠으면 좋겠어요."></textarea>
+                  <div class="composer-foot">
+                    <span class="count" id="count">0 / 500</span>
+                    <button class="btn btn-dark" id="makeBtn" type="submit" disabled>초안 만들기</button>
+                  </div>
+                </div>
+                <div class="examples" id="examples">
+                  <span>이렇게 시작해 보세요</span>
+                  <button type="button">신발 편집숍, 사진이 크게 보이게</button>
+                  <button type="button">동네 카페 예약, 따뜻한 느낌</button>
+                  <button type="button">필라테스 스튜디오 소개와 수업 안내</button>
+                </div>
+              </div>
+            </div>
+            <aside class="side-col">
+              <div class="block">
+                <p class="block-title">사이트 유형</p>
+                <div class="types" id="types" role="group" aria-label="사이트 유형">
+                  <button type="button" class="type" data-value="shop" aria-pressed="true"><b>쇼핑몰</b><span>상품 목록 · 상세 · 장바구니</span></button>
+                  <button type="button" class="type" data-value="landing" aria-pressed="false"><b>랜딩</b><span>소개 · 특징 · 문의</span></button>
+                  <button type="button" class="type" data-value="booking" aria-pressed="false"><b>예약</b><span>메뉴 · 날짜 선택 · 예약 확인</span></button>
+                  <button type="button" class="type" data-value="portfolio" aria-pressed="false"><b>포트폴리오</b><span>작업 목록 · 상세 · 연락처</span></button>
+                </div>
+              </div>
+
+            </aside>
+          </form>
+        </section>
+
+        <!-- 2. 만드는 중 -->
+        <section class="step step-making" aria-live="polite">
+          <div class="making">
+            <div>
+              <h2>초안을 만들고 있어요</h2>
+              <p>보통 1분 안에 끝나요. 이 화면을 떠나도 계속 만들어요.</p>
+            </div>
+            <div class="progress"><i id="bar"></i></div>
+            <ul class="tasks" id="tasks"></ul>
+            <button class="cancel" id="cancel" type="button">그만 만들고 돌아가기</button>
+          </div>
+        </section>
+
+        <!-- 3. 결과 -->
+        <section class="step step-done">
+          <div class="preview">
+            <div class="site-frame" id="frame" data-device="desktop">
+              <iframe id="site" title="초안 미리보기"></iframe>
+            </div>
+            <div class="dock">
+              <div class="segmented" id="deviceSwitch" role="group" aria-label="화면 크기">
+                <span class="thumb"></span>
+                <button data-value="desktop" aria-label="데스크톱"><span data-icon="monitor" data-size="16" class="i"></span></button>
+                <button data-value="tablet" aria-label="태블릿"><span data-icon="tablet" data-size="16" class="i"></span></button>
+                <button data-value="mobile" aria-label="모바일"><span data-icon="phone" data-size="16" class="i"></span></button>
+              </div>
+              <span class="divider"></span>
+              <button class="dock-btn" id="reload"><span data-icon="refresh" data-size="15" class="i"></span>새로고침</button>
+            </div>
+          </div>
+
+          <aside class="panel">
+            <div class="panel-body">
+              <div class="sec">
+                <h2 class="done-title">초안이 준비됐어요</h2>
+                <p class="done-sub">왼쪽 화면에서 직접 눌러 보고 써 보세요.</p>
+              </div>
+              <div class="sec">
+                <h3>만든 화면</h3>
+                <ul class="pages" id="pages"></ul>
+              </div>
+              <div class="sec">
+                <h3>내가 적은 방향</h3>
+                <p class="prompt-quote" id="promptQuote"></p>
+                <p class="prompt-meta" id="promptMeta"></p>
+              </div>
+              <div class="sec">
+                <h3>개발자에게 전달</h3>
+                <div class="handoff" id="handoff" role="group" aria-label="코드 전달 방법">
+                  <button type="button" data-value="github" aria-pressed="true"><b>GitHub 저장소 만들기</b><span>개발자를 초대하면 바로 받아서 고칠 수 있어요</span></button>
+                  <button type="button" data-value="zip" aria-pressed="false"><b>코드 내려받기</b><span>ZIP 파일로 받아서 직접 보내요</span></button>
+                </div>
+              </div>
+            </div>
+            <div class="panel-foot">
+              <div class="row">
+                <button class="btn btn-line" id="again">다시 만들기</button>
+                <button class="btn btn-dark" id="handoffBtn">저장소 만들기</button>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script src="common.js"></script>
+    <script>
+      // 초안 A(주황 사이트)를 AI가 만든 초안으로 보여 줍니다.
+      const DRAFT_URL = new URLSearchParams(location.search).get('a') || 'http://localhost:5174';
+      const TYPES = {
+        shop: { label: '쇼핑몰', pages: [['메인', '배너 · 추천 상품'], ['상품 목록', '필터 · 정렬'], ['상품 상세', '사진 · 사이즈 · 담기'], ['장바구니', '수량 · 주문']] },
+        landing: { label: '랜딩', pages: [['메인', '소개 · 특징'], ['문의', '연락 양식']] },
+        booking: { label: '예약', pages: [['메인', '소개 · 메뉴'], ['예약', '날짜 · 시간 선택'], ['예약 확인', '내 예약']] },
+        portfolio: { label: '포트폴리오', pages: [['메인', '작업 목록'], ['작업 상세', '사진 · 설명'], ['연락처', '메일 · SNS']] },
+      };
+      const TASKS = ['원하는 방향 정리하기', '화면 구성 정하기', '쇼핑몰 부품 조합하기', '미리보기 준비하기'];
+      const state = { type: 'shop', handoff: 'github', timer: null };
+
+      const setStep = (step) => ($('#app').dataset.step = step);
+
+      function syncForm() {
+        const length = $('#prompt').value.length;
+        $('#count').textContent = `${length} / 500`;
+        $('#makeBtn').disabled = !$('#prompt').value.trim() || !$('#name').value.trim();
+      }
+
+      // 버튼 묶음에서 하나만 고르기 (aria-pressed)
+      function pick(group, value) {
+        group.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.value === value)));
+      }
+
+      $('#types').addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        state.type = b.dataset.value;
+        pick($('#types'), state.type);
+      });
+      $('#examples').addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        $('#prompt').value = b.textContent;
+        if (!$('#name').value) $('#name').value = b.textContent.split(',')[0];
+        syncForm();
+        $('#prompt').focus();
+      });
+      $('#prompt').addEventListener('input', () => {
+        $('#prompt').value = $('#prompt').value.slice(0, 500);
+        syncForm();
+      });
+      $('#name').addEventListener('input', syncForm);
+      // Enter로 만들고 Shift+Enter로 줄바꿈. 한글 조합 중 Enter는 무시합니다.
+      $('#prompt').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+        e.preventDefault();
+        $('#form').requestSubmit();
+      });
+
+      $('#form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        if ($('#makeBtn').disabled) return;
+        $('#crumb').textContent = $('#name').value.trim();
+        startMaking();
+      });
+
+      // 시연용: 단계마다 0.9초씩 진행합니다.
+      function startMaking() {
+        setStep('making');
+        const tasks = TASKS.map((t) => t.replace('쇼핑몰', TYPES[state.type].label));
+        let now = 0;
+        const draw = () => {
+          $('#bar').style.width = `${(now / tasks.length) * 100}%`;
+          $('#tasks').replaceChildren(
+            ...tasks.map((t, i) =>
+              h('li', { class: i < now ? 'is-done' : i === now ? 'is-now' : '' }, h('span', { class: 'dot', html: i < now ? RESPEC.icon('check', 12) : '' }), t),
+            ),
+          );
+        };
+        draw();
+        state.timer = setInterval(() => {
+          now += 1;
+          draw();
+          if (now === tasks.length) {
+            clearInterval(state.timer);
+            setTimeout(showDone, 400);
+          }
+        }, 900);
+      }
+
+      function showDone() {
+        setStep('done');
+        const type = TYPES[state.type];
+        $('#pages').replaceChildren(...type.pages.map(([name, sub]) => h('li', {}, h('b', {}, name), h('span', {}, sub))));
+        $('#promptQuote').textContent = $('#prompt').value.trim();
+        $('#promptMeta').textContent = `${type.label} · 방금 만듦`;
+        if (!$('#site').src) $('#site').src = DRAFT_URL;
+        syncSegment($('#deviceSwitch'), $('#frame').dataset.device);
+      }
+
+      $('#cancel').addEventListener('click', () => {
+        clearInterval(state.timer);
+        setStep('input');
+      });
+      $('#again').addEventListener('click', () => {
+        setStep('input');
+        $('#prompt').focus();
+      });
+
+      onSegment($('#deviceSwitch'), (device) => {
+        $('#frame').dataset.device = device;
+        syncSegment($('#deviceSwitch'), device);
+      });
+      $('#reload').addEventListener('click', () => ($('#site').src = DRAFT_URL));
+
+      $('#handoff').addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        state.handoff = b.dataset.value;
+        pick($('#handoff'), state.handoff);
+        $('#handoffBtn').textContent = state.handoff === 'github' ? '저장소 만들기' : '코드 내려받기';
+      });
+      $('#handoffBtn').addEventListener('click', () => {
+        toast(state.handoff === 'github' ? '저장소를 만들었어요. 작업 화면으로 이동해요' : 'ZIP 파일을 준비했어요. 작업 화면으로 이동해요');
+        setTimeout(() => (location.href = linkTo('workspace.html')), 1200);
+      });
+
+      $('#toProjects').href = linkTo('projects.html');
+      document.addEventListener('DOMContentLoaded', () => {
+        RESPEC.hydrate();
+        // 프로젝트 목록의 "초안만 있는" 프로젝트에서 들어오면 이름을 채워 둡니다.
+        if (new URLSearchParams(location.search).get('project') === 'studio') $('#name').value = '필라테스 스튜디오 소개';
+        syncForm();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RE:SPEC — 배포와 검수</title>
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="app.css" />
+  <script src="illust.js"></script>
+  <style>
+    body { overflow: auto; background: #fafafa; }
+    .topbar { background: #fff; position: sticky; top: 0; z-index: 20; }
+    .release-layout { max-width: 1200px; margin: 0 auto; padding: 50px 40px 90px; }
+    .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+    .eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .07em; }
+    .page-heading h2 { margin: 0; font-size: 29px; letter-spacing: -.04em; line-height: 1.3; }
+    .page-heading p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+    .stack { display: grid; gap: 16px; min-width: 0; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 28px; }
+    .section-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 22px; }
+    .step { display: grid; flex: 0 0 32px; height: 32px; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 10px; font-weight: 800; }
+    .section-head h3, .side-card h3 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+    .section-head p, .side-card p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .url-row { display: flex; gap: 8px; }
+    .text-input, .note-input { width: 100%; border: 1px solid #dcdce2; border-radius: 11px; padding: 12px 14px; color: var(--ink); background: #fff; font: inherit; outline: none; }
+    .text-input:focus, .note-input:focus { border-color: var(--ink); }
+    .text-input[aria-invalid='true'], .note-input[aria-invalid='true'] { border-color: #d95757; }
+    .helper { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+    .error { color: #bd4545; font-size: 12px; margin: 8px 0 0; }
+    .saved-url { display: flex; gap: 12px; align-items: center; margin-top: 16px; padding: 14px; border-radius: 12px; background: #f7f7f9; min-width: 0; }
+    .saved-url .url-icon { display: grid; flex: 0 0 36px; height: 36px; place-items: center; border-radius: 10px; background: #fff; color: var(--accent); }
+    .saved-url .url-info { min-width: 0; flex: 1; }
+    .saved-url b { display: block; font-size: 13px; }
+    .saved-url a { display: block; color: var(--muted); font-size: 12px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .saved-url .open { flex: none; color: var(--ink); font-size: 12px; font-weight: 700; }
+    .select-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 12px; }
+    .select-head p { color: var(--muted); font-size: 13px; margin: 0; }
+    .select-all { border: 0; background: none; color: var(--text); font-size: 12px; font-weight: 700; cursor: pointer; }
+    .request-list { display: grid; gap: 10px; }
+    .request { border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+    .request.is-selected { border-color: #aaaab2; }
+    .request-label { display: flex; align-items: flex-start; gap: 12px; padding: 15px; cursor: pointer; }
+    .request-label input { accent-color: #18181b; width: 17px; height: 17px; margin: 2px 0 0; flex: none; }
+    .request-main { min-width: 0; flex: 1; }
+    .request-meta { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+    .number { display: grid; width: 21px; height: 21px; place-items: center; border-radius: 7px 7px 7px 2px; background: var(--accent); color: white; font-size: 11px; font-weight: 800; }
+    .request-main strong { display: block; margin-top: 7px; font-size: 14px; font-weight: 700; line-height: 1.5; }
+    .request-note { padding: 0 15px 16px 44px; }
+    .note-input { resize: vertical; min-height: 72px; font-size: 13px; line-height: 1.55; }
+    .empty { text-align: center; padding: 32px 12px; color: var(--muted); font-size: 13px; border: 1px dashed var(--line); border-radius: 12px; }
+    .empty a { display: inline-block; color: var(--ink); text-decoration: underline; font-weight: 700; margin-top: 8px; }
+    .submit-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--line); }
+    .submit-row p { color: var(--muted); font-size: 13px; margin: 0; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .side-card { position: sticky; top: 108px; }
+    .side-heading { display: flex; align-items: center; gap: 10px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .side-heading .i { color: var(--accent); }
+    .side-card ol { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 22px; }
+    .side-card li { display: flex; gap: 12px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+    .side-card li b { color: var(--ink); display: block; font-size: 13px; margin-bottom: 2px; }
+    .side-card .num { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 50%; background: #f1f1f4; color: var(--text); font-size: 11px; font-weight: 800; }
+    .review-list { display: grid; gap: 10px; margin-top: 18px; }
+    .review-item { display: block; border: 1px solid var(--line); border-radius: 12px; padding: 15px; transition: background .15s; }
+    .review-item:hover { background: var(--hover); }
+    .review-item strong { display: block; font-size: 14px; margin: 8px 0; line-height: 1.5; }
+    .review-item .hint { color: var(--muted); font-size: 12px; }
+    .review-item .note { margin-top: 10px; padding: 10px 12px; border-radius: 9px; background: #f7f7f9; font-size: 13px; color: var(--text); }
+    @media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } .side-card { position: static; } .topbar { padding: 0 20px; } .crumb { display: none; } }
+    @media (max-width: 650px) { .release-layout { padding: 30px 18px 70px; } .page-heading { align-items: flex-start; flex-direction: column; } .card { padding: 20px; } .url-row { flex-direction: column; } .topbar { height: auto; min-height: 84px; flex-wrap: wrap; padding: 12px 18px 0; } .topbar .views { order: 3; flex-basis: 100%; justify-content: center; min-height: 40px; gap: 20px; } .topbar .views a { font-size: 12px; } .topbar .brand { font-size: 16px; padding-right: 10px; } .topbar-right { margin-left: auto; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="projects.html" id="toProjects" aria-label="RE:SPEC 처음으로">
+      <svg width="30" height="30" viewBox="0 0 26 26" aria-hidden="true"><rect x="10" y="1" width="15" height="15" rx="4" fill="#18181b"/><rect x="1" y="10" width="15" height="15" rx="4" fill="#5647e0"/></svg>RE:SPEC
+    </a>
+    <h1 class="crumb">MORROW 쇼핑몰</h1>
+    <nav class="views" aria-label="화면">
+      <a href="workspace.html" id="toWorkspace">작업 화면</a>
+      <a href="requests.html" id="toRequests">요청 관리</a>
+      <a href="release.html" aria-current="page">배포와 검수</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="segmented" id="roleSwitch" role="group" aria-label="보는 시점 (시연용)"><span class="thumb"></span><button data-value="client">고객</button><button data-value="developer">개발자</button></div>
+      <span class="me"><span class="avatar" data-role="client" id="meAvatar">김</span></span>
+    </div>
+  </header>
+  <main class="release-layout">
+    <div class="page-heading"><div><p class="eyebrow">RE:SPEC WORKSPACE</p><h2 id="pageTitle">배포와 검수</h2><p id="pageDescription"></p></div><a class="btn btn-line" id="backLink" href="workspace.html">작업 화면으로</a></div>
+    <div class="layout"><div class="stack" id="content"></div><aside class="card side-card" id="guide"></aside></div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="common.js"></script>
+  <script src="release.js"></script>
+</body>
+</html>

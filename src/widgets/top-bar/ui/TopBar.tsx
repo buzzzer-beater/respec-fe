@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 
 import type { ReactNode } from 'react';
 
+import { NotificationBell } from '@/features/read-notification';
+
 import logoMark from '../assets/logo-mark.svg';
 import type { TopBarLink } from '../model/types';
 
@@ -50,7 +52,10 @@ const TopBar = ({ title, links = [], children }: TopBarProps) => {
         })}
       </nav>
 
-      {children && <div className="flex shrink-0 items-center gap-3">{children}</div>}
+      <div className="flex shrink-0 items-center gap-3">
+        {children}
+        <NotificationBell />
+      </div>
     </header>
   );
 };

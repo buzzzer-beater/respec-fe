@@ -161,6 +161,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   // 초안도 배포 URL도 없으면 핀 생성이 409이므로 핀 모드를 미리 막습니다.
   // 배포 사이트는 핀 스크립트가 연결돼야 핀 위치를 고정할 수 있어서, 연결 전과 없을 때도 막습니다.
+  // 개발자는 새 핀을 못 만들지만, 기존 핀 위치 다시 지정은 핀 모드가 필요해서 그때는 막지 않습니다.
   const pinDisabledReason =
     project && !project.deployment_url && draft === null
       ? '초안을 만들거나 배포 사이트를 연결하면 핀을 남길 수 있어요'
@@ -168,7 +169,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         ? '핀 스크립트 연결을 확인하고 있어요'
         : showDeployed && scriptStatus === 'disconnected'
           ? PIN_SCRIPT_MISSING_MESSAGE
-          : null;
+          : project && !can(project.my_role, 'create-pin') && relocatePin.pinId === null
+            ? '핀은 고객만 남길 수 있어요'
+            : null;
   const pinDisabledNotice =
     showDeployed && scriptStatus === 'disconnected' ? (
       <PinScriptMissingNotice projectId={projectId} />

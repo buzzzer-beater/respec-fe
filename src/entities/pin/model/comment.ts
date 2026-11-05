@@ -8,6 +8,8 @@ export interface PinComment {
   content: string;
   /** AI 변환본. 변환 실패나 삭제된 댓글은 `null` */
   ai_plain_text: string | null;
+  /** ISO 8601. 백엔드에 추가를 요청한 필드라 아직 오지 않을 수 있습니다. */
+  created_at?: string;
 }
 
 /** `PATCH .../comments/{comment_id}` 응답 */

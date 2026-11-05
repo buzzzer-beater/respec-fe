@@ -6,7 +6,7 @@ import {
   getTransitionErrorMessage,
 } from '@/entities/request';
 import { can, type ProjectAction, type ProjectRole } from '@/entities/user';
-import { cn } from '@/shared/lib';
+import { Button, type ButtonSize } from '@/shared/ui';
 
 import { type DeveloperTransition, useChangeRequestTransition } from '../api/change-request-status';
 
@@ -20,7 +20,7 @@ interface ChangeRequestStatusButtonsProps {
   requestId: number;
   status: ChangeRequestStatus;
   role: ProjectRole | null | undefined;
-  size?: 'sm' | 'md';
+  size?: ButtonSize;
 }
 
 /** 개발자용 확인/착수 버튼. 역할과 상태에 맞는 버튼만 보여 줍니다. */
@@ -42,18 +42,14 @@ const ChangeRequestStatusButtons = ({
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
       {actions.map(({ transition, label }) => (
-        <button
+        <Button
           key={transition}
-          type="button"
+          size={size}
           disabled={mutation.isPending}
           onClick={() => mutation.mutate({ requestId, transition })}
-          className={cn(
-            'bg-ink font-semibold text-white transition-transform active:scale-95 disabled:opacity-40',
-            size === 'sm' ? 'h-7 rounded-lg px-2.5 text-xs' : 'h-10 rounded-xl px-4 text-sm',
-          )}
         >
           {label}
-        </button>
+        </Button>
       ))}
       {errorMessage && (
         <p role="alert" className="text-warn w-full text-right text-xs font-semibold">

@@ -1,47 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { CopyButton } from '@/shared/ui';
 
 import { getFrameAncestorsConfig, getPinScriptTag } from '../model/pin-script-guide';
 
-const COPIED_DURATION_MS = 2000;
-
-const CodeBlock = ({ label, code }: { label: string; code: string }) => {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), COPIED_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-    } catch {
-      // 클립보드 권한이 없으면 사용자가 직접 복사합니다.
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-text text-xs font-semibold">{label}</span>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="text-brand text-xs font-semibold hover:underline"
-        >
-          {copied ? '복사했어요' : '복사'}
-        </button>
-      </div>
-      <pre className="border-divider text-ink overflow-x-auto rounded-lg border bg-white px-3 py-2 font-mono text-[11px] leading-normal select-all">
-        {code}
-      </pre>
+const CodeBlock = ({ label, code }: { label: string; code: string }) => (
+  <div className="flex flex-col gap-1">
+    <div className="flex items-center justify-between">
+      <span className="text-text text-xs font-semibold">{label}</span>
+      {/* 클립보드 권한이 없으면 사용자가 직접 복사합니다. */}
+      <CopyButton text={code} className="text-brand text-xs font-semibold hover:underline" />
     </div>
-  );
-};
+    <pre className="border-divider text-ink overflow-x-auto rounded-lg border bg-white px-3 py-2 font-mono text-[11px] leading-normal select-all">
+      {code}
+    </pre>
+  </div>
+);
 
 /** 배포 사이트에 핀 스크립트를 넣는 방법. 대화상자를 열 때 마운트되므로 브라우저 주소를 바로 읽습니다. */
 const PinScriptGuide = () => {

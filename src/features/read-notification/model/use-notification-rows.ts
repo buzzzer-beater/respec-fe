@@ -21,7 +21,7 @@ export interface NotificationRow {
 }
 
 /**
- * 알림에는 보낸 사람과 핀이 없어서, 알림이 가리키는 프로젝트의 핀·참여자·검수 제출을 함께 받아 문구를 만듭니다.
+ * 알림에는 핀 번호와 보낸 사람 이메일이 없어서, 알림이 가리키는 프로젝트의 핀·참여자·검수 제출을 함께 받아 문구를 만듭니다.
  * 데이터를 받기 전에는 번호 없는 문구로 먼저 보여 줍니다.
  */
 export const useNotificationRows = (notifications: NotificationItem[]): NotificationRow[] => {
@@ -74,10 +74,14 @@ export const useNotificationRows = (notifications: NotificationItem[]): Notifica
         : notification.change_request_id;
     const pin = pins.find((candidate) => candidate.change_request_id === requestId) ?? null;
     const pinNumber = pin ? (toPinNumbers(pins).get(pin.id) ?? null) : null;
+    // 예전 알림은 `actor_id`가 없어서 알림 종류로 정한 역할의 참여자를 씁니다.
     const actorRole = NOTIFICATION_ACTOR_ROLE[notification.type];
+    const members = membersByProject.get(notification.project_id) ?? [];
     const actor =
-      membersByProject.get(notification.project_id)?.find(({ role }) => role === actorRole)
-        ?.email ?? (actorRole === 'client' ? '고객' : '개발자');
+      (notification.actor_id !== null
+        ? members.find(({ id }) => id === notification.actor_id)
+        : members.find(({ role }) => role === actorRole)
+      )?.email ?? (actorRole === 'client' ? '고객' : '개발자');
     const preview = toNotificationPreview(pin?.request_preview);
     const time = formatRelativeTime(notification.created_at);
 

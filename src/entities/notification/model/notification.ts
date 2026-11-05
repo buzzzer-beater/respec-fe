@@ -16,6 +16,8 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 interface NotificationBase {
   id: number;
   project_id: number;
+  /** 행동한 참여자의 사용자 id. 이 필드가 생기기 전 알림은 `null` */
+  actor_id: number | null;
   /** 읽지 않았으면 `null`. ISO 8601 */
   read_at: string | null;
   /** ISO 8601 */

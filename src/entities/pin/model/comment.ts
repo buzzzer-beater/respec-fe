@@ -17,3 +17,10 @@ export interface EditedPinComment extends PinComment {
   /** ISO 8601 */
   updated_at: string;
 }
+
+/** 삭제된 댓글의 `content`. 백엔드는 소프트 삭제 후 이 문구를 돌려줍니다. */
+export const DELETED_COMMENT_CONTENT = '삭제된 댓글입니다';
+
+/** 삭제된 댓글은 문구가 바뀌고 AI 변환본이 비어 있습니다. */
+export const isDeletedPinComment = ({ content, ai_plain_text }: PinComment) =>
+  content === DELETED_COMMENT_CONTENT && ai_plain_text === null;

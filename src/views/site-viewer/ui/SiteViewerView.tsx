@@ -165,7 +165,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           projectId={projectId}
           selectedPin={selectedPin}
           messages={toMessages(messages, pins, members, me)}
-          pinThreads={toPinThreads(pins, commentsByPin, members, me, showResolved)}
+          pinThreads={toPinThreads(pins, commentsByPin, members, me, requests, showResolved)}
           onSendMessage={(content) => postMessage.mutate({ content })}
           onSelectPin={handleSelectPin}
           renderPinThreadAction={({ id }) => (

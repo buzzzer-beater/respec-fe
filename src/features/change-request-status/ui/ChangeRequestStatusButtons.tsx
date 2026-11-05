@@ -6,12 +6,12 @@ import {
   getTransitionErrorMessage,
 } from '@/entities/request';
 import { can, type ProjectAction, type ProjectRole } from '@/entities/user';
-import { Button, type ButtonSize } from '@/shared/ui';
+import { Button, type ButtonSize, type ButtonVariant } from '@/shared/ui';
 
 import { type DeveloperTransition, useChangeRequestTransition } from '../api/change-request-status';
 
 const ACTIONS: { transition: DeveloperTransition; action: ProjectAction; label: string }[] = [
-  { transition: 'acknowledge', action: 'acknowledge-request', label: '요청 확인' },
+  { transition: 'acknowledge', action: 'acknowledge-request', label: '확인 시작' },
   { transition: 'start', action: 'start-request', label: '작업 시작' },
 ];
 
@@ -21,6 +21,8 @@ interface ChangeRequestStatusButtonsProps {
   status: ChangeRequestStatus;
   role: ProjectRole | null | undefined;
   size?: ButtonSize;
+  /** 카드 목록처럼 버튼이 반복되는 곳에서는 외곽선(`secondary`)으로 씁니다. */
+  variant?: ButtonVariant;
 }
 
 /** 개발자용 확인/착수 버튼. 역할과 상태에 맞는 버튼만 보여 줍니다. */
@@ -30,6 +32,7 @@ const ChangeRequestStatusButtons = ({
   status,
   role,
   size = 'md',
+  variant = 'primary',
 }: ChangeRequestStatusButtonsProps) => {
   const mutation = useChangeRequestTransition(projectId);
   const actions = ACTIONS.filter(
@@ -45,6 +48,7 @@ const ChangeRequestStatusButtons = ({
         <Button
           key={transition}
           size={size}
+          variant={variant}
           disabled={mutation.isPending}
           onClick={() => mutation.mutate({ requestId, transition })}
         >

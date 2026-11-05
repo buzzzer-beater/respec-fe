@@ -14,6 +14,7 @@ import {
   useGetChangeRequestHistory,
 } from '@/entities/request';
 import { ChangeRequestStatusButtons } from '@/features/change-request-status';
+import { AddToReviewButton } from '@/features/request-review';
 import { ResolveRequestButtons } from '@/features/resolve-request';
 import { Dialog, DialogClose, DialogTitle, PlainTextExplanation } from '@/shared/ui';
 
@@ -153,6 +154,12 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
             )}
             <div className="ml-auto flex flex-wrap justify-end gap-2">
               <ChangeRequestStatusButtons
+                projectId={projectId}
+                requestId={request.id}
+                status={request.status}
+                role={project?.my_role}
+              />
+              <AddToReviewButton
                 projectId={projectId}
                 requestId={request.id}
                 status={request.status}

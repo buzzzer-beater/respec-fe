@@ -17,6 +17,8 @@ interface RequestReviewDialogProps {
   projectId: number;
   /** `in_progress` 요청만 넘깁니다. */
   candidates: ChangeRequest[];
+  /** 처음부터 골라 둘 요청 id("검수 요청에 담기"로 열었을 때) */
+  initialSelectedIds?: number[];
   defaultDeploymentUrl: string;
   onClose: () => void;
 }
@@ -32,10 +34,18 @@ const getSubmitErrorMessage = (error: unknown) => {
 const RequestReviewDialog = ({
   projectId,
   candidates,
+  initialSelectedIds = [],
   defaultDeploymentUrl,
   onClose,
 }: RequestReviewDialogProps) => {
-  const [notes, setNotes] = useState<ReviewNotes>(() => new Map());
+  const [notes, setNotes] = useState<ReviewNotes>(
+    () =>
+      new Map(
+        initialSelectedIds
+          .filter((id) => candidates.some((candidate) => candidate.id === id))
+          .map((id) => [id, '']),
+      ),
+  );
   const [deploymentUrl, setDeploymentUrl] = useState(defaultDeploymentUrl);
   const [errors, setErrors] = useState<ReviewRequestFormErrors | null>(null);
   const { mutate, isPending, error } = usePostReviewRequest(projectId);

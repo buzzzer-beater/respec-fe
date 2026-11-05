@@ -67,7 +67,7 @@ const ReviewView = ({ projectId }: ReviewViewProps) => {
             <select
               value={currentId}
               onChange={(event) => setSelectedId(Number(event.target.value))}
-              className="border-divider h-10 rounded-[10px] border bg-white px-3 font-semibold outline-none"
+              className="border-divider focus:border-ink h-10 rounded-[10px] border bg-white px-3 font-semibold outline-none"
             >
               {reviews.data.map((summary, index) => (
                 <option key={summary.id} value={summary.id}>

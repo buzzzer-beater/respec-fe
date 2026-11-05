@@ -1,4 +1,4 @@
 import { axiosInstance } from './client';
 import { createMethods } from './factory';
 
-export const { del, get, patch, post, put } = createMethods(axiosInstance);
+export const { del, get, getFile, patch, post, put } = createMethods(axiosInstance);

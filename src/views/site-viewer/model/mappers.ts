@@ -43,6 +43,7 @@ export const toViewerPins = (pins: PinWithRequest[], showResolved = false): View
             muted: pin.request_status === null || pin.request_status === 'resolved',
             status: pin.request_status,
             preview: pin.request_preview,
+            locationStatus: pin.location_status,
             anchor: pin,
           },
         ],

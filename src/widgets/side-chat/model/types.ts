@@ -1,3 +1,4 @@
+import type { Message } from '@/entities/message';
 import type { ChangeRequestStatus } from '@/entities/request';
 import type { ProjectRole } from '@/entities/user';
 
@@ -20,4 +21,19 @@ export interface PinThread {
   pinNumber: number;
   status: ChangeRequestStatus;
   comments: PinThreadComment[];
+}
+
+/** 채팅에 카드로 공유된 핀. 핀 목록에서 못 찾으면 번호와 경로가 `null`입니다. */
+export interface SharedPin {
+  id: string;
+  pinNumber: number | null;
+  /** 카드를 누르면 이 경로의 화면으로 이동합니다. */
+  pagePath: string | null;
+  preview: string | null;
+  status: ChangeRequestStatus | null;
+}
+
+/** 대화 탭 메시지. 핀을 공유한 메시지는 본문 대신(또는 본문과 함께) 핀 카드를 보여 줍니다. */
+export interface SideChatMessage extends Message {
+  sharedPin?: SharedPin | null;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { MessageItem } from '@/entities/message';
 import { CHANGE_REQUEST_STATUS_LABEL, RequestStatusBadge } from '@/entities/request';
@@ -8,7 +8,12 @@ import { PROJECT_ROLE_LABEL } from '@/entities/user';
 
 import type { PinThread } from '../model/types';
 
-const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) => {
+type PinThreadCardProps = Omit<PinThread, 'id'> & {
+  /** 머리글 오른쪽 액션(대화에 공유 등) */
+  action?: ReactNode;
+};
+
+const PinThreadCard = ({ pinNumber, status, comments, action }: PinThreadCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [first, ...replies] = comments;
 
@@ -25,7 +30,8 @@ const PinThreadCard = ({ pinNumber, status, comments }: Omit<PinThread, 'id'>) =
           {pinNumber}
         </span>
         <h3 className="text-base font-extrabold">{pinNumber}번 요청</h3>
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          {action}
           <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
         </span>
       </header>

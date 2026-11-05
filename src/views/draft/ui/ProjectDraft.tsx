@@ -97,6 +97,7 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
       onSiteTypeChange={setPickedSiteType}
       onSubmit={handleSubmit}
       isPending={putDraft.isPending}
+      isDone={putDraft.isSuccess}
       disabled={draft.isPending}
       error={putDraft.error}
       header={

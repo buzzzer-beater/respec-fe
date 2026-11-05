@@ -6,4 +6,5 @@ export interface SidebarNavLink {
 export interface SidebarProject {
   name: string;
   plan: string;
+  imageUrl?: string;
 }

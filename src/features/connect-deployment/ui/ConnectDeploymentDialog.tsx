@@ -1,158 +1,163 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 
 import type { ApiError } from '@/shared/api';
-import { Button, Dialog, DialogTitle, Input } from '@/shared/ui';
+import {
+  Button,
+  buttonClassName,
+  CopyButton,
+  Dialog,
+  DialogBanner,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  Input,
+  toast,
+} from '@/shared/ui';
 
 import { usePutProjectDeployment } from '../api/deployment';
 import {
   DEPLOYMENT_URL_ERROR_MESSAGE,
-  isVercelAppUrl,
   toDeploymentHost,
   validateDeploymentUrl,
 } from '../model/deployment-url';
-import PinScriptGuide from './PinScriptGuide';
+import { getPinScriptTag } from '../model/pin-script-guide';
 
 const getServerErrorMessage = (error: ApiError) => {
-  if (error.status === 422) {
-    return '서버가 이 주소를 받지 않았어요. https://로 시작하고 아이디나 비밀번호가 없는 주소인지 확인해 주세요.';
-  }
-  if (error.status === 403) return '배포 사이트는 이 프로젝트의 개발자만 연결할 수 있어요.';
+  if (error.status === 422) return DEPLOYMENT_URL_ERROR_MESSAGE.invalid;
+  if (error.status === 403) return '배포 주소는 이 프로젝트의 개발자만 연결할 수 있어요.';
   return error.message;
 };
+
+const FIELD_LABEL_CLASS = 'text-text mb-2 block text-[13px] font-bold';
 
 interface ConnectDeploymentDialogProps {
   projectId: number;
   /** 이미 연결된 주소. 있으면 변경 화면으로 엽니다. */
   currentUrl: string | null;
-  /** 대화상자를 연 이유. 있으면 제목 아래에 보여 줍니다(예: 핀 스크립트 설치 안내). */
+  /** 대화상자를 연 이유. 있으면 제목 아래에 회색 안내로 보여 줍니다(예: 핀 스크립트 설치 안내). */
   banner?: string;
   onClose: () => void;
+  /** 새 주소를 저장한 뒤. 대화상자는 스스로 닫히고, 부모는 배포본 B로 옮기는 데 씁니다. */
+  onConnected?: (url: string) => void;
 }
 
-/** 열릴 때 마운트하고 닫히면 언마운트하는 방식으로 씁니다. */
+/** demo-design `#deployModal`. 열릴 때 마운트하고 닫히면 언마운트하는 방식으로 씁니다. */
 const ConnectDeploymentDialog = ({
   projectId,
   currentUrl,
   banner,
   onClose,
+  onConnected,
 }: ConnectDeploymentDialogProps) => {
   const [value, setValue] = useState(currentUrl ?? '');
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [connected, setConnected] = useState<{ url: string; droppedPath: boolean } | null>(null);
+  // 시안처럼 보낼 때만 검사하고, 다시 입력하면 오류를 지웁니다.
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const putDeployment = usePutProjectDeployment(projectId);
+  const isChange = currentUrl !== null;
+  const scriptTag = getPinScriptTag(typeof window === 'undefined' ? '' : window.location.origin);
 
-  const result = validateDeploymentUrl(value);
-  // 처음 제출하기 전에는 입력 중 오류를 보여 주지 않습니다.
-  const fieldError = isSubmitted && !result.ok ? DEPLOYMENT_URL_ERROR_MESSAGE[result.error] : null;
-  const isSameUrl = isSubmitted && result.ok && result.url === currentUrl;
   const errorMessage =
     fieldError ?? (putDeployment.error ? getServerErrorMessage(putDeployment.error) : null);
-  const isChange = currentUrl !== null;
-  const title = isChange ? '배포 사이트 변경' : '배포 사이트 연결';
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsSubmitted(true);
-    if (!result.ok || result.url === currentUrl || putDeployment.isPending) return;
+    if (putDeployment.isPending) return;
+    const result = validateDeploymentUrl(value);
+    if (!result.ok) {
+      setFieldError(DEPLOYMENT_URL_ERROR_MESSAGE[result.error]);
+      inputRef.current?.focus();
+      return;
+    }
+    if (result.url === currentUrl) {
+      onClose();
+      toast('이미 연결된 주소예요');
+      return;
+    }
     const { droppedPath } = result;
     putDeployment.mutate(
       { deployment_url: result.url },
-      { onSuccess: ({ deployment_url }) => setConnected({ url: deployment_url, droppedPath }) },
+      {
+        onSuccess: ({ deployment_url }) => {
+          const host = toDeploymentHost(deployment_url);
+          onClose();
+          toast(droppedPath ? `경로는 빼고 ${host}로 연결했어요` : `${host}를 연결했어요`);
+          onConnected?.(deployment_url);
+        },
+      },
     );
   };
 
   return (
     <Dialog onClose={onClose}>
-      <div className="flex flex-col gap-5 p-6">
-        <DialogTitle>{connected ? '배포 사이트를 연결했어요' : title}</DialogTitle>
-        {banner && !connected && (
-          <p className="bg-ai text-text rounded-[10px] px-3.5 py-2.5 text-[13px] leading-normal font-semibold">
-            {banner}
-          </p>
-        )}
+      <form noValidate onSubmit={handleSubmit}>
+        <DialogContent>
+          <DialogTitle>{isChange ? '배포 주소 변경' : '배포 연결'}</DialogTitle>
+          {banner && <DialogBanner>{banner}</DialogBanner>}
 
-        {connected ? (
-          <>
-            <div className="flex flex-col gap-1.5 text-sm leading-normal">
-              <a
-                href={connected.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-brand font-semibold break-all underline underline-offset-2"
+          <div>
+            <label htmlFor="deployment-url" className={FIELD_LABEL_CLASS}>
+              배포 주소
+            </label>
+            <Input
+              ref={inputRef}
+              id="deployment-url"
+              type="url"
+              inputMode="url"
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                setFieldError(null);
+                putDeployment.reset();
+              }}
+              placeholder="https://my-shop.vercel.app"
+              aria-invalid={errorMessage ? true : undefined}
+              aria-describedby={errorMessage ? 'deployment-url-error' : undefined}
+              disabled={putDeployment.isPending}
+              className="text-text h-11 text-sm"
+            />
+            {errorMessage && (
+              <p
+                id="deployment-url-error"
+                role="alert"
+                className="text-warn mt-2 text-[13px] font-semibold"
               >
-                {connected.url}
-              </a>
-              {connected.droppedPath && (
-                <p className="text-text font-semibold">
-                  사이트 안 경로는 빼고 {toDeploymentHost(connected.url)}로 연결했어요. 페이지
-                  경로는 핀 스크립트가 알려 줘요.
-                </p>
-              )}
-              <p className="text-text">
-                고객이 작업 화면에서 이 사이트를 기준으로 검수하고 핀을 남길 수 있어요.
+                {errorMessage}
               </p>
-            </div>
-            <PinScriptGuide />
-            <Button autoFocus onClick={onClose} className="h-11">
-              확인
-            </Button>
-          </>
-        ) : (
-          <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="deployment-url" className="text-text text-sm font-semibold">
-                배포 사이트 주소
-              </label>
-              <Input
-                id="deployment-url"
-                type="url"
-                inputMode="url"
-                autoFocus
-                autoComplete="off"
-                spellCheck={false}
-                value={value}
-                onChange={(event) => {
-                  setValue(event.target.value);
-                  putDeployment.reset();
-                }}
-                placeholder="https://my-project.vercel.app"
-                aria-invalid={errorMessage ? true : undefined}
-                aria-describedby="deployment-url-hint"
-                disabled={putDeployment.isPending}
+            )}
+          </div>
+
+          <div>
+            <span className={FIELD_LABEL_CLASS}>핀 스크립트 · 사이트 &lt;head&gt;에 한 줄</span>
+            <div className="bg-ink flex items-center gap-2 rounded-xl py-2.5 pr-2.5 pl-3.5">
+              <code className="text-chip min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap">
+                {scriptTag}
+              </code>
+              <CopyButton
+                text={scriptTag}
+                copiedMessage="핀 스크립트를 복사했어요"
+                className={buttonClassName({
+                  className: 'h-8 bg-[#3f3f46] px-3 text-[13px] hover:bg-[#3f3f46]',
+                })}
               />
-              <p id="deployment-url-hint" className="text-muted text-xs leading-normal">
-                {result.ok && !isVercelAppUrl(value)
-                  ? 'Vercel 주소(*.vercel.app)가 아니에요. 연결은 할 수 있지만 Vercel 주소를 권장해요.'
-                  : 'Vercel에 배포한 주소(*.vercel.app)를 권장해요.'}
-              </p>
-              {errorMessage ? (
-                <p role="alert" className="text-warn text-xs font-semibold">
-                  {errorMessage}
-                </p>
-              ) : (
-                isSameUrl && (
-                  <p role="status" className="text-text text-xs font-semibold">
-                    이미 연결된 주소예요.
-                  </p>
-                )
-              )}
             </div>
+          </div>
 
-            <PinScriptGuide />
-
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={onClose} className="h-11 flex-1">
-                취소
-              </Button>
-              <Button type="submit" disabled={putDeployment.isPending} className="h-11 flex-1">
-                {putDeployment.isPending ? '연결하는 중…' : isChange ? '변경하기' : '연결하기'}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button type="submit" disabled={putDeployment.isPending}>
+              {isChange ? '변경하기' : '연결하기'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </form>
     </Dialog>
   );
 };

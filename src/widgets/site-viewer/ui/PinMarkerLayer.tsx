@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { PinMarkerButton } from '@/entities/pin';
+import { NumberedPin, PinMarkerButton } from '@/entities/pin';
 
 import { getMarkerOffsets } from '../model/spread';
 import type { ViewerPin } from '../model/types';
@@ -12,8 +12,6 @@ export interface MarkerPlacement {
   /** 레이어 안 위치(%) */
   x: number;
   y: number;
-  /** 요소를 다시 찾지 못해 저장된 좌표에 그리는 핀 */
-  needsCheck?: boolean;
 }
 
 interface PinMarkerLayerProps {
@@ -25,6 +23,7 @@ interface PinMarkerLayerProps {
 /**
  * 사이트 영역을 덮는 핀 마커 레이어. 레이어 자체는 클릭을 통과시키고 마커만 누를 수 있습니다.
  * 겹치는 핀은 레이어 크기(px)로 거리를 재서 표시 위치만 옮깁니다.
+ * 아직 보내지 않은 위치(`kind: 'draft'`)는 누를 수 없는 검정 핀으로 그립니다.
  */
 const PinMarkerLayer = ({ markers, selectedPinId, onSelectPin }: PinMarkerLayerProps) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,20 +48,34 @@ const PinMarkerLayer = ({ markers, selectedPinId, onSelectPin }: PinMarkerLayerP
 
   return (
     <div ref={ref} className="pointer-events-none absolute inset-0">
-      {markers.map(({ pin, x, y, needsCheck }, index) => (
-        <PinMarkerButton
-          key={pin.id}
-          number={pin.number}
-          tone={pin.tone}
-          alert={pin.alert}
-          preview={pin.preview}
-          selected={pin.id === selectedPinId}
-          needsCheck={needsCheck}
-          onClick={() => onSelectPin?.(pin.id)}
-          className="pointer-events-auto"
-          style={{ left: `calc(${x}% + ${offsets[index] ?? 0}px)`, top: `${y}%` }}
-        />
-      ))}
+      {markers.map(({ pin, x, y }, index) => {
+        const style = { left: `calc(${x}% + ${offsets[index] ?? 0}px)`, top: `${y}%` };
+        if (pin.kind === 'draft') {
+          return (
+            <span
+              key={pin.id}
+              aria-hidden
+              className="ease-out-soft absolute z-20 -translate-y-full transition-[left,top] duration-250"
+              style={style}
+            >
+              <NumberedPin number={pin.number} kind="draft" />
+            </span>
+          );
+        }
+        return (
+          <PinMarkerButton
+            key={pin.id}
+            number={pin.number}
+            tone={pin.tone}
+            alert={pin.alert}
+            kind={pin.kind}
+            selected={pin.id === selectedPinId}
+            onClick={() => onSelectPin?.(pin.id)}
+            className="pointer-events-auto"
+            style={style}
+          />
+        );
+      })}
     </div>
   );
 };

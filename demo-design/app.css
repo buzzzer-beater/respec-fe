@@ -182,15 +182,6 @@ a {
   white-space: nowrap;
 }
 
-.brand-logo {
-  display: block;
-  flex: none;
-  width: 154px;
-  height: 34px;
-  object-fit: cover;
-  object-position: center;
-}
-
 .crumb {
   margin-left: 12px;
   font-size: 20px;

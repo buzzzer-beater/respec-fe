@@ -2,6 +2,7 @@
 
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { can, PROJECT_ROLE_LABEL } from '@/entities/user';
+import { ConnectDeploymentButton } from '@/features/connect-deployment';
 import { InviteDeveloperButton } from '@/features/invite-developer';
 import { Avatar } from '@/shared/ui';
 
@@ -25,6 +26,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
         { href: `${base}/requests`, label: '요청 관리' },
       ]}
     >
+      <ConnectDeploymentButton projectId={projectId} />
       {members.length > 0 && (
         <ul aria-label="참여자" className="flex">
           {members.map((member) => (

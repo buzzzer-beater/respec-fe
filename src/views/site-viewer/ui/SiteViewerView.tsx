@@ -6,6 +6,7 @@ import { useGetMessages } from '@/entities/message';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { useGetMe } from '@/entities/user';
+import { DeploymentEmptyState } from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { usePostMessage } from '@/features/send-message';
 import { SideChatPanel } from '@/widgets/side-chat';
@@ -93,7 +94,12 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
               errorMessage={pinErrorMessage}
             />
           }
-        />
+        >
+          {/* `false`를 넘기면 URL 문구 대신 빈칸이 되므로 undefined로 둡니다. */}
+          {project && !project.deployment_url ? (
+            <DeploymentEmptyState projectId={projectId} />
+          ) : undefined}
+        </SiteViewer>
         {notice && (
           <p
             role="alert"

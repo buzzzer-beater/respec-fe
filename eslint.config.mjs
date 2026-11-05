@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     'public/**',
     'next-env.d.ts',
     '**/*.d.ts',
+    // 정적 디자인 시안 (앱 코드가 아님)
+    'demo-design/**',
   ]),
 
   {

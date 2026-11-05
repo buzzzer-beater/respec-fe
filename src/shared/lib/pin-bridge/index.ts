@@ -1,14 +1,15 @@
 export type {
   BridgeMode,
   BridgePin,
+  BridgePinKind,
   BridgePinLocationStatus,
   BridgePinTone,
   ParentMessage,
   SiteMessage,
 } from './protocol';
 export {
+  BRIDGE_PIN_KINDS,
   BRIDGE_PIN_TONES,
-  BRIDGE_PREVIEW_MAX_LENGTH,
   isPagePath,
   parseParentMessage,
   parseSiteMessage,

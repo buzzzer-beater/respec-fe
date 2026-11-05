@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  BRIDGE_PREVIEW_MAX_LENGTH,
-  parseParentMessage,
-  parseSiteMessage,
-  toOrigin,
-} from './protocol';
+import { parseParentMessage, parseSiteMessage, toOrigin } from './protocol';
 
 describe('parseSiteMessage', () => {
   it('ready와 path-changed는 /로 시작하는 경로만 받는다', () => {
@@ -89,7 +84,7 @@ describe('parseSiteMessage', () => {
 });
 
 describe('parseParentMessage', () => {
-  it('show-pins에서 잘못된 핀은 빼고 필요한 필드만 남긴다', () => {
+  it('show-pins에서 잘못된 핀은 빼고 필요한 필드만 남긴다(요청 내용은 버린다)', () => {
     const message = parseParentMessage({
       type: 'respec:show-pins',
       selectedPinId: '1',
@@ -104,6 +99,7 @@ describe('parseParentMessage', () => {
           location_context: null,
           tone: 'quiet',
           alert: true,
+          kind: 'review',
           request_preview: '버튼 색을 바꿔 주세요',
           location_status: 'needs_check',
           author_email: 'a@b.c',
@@ -117,7 +113,7 @@ describe('parseParentMessage', () => {
           relative_x: 0,
           relative_y: 0,
           tone: 'red',
-          request_preview: 'x'.repeat(500),
+          kind: 'ghost',
           location_status: 'lost',
         },
       ],
@@ -137,7 +133,7 @@ describe('parseParentMessage', () => {
           location_context: null,
           tone: 'quiet',
           alert: true,
-          request_preview: '버튼 색을 바꿔 주세요',
+          kind: 'review',
           location_status: 'needs_check',
         },
         {
@@ -150,7 +146,7 @@ describe('parseParentMessage', () => {
           location_context: null,
           tone: 'brand',
           alert: false,
-          request_preview: 'x'.repeat(BRIDGE_PREVIEW_MAX_LENGTH),
+          kind: 'pin',
           location_status: 'located',
         },
       ],

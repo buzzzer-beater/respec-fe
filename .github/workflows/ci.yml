@@ -43,6 +43,9 @@ jobs:
       - name: Run ESLint
         run: pnpm lint
 
+      - name: Run Tests
+        run: pnpm test
+
       - name: Check Formatting
         run: pnpm format:check
 

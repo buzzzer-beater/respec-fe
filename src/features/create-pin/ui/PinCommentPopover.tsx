@@ -1,8 +1,11 @@
 'use client';
 
-import { type FormEvent, type KeyboardEvent, useState } from 'react';
+import { type FormEvent, type KeyboardEvent, useRef, useState } from 'react';
 
 import { Button, Textarea } from '@/shared/ui';
+
+/** 무엇을 적을지 막막할 때 누르면 입력칸에 넣어 주는 예시 */
+const EXAMPLES = ['색을 바꾸고 싶어요', '글자가 잘 안 보여요', '더 크게 해 주세요'];
 
 interface PinCommentPopoverProps {
   onSubmit: (content: string) => void;
@@ -18,6 +21,7 @@ const PinCommentPopover = ({
   errorMessage,
 }: PinCommentPopoverProps) => {
   const [content, setContent] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const trimmed = content.trim();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -39,6 +43,7 @@ const PinCommentPopover = ({
       className="flex w-80 animate-[slide-in_0.3s_var(--ease-out-soft)] flex-col gap-3 rounded-[14px] bg-white p-4 shadow-[0_0_0_1px_var(--color-divider),0_12px_32px_rgba(24,24,27,0.14)] max-lg:fixed max-lg:inset-x-3 max-lg:top-3 max-lg:w-auto"
     >
       <Textarea
+        ref={textareaRef}
         autoFocus
         rows={3}
         value={content}
@@ -49,6 +54,22 @@ const PinCommentPopover = ({
         disabled={isPending}
         className="field-sizing-content max-h-40"
       />
+      <div className="flex flex-wrap gap-1.5" aria-label="예시">
+        {EXAMPLES.map((example) => (
+          <button
+            key={example}
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              setContent(example);
+              textareaRef.current?.focus();
+            }}
+            className="border-divider text-text hover:border-ink rounded-full border bg-white px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+          >
+            {example}
+          </button>
+        ))}
+      </div>
       {errorMessage && (
         <p role="alert" className="text-warn text-xs font-semibold">
           {errorMessage}

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { BridgePin, SiteMessage } from '../pin-bridge';
+import { type BridgePin, PIN_BRIDGE_VERSION, type SiteMessage } from '../pin-bridge';
 import { get, mockElementsFromPoint, mockRect, render } from '../pin-engine/test-utils';
 import { OVERLAY_TAG } from './overlay';
 import { LOCATION_CHECK_DELAY_MS, startPinScript } from './runtime';
@@ -30,7 +30,7 @@ const pin = (overrides: Partial<BridgePin> = {}): BridgePin => ({
   relative_y: 0.5,
   location_context: null,
   tone: 'brand',
-  muted: false,
+  alert: false,
   request_preview: null,
   location_status: 'located',
   ...overrides,
@@ -64,7 +64,7 @@ describe('startPinScript', () => {
     const { parent, messages } = createParent();
     stop = startPinScript({ win: window, parent, allowedOrigins: [RESPEC_ORIGIN] });
 
-    expect(messages).toEqual([{ type: 'respec:ready', version: 2, path: '/' }]);
+    expect(messages).toEqual([{ type: 'respec:ready', version: PIN_BRIDGE_VERSION, path: '/' }]);
     expect(parent.postMessage).toHaveBeenCalledWith(expect.anything(), RESPEC_ORIGIN);
   });
 
@@ -118,21 +118,21 @@ describe('startPinScript', () => {
     send(parent, {
       type: 'respec:show-pins',
       pins: [
-        pin({ tone: 'warn', request_preview: '<b>버튼</b> 색을 바꿔 주세요' }),
-        pin({ id: '2', number: 2, element_selector: '#logo', tone: 'faint', muted: true }),
+        pin({ tone: 'quiet', request_preview: '<b>버튼</b> 색을 바꿔 주세요' }),
+        pin({ id: '2', number: 2, element_selector: '#logo', tone: 'brand', alert: true }),
       ],
       selectedPinId: null,
     });
     vi.advanceTimersToNextFrame();
 
     const [first, second] = markers() as HTMLElement[];
-    expect(first.getAttribute('data-tone')).toBe('warn');
-    expect(first.hasAttribute('data-muted')).toBe(false);
+    expect(first.getAttribute('data-tone')).toBe('quiet');
+    expect(first.hasAttribute('data-alert')).toBe(false);
     expect(first.querySelector('.tip')?.textContent).toBe('<b>버튼</b> 색을 바꿔 주세요');
     expect(first.querySelector('b')).toBeNull();
     expect(first.getAttribute('aria-label')).toBe('1번 핀, <b>버튼</b> 색을 바꿔 주세요');
-    expect(second.getAttribute('data-tone')).toBe('faint');
-    expect(second.hasAttribute('data-muted')).toBe(true);
+    expect(second.getAttribute('data-tone')).toBe('brand');
+    expect(second.hasAttribute('data-alert')).toBe(true);
     expect(second.querySelector('.tip')?.textContent).toBe('');
   });
 

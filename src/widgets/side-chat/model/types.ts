@@ -23,6 +23,10 @@ export interface PinThreadComment {
 export interface PinThread {
   id: string;
   pinNumber: number;
+  /** 핀이 있는 페이지 경로. 패널에서 "이 페이지 요청"을 거를 때 씁니다. */
+  pagePath: string;
+  /** 목록 한 줄에 보여 줄 요청 내용 앞부분 */
+  preview?: string | null;
   status: ChangeRequestStatus;
   /** 상태 버튼에 쓰는 수정 요청 id */
   changeRequestId: number | null;

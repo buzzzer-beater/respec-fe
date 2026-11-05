@@ -5,7 +5,7 @@ import type { LocationContext, PinAnchor, RestorableAnchor } from '../pin-engine
  * 양쪽이 이 파일 하나를 같이 씁니다. 규격을 바꾸면 `PIN_BRIDGE_VERSION`을 올리고
  * `pnpm build:pin-script`로 `public/respec-pin.js`를 다시 만듭니다.
  */
-export const PIN_BRIDGE_VERSION = 2;
+export const PIN_BRIDGE_VERSION = 3;
 
 /** RE:SPEC이 핀 스크립트를 내려주는 경로 (`public/respec-pin.js`) */
 export const PIN_SCRIPT_PATH = '/respec-pin.js';
@@ -17,8 +17,8 @@ const PREFIX = 'respec:';
 
 export type BridgeMode = 'browse' | 'pin';
 
-/** 마커 색. 앱의 `RequestStatusTone`(요청 상태별 색)과 같은 값입니다. */
-export const BRIDGE_PIN_TONES = ['brand', 'ink', 'warn', 'faint'] as const;
+/** 마커 색. 앱의 `PinTone`(차례별 색)과 같은 값입니다: 내 차례 · 상대 차례 · 해결됨 */
+export const BRIDGE_PIN_TONES = ['brand', 'quiet', 'done'] as const;
 export type BridgePinTone = (typeof BRIDGE_PIN_TONES)[number];
 
 /** 백엔드 `location_status`와 같은 값입니다. */
@@ -35,10 +35,10 @@ export type BridgePin = RestorableAnchor & {
   id: string;
   number: number;
   page_path: string;
-  /** 연결된 요청 상태의 색. 요청이 없으면 `brand` */
+  /** 차례에 따른 색 */
   tone: BridgePinTone;
-  /** 해결됐거나 요청이 없는 핀. 작은 점으로 표시합니다. */
-  muted: boolean;
+  /** 내가 움직일 차례. 빨간 점을 붙입니다. */
+  alert: boolean;
   /** 마우스를 올리면 보여 줄 요청 내용 */
   request_preview: string | null;
   /** 서버에 저장된 위치 상태. 스크립트가 `pin-missing`/`pin-found`를 보낼지 판단할 때 씁니다. */
@@ -120,7 +120,7 @@ const toPreview = (value: unknown): string | null =>
 
 const toBridgePin = (value: unknown): BridgePin | null => {
   if (!isRecord(value)) return null;
-  const { id, number, page_path, element_selector, relative_x, relative_y, tone, muted } = value;
+  const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert } = value;
   if (!isNonEmptyString(id) || !isFiniteNumber(number) || !isPagePath(page_path)) return null;
   if (!isNonEmptyString(element_selector)) return null;
   if (!isFiniteNumber(relative_x) || !isFiniteNumber(relative_y)) return null;
@@ -133,7 +133,7 @@ const toBridgePin = (value: unknown): BridgePin | null => {
     relative_y,
     location_context: toLocationContext(value.location_context) ?? null,
     tone: isTone(tone) ? tone : 'brand',
-    muted: muted === true,
+    alert: alert === true,
     request_preview: toPreview(value.request_preview),
     location_status: value.location_status === 'needs_check' ? 'needs_check' : 'located',
   };

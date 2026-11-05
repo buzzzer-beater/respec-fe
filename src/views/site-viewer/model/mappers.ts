@@ -1,5 +1,10 @@
 import type { ChatMessage } from '@/entities/message';
-import { isDeletedPinComment, type PinComment, type PinWithRequest } from '@/entities/pin';
+import {
+  getPinLook,
+  isDeletedPinComment,
+  type PinComment,
+  type PinWithRequest,
+} from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
 import {
   type ChangeRequest,
@@ -9,7 +14,7 @@ import {
 import type { ProjectRole, User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { PinThread, SharedPin, SideChatMessage } from '@/widgets/side-chat';
-import type { ViewerPin } from '@/widgets/site-viewer';
+import type { SitePage, ViewerPin } from '@/widgets/site-viewer';
 
 /** 배포 URL의 경로. 연결 전이거나 잘못된 URL이면 `/` */
 export const getPagePath = (deploymentUrl: string | null | undefined) => {
@@ -25,8 +30,15 @@ export const getPagePath = (deploymentUrl: string | null | undefined) => {
 const isHiddenPin = (pin: PinWithRequest) =>
   pin.request_status !== null && isHiddenByDefault(pin.request_status);
 
-/** 핀 번호는 생성 순서(id 오름차순)입니다. 번호를 먼저 매기고 숨길 핀을 뺍니다. */
-export const toViewerPins = (pins: PinWithRequest[], showResolved = false): ViewerPin[] =>
+/**
+ * 핀 번호는 생성 순서(id 오름차순)입니다. 번호를 먼저 매기고 숨길 핀을 뺍니다.
+ * 마커 색은 내 역할 기준 차례로 정합니다(내 차례 보라 + 빨간 점, 상대 차례 연보라, 해결됨 회색).
+ */
+export const toViewerPins = (
+  pins: PinWithRequest[],
+  role: ProjectRole | null | undefined,
+  showResolved = false,
+): ViewerPin[] =>
   pins.flatMap((pin, index) =>
     !showResolved && isHiddenPin(pin)
       ? []
@@ -37,15 +49,23 @@ export const toViewerPins = (pins: PinWithRequest[], showResolved = false): View
             pagePath: pin.page_path,
             x: pin.relative_x * 100,
             y: pin.relative_y * 100,
-            // 해결됐거나 요청이 없는 핀은 작게 보여 줍니다.
-            muted: pin.request_status === null || pin.request_status === 'resolved',
             status: pin.request_status,
+            ...getPinLook(pin.request_status, role),
             preview: pin.request_preview,
             locationStatus: pin.location_status,
             anchor: pin,
           },
         ],
   );
+
+/** 주소창 목록에 보여 줄 페이지와 페이지별 핀 개수. `/`가 먼저, 나머지는 경로 순서입니다. */
+export const toSitePages = (pins: ViewerPin[]): SitePage[] => {
+  const counts = new Map<string, number>();
+  for (const pin of pins) counts.set(pin.pagePath, (counts.get(pin.pagePath) ?? 0) + 1);
+  return [...counts]
+    .map(([path, pinCount]) => ({ path, pinCount }))
+    .sort((a, b) => (a.path === '/' ? -1 : b.path === '/' ? 1 : a.path.localeCompare(b.path)));
+};
 
 /** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
 const createAuthorName = (members: ProjectMember[], me: User | undefined) => {
@@ -119,6 +139,8 @@ export const toPinThreads = (
   return getThreadPins(pins, showResolved).map((pin) => ({
     id: String(pin.id),
     pinNumber: pinNumber.get(pin.id) ?? 0,
+    pagePath: pin.page_path,
+    preview: pin.request_preview,
     status: pin.request_status,
     changeRequestId: pin.change_request_id,
     aiSummary:

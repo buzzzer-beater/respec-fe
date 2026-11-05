@@ -16,6 +16,7 @@ import {
 import { ChangeRequestStatusButtons } from '@/features/change-request-status';
 import { AddToReviewButton } from '@/features/request-review';
 import { ResolveRequestButtons } from '@/features/resolve-request';
+import { SharePinButton } from '@/features/share-pin';
 import { Dialog, DialogClose, DialogTitle, PlainTextExplanation } from '@/shared/ui';
 
 import RequestHistoryTimeline from './RequestHistoryTimeline';
@@ -151,6 +152,9 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
               >
                 핀으로 이동
               </Link>
+            )}
+            {request.pin_id !== null && (
+              <SharePinButton projectId={projectId} pinId={request.pin_id} />
             )}
             <div className="ml-auto flex flex-wrap justify-end gap-2">
               <ChangeRequestStatusButtons

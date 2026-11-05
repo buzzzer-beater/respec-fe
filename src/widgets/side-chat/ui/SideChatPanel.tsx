@@ -1,13 +1,13 @@
 'use client';
 
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import type { ProjectRole } from '@/entities/user';
 import { MessageInput } from '@/features/send-message';
-import { cn } from '@/shared/lib';
 
 import type { PinThread, SideChatMessage } from '../model/types';
 import ChatMessageList from './ChatMessageList';
+import PageRequestList from './PageRequestList';
 import PinThreadCard from './PinThreadCard';
 
 type Tab = 'pins' | 'chat';
@@ -24,8 +24,14 @@ interface SideChatPanelProps {
   pinThreads: PinThread[];
   onSendMessage: (content: string) => void;
   selectedPin?: SelectedPin | null;
-  /** 공유된 핀 카드를 눌렀을 때. 다른 경로의 핀이면 `pagePath`로 뷰어를 옮깁니다. */
+  /** 요청 목록이나 공유된 핀 카드에서 핀을 골랐을 때. 다른 경로의 핀이면 `pagePath`로 뷰어를 옮깁니다. */
   onSelectPin?: (pinId: string, pagePath: string) => void;
+  /** 요청 상세에서 목록으로 돌아갈 때(고른 핀 해제) */
+  onClosePin?: () => void;
+  /** 지금 사이트에서 보고 있는 페이지. 요청 목록을 이 페이지 기준으로 나눕니다. */
+  currentPath?: string | null;
+  /** "다른 페이지 요청 N개 보기"로 갈 주소 */
+  otherPagesHref?: string;
   renderPinThreadAction?: (thread: PinThread) => ReactNode;
   renderMessageAction?: (message: SideChatMessage) => ReactNode;
   /** 있으면 핀 스레드에 역할에 맞는 상태 버튼을 보여 줍니다. */
@@ -39,6 +45,9 @@ const SideChatPanel = ({
   onSendMessage,
   selectedPin,
   onSelectPin,
+  onClosePin,
+  currentPath = null,
+  otherPagesHref,
   renderPinThreadAction,
   renderMessageAction,
   role,
@@ -52,33 +61,25 @@ const SideChatPanel = ({
     if (selectedPin) setTab('pins');
   }
 
-  // 고른 핀의 스레드로 스크롤하고 잠깐 강조합니다.
-  useEffect(() => {
-    if (!selectedPin) return;
-    const thread = document.getElementById(`pin-${selectedPin.id}`);
-    if (!thread) return;
-    thread.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    thread.firstElementChild?.animate(
-      [{ backgroundColor: '#ecebfd' }, { backgroundColor: '#ffffff' }],
-      { duration: 1600, easing: 'ease-out' },
-    );
-  }, [selectedPin]);
+  // 고른 핀이 있으면 요청 탭에서 목록 대신 그 요청의 상세(스레드)를 보여 줍니다.
+  const selectedThread = selectedPin
+    ? pinThreads.find((thread) => thread.id === selectedPin.id)
+    : undefined;
 
-  // 공유된 핀 카드는 부모가 선택을 바꾸면 위 처리로 요청 탭의 스레드로 이동합니다.
+  // 공유된 핀 카드는 부모가 선택을 바꾸면 요청 탭의 상세로 이동합니다.
   const handleOpenSharedPin = (pinId: string, pagePath: string) => onSelectPin?.(pinId, pagePath);
 
-  // 주소의 `#pin-{id}`로는 스레드가 처음 보일 때 한 번만 스크롤합니다.
-  // 폴링으로 다시 그릴 때마다 스크롤하면 답글을 쓰는 중에 화면이 튑니다.
-  const scrolledHashRef = useRef<string | null>(null);
-  useEffect(() => {
-    const id = window.location.hash.slice(1);
-    if (!id.startsWith('pin-') || scrolledHashRef.current === id) return;
-    const thread = document.getElementById(id);
-    // 댓글을 아직 못 받아 카드가 비어 있으면 다음에 다시 시도합니다.
-    if (!thread?.firstElementChild) return;
-    thread.scrollIntoView({ block: 'center' });
-    scrolledHashRef.current = id;
-  }, [pinThreads]);
+  // 주소의 `#pin-{id}`(요청 관리의 "핀으로 이동")는 스레드가 처음 보일 때 한 번만 엽니다.
+  const openedHashRef = useRef<string | null>(null);
+  const openHashPin = useEffectEvent(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith('pin-') || openedHashRef.current === hash) return;
+    const thread = pinThreads.find((item) => `pin-${item.id}` === hash);
+    if (!thread) return;
+    openedHashRef.current = hash;
+    onSelectPin?.(thread.id, thread.pagePath);
+  });
+  useEffect(() => openHashPin(), [pinThreads]);
   const tabs = [
     { value: 'pins', label: '요청', count: pinThreads.length },
     { value: 'chat', label: '대화', count: messages.length },
@@ -112,35 +113,35 @@ const SideChatPanel = ({
             onOpenSharedPin={handleOpenSharedPin}
             renderMessageAction={renderMessageAction}
           />
-        ) : pinThreads.length === 0 ? (
-          <p className="text-muted px-9 py-7 text-sm leading-relaxed">
-            남아 있는 요청이 없어요. 핀 모드에서 사이트를 눌러 요청을 남겨 보세요.
-          </p>
+        ) : selectedThread ? (
+          <div id={`pin-${selectedThread.id}`} className="flex flex-col">
+            <button
+              type="button"
+              onClick={onClosePin}
+              className="text-muted hover:text-ink flex items-center gap-1 self-start px-9 pt-5 text-sm font-semibold"
+            >
+              <span aria-hidden>‹</span> 요청 목록
+            </button>
+            <PinThreadCard
+              key={selectedThread.id}
+              projectId={projectId}
+              role={role}
+              {...selectedThread}
+              action={renderPinThreadAction?.(selectedThread)}
+            />
+          </div>
         ) : (
-          // 요청 사이를 회색 띠로 나눕니다.
-          <ul className="bg-stage flex min-h-full flex-col gap-2">
-            {pinThreads.map((thread) => (
-              <li
-                key={thread.id}
-                id={`pin-${thread.id}`}
-                aria-current={selectedPin?.id === thread.id || undefined}
-                className={cn(
-                  selectedPin?.id === thread.id && 'outline-brand outline-2 -outline-offset-2',
-                )}
-              >
-                <PinThreadCard
-                  projectId={projectId}
-                  role={role}
-                  {...thread}
-                  action={renderPinThreadAction?.(thread)}
-                />
-              </li>
-            ))}
-          </ul>
+          <PageRequestList
+            threads={pinThreads}
+            currentPath={currentPath}
+            role={role}
+            onSelect={(thread) => onSelectPin?.(thread.id, thread.pagePath)}
+            otherPagesHref={otherPagesHref}
+          />
         )}
       </div>
 
-      {/* 요청 탭에서는 카드마다 답글 입력창이 있어서, 채팅 입력창은 대화 탭에서만 보여 줍니다. */}
+      {/* 요청 상세에는 답글 입력창이 있어서, 채팅 입력창은 대화 탭에서만 보여 줍니다. */}
       {tab === 'chat' && (
         <div className="border-divider shrink-0 border-t px-9 pt-5 pb-8">
           <MessageInput onSend={onSendMessage} />

@@ -92,7 +92,7 @@ function startPinScript({ win, parent, allowedOrigins }) {
                 clientX: position.clientX,
                 clientY: position.clientY,
                 tone: pin.tone,
-                muted: pin.muted,
+                alert: pin.alert,
                 selected: pin.id === selectedPinId,
                 needsCheck: result.status === 'missing',
                 preview: pin.request_preview,
@@ -254,11 +254,11 @@ function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.toOrigin = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PREVIEW_MAX_LENGTH = exports.BRIDGE_PIN_TONES = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_SCRIPT_PATH = exports.PIN_BRIDGE_VERSION = void 0;
-exports.PIN_BRIDGE_VERSION = 2;
+exports.PIN_BRIDGE_VERSION = 3;
 exports.PIN_SCRIPT_PATH = '/respec-pin.js';
 exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = 'data-respec-origin';
 const PREFIX = 'respec:';
-exports.BRIDGE_PIN_TONES = ['brand', 'ink', 'warn', 'faint'];
+exports.BRIDGE_PIN_TONES = ['brand', 'quiet', 'done'];
 exports.BRIDGE_PREVIEW_MAX_LENGTH = 200;
 const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
@@ -302,7 +302,7 @@ const toBridgePin = (value) => {
     var _a;
     if (!isRecord(value))
         return null;
-    const { id, number, page_path, element_selector, relative_x, relative_y, tone, muted } = value;
+    const { id, number, page_path, element_selector, relative_x, relative_y, tone, alert } = value;
     if (!isNonEmptyString(id) || !isFiniteNumber(number) || !(0, exports.isPagePath)(page_path))
         return null;
     if (!isNonEmptyString(element_selector))
@@ -318,7 +318,7 @@ const toBridgePin = (value) => {
         relative_y,
         location_context: (_a = toLocationContext(value.location_context)) !== null && _a !== void 0 ? _a : null,
         tone: isTone(tone) ? tone : 'brand',
-        muted: muted === true,
+        alert: alert === true,
         request_preview: toPreview(value.request_preview),
         location_status: value.location_status === 'needs_check' ? 'needs_check' : 'located',
     };
@@ -759,12 +759,7 @@ exports.OVERLAY_TAG = 'respec-pin-root';
 const MARKER_ATTRIBUTE = 'data-pin-id';
 const FONT = `'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
 const TONE_STYLE = Object.keys(theme_1.PIN_TONE_COLORS)
-    .map((tone) => {
-    const { fill, hover } = theme_1.PIN_TONE_COLORS[tone];
-    const hoverRule = hover ? `background: ${hover};` : 'filter: brightness(0.9);';
-    return `.marker[data-tone='${tone}'] .pin { background: ${fill}; }
-.marker[data-tone='${tone}']:hover .pin { ${hoverRule} }`;
-})
+    .map((tone) => `.marker[data-tone='${tone}'] .pin { background: ${theme_1.PIN_TONE_COLORS[tone]}; }`)
     .join('\n');
 const STYLE = `
 :host { all: initial; }
@@ -776,24 +771,25 @@ const STYLE = `
 .marker {
   all: initial; position: fixed; display: block; box-sizing: border-box; z-index: 1;
   pointer-events: auto; cursor: pointer; transform: translateY(-100%);
-  font: 800 13px/1 ${FONT}; color: #fff; text-align: left;
+  font: 800 15px/1 ${FONT}; color: #fff; text-align: left;
 }
 .marker[data-selected] { z-index: 2; }
 .marker:hover, .marker:focus-visible { z-index: 3; }
 .marker:focus-visible { outline: 2px solid ${theme_1.PIN_COLORS.ink}; outline-offset: 2px; }
 .pin {
-  box-sizing: border-box; display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 50% 50% 50% 6px; font-size: 13px;
-  transition-property: width, height, scale, background-color;
+  position: relative; box-sizing: border-box; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 50% 50% 50% 8px; font-size: 15px;
+  transform-origin: bottom left; transition-property: scale, background-color;
   transition-duration: 300ms; transition-timing-function: ${theme_1.PIN_EASING.spring};
   animation: pin-drop 0.45s ${theme_1.PIN_EASING['out-soft']} both;
 }
 ${TONE_STYLE}
-.marker:hover .pin { scale: 1.1; }
-.marker[data-muted] .pin { width: 12px; height: 12px; font-size: 0; }
-.marker[data-muted]:hover .pin { width: 28px; height: 28px; font-size: 12px; scale: 1; }
-.marker[data-selected] .pin {
-  scale: 1.1; box-shadow: 0 0 0 4px color-mix(in oklab, ${theme_1.PIN_COLORS.brand} 30%, transparent);
+.marker:hover .pin { scale: 1.2; }
+.marker[data-selected] .pin { scale: 1.2; background: ${theme_1.PIN_COLORS['brand-strong']}; }
+.marker[data-alert]:not([data-selected]) .pin::after {
+  content: ''; position: absolute; top: 1px; right: 1px; box-sizing: border-box;
+  width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%;
+  background: ${theme_1.PIN_COLORS.alert};
 }
 .marker[data-needs-check] .pin { border: 2px dashed currentColor; opacity: 0.6; }
 .tip {
@@ -847,12 +843,17 @@ function createOverlay(doc) {
             const [pin, tip] = button.children;
             pin.textContent = String(item.number);
             tip.textContent = (_a = item.preview) !== null && _a !== void 0 ? _a : '';
-            button.setAttribute('aria-label', [`${item.number}번 핀`, item.needsCheck && '위치 확인 필요', item.preview]
+            button.setAttribute('aria-label', [
+                `${item.number}번 핀`,
+                item.alert && '내 차례',
+                item.needsCheck && '위치 확인 필요',
+                item.preview,
+            ]
                 .filter(Boolean)
                 .join(', '));
             button.setAttribute('aria-pressed', String(item.selected));
             button.setAttribute('data-tone', item.tone);
-            button.toggleAttribute('data-muted', item.muted && !item.selected);
+            button.toggleAttribute('data-alert', item.alert);
             button.toggleAttribute('data-selected', item.selected);
             button.toggleAttribute('data-needs-check', item.needsCheck);
             button.style.left = `${item.clientX}px`;
@@ -900,16 +901,18 @@ exports.PIN_COLORS = {
     muted: '#84848c',
     faint: '#b4b4bb',
     warn: '#c4670f',
+    'brand-quiet': '#b7b0f2',
+    'pin-done': '#c4c4cc',
+    alert: '#e5484d',
 };
 exports.PIN_EASING = {
     spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
     'out-soft': 'cubic-bezier(0.22, 1, 0.36, 1)',
 };
 exports.PIN_TONE_COLORS = {
-    brand: { fill: exports.PIN_COLORS.brand, hover: exports.PIN_COLORS['brand-strong'] },
-    ink: { fill: exports.PIN_COLORS.ink, hover: exports.PIN_COLORS.text },
-    warn: { fill: exports.PIN_COLORS.warn, hover: null },
-    faint: { fill: exports.PIN_COLORS.faint, hover: exports.PIN_COLORS.muted },
+    brand: exports.PIN_COLORS.brand,
+    quiet: exports.PIN_COLORS['brand-quiet'],
+    done: exports.PIN_COLORS['pin-done'],
 };
 },
 // src/shared/lib/pin-script/script-origin.ts

@@ -1,6 +1,7 @@
 export * from './api/pin';
 export * from './model/comment';
 export * from './model/pin';
+export * from './model/tone';
 export type { Pin } from './model/types';
 export { default as NumberedPin } from './ui/NumberedPin';
 export { default as PinLocationBadge } from './ui/PinLocationBadge';

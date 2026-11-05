@@ -53,8 +53,8 @@ const PinMarkerLayer = ({ markers, selectedPinId, onSelectPin }: PinMarkerLayerP
         <PinMarkerButton
           key={pin.id}
           number={pin.number}
-          status={pin.status}
-          muted={pin.muted}
+          tone={pin.tone}
+          alert={pin.alert}
           preview={pin.preview}
           selected={pin.id === selectedPinId}
           needsCheck={needsCheck}

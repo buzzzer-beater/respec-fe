@@ -3,9 +3,10 @@
 import { type FormEvent, useState } from 'react';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import type { ApiError } from '@/shared/api';
+import { getSafeNextPath } from '@/shared/lib';
 
 import { usePostLogin, usePostSignup } from '../api/auth';
 
@@ -42,6 +43,8 @@ interface AuthFormProps {
 
 const AuthForm = ({ mode }: AuthFormProps) => {
   const router = useRouter();
+  // 보호 페이지에서 넘어왔다면 로그인 후 그 페이지로 돌아갑니다.
+  const next = useSearchParams().get('next');
   const login = usePostLogin();
   const signup = usePostSignup();
   const mutation = mode === 'login' ? login : signup;
@@ -58,7 +61,12 @@ const AuthForm = ({ mode }: AuthFormProps) => {
       return;
     }
     setInputError(null);
-    mutation.mutate({ email: email.trim(), password }, { onSuccess: () => router.replace('/') });
+    mutation.mutate(
+      { email: email.trim(), password },
+      {
+        onSuccess: () => router.replace(getSafeNextPath(next)),
+      },
+    );
   };
 
   const errorMessage = inputError ?? (mutation.error ? toMessage(mutation.error) : null);
@@ -106,7 +114,10 @@ const AuthForm = ({ mode }: AuthFormProps) => {
       </button>
       <p className="text-muted text-center text-sm">
         {copy.switchText}{' '}
-        <Link href={copy.switchHref} className="text-ink font-bold underline underline-offset-4">
+        <Link
+          href={next ? `${copy.switchHref}?next=${encodeURIComponent(next)}` : copy.switchHref}
+          className="text-ink font-bold underline underline-offset-4"
+        >
           {copy.switchLabel}
         </Link>
       </p>

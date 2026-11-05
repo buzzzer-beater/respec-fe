@@ -1,3 +1,5 @@
+import type { ApiError } from '@/shared/api';
+
 import type { ChangeRequestStatus } from './status';
 
 /**
@@ -24,6 +26,13 @@ export function canTransition(
   transition: ChangeRequestTransition,
 ): boolean {
   return CHANGE_REQUEST_TRANSITIONS[transition].from === status;
+}
+
+/** 전이 API의 409는 다른 곳에서 이미 상태가 바뀐 경우입니다. */
+export function getTransitionErrorMessage(error: ApiError): string {
+  return error.code === 'CONFLICT'
+    ? '이미 상태가 바뀌었어요. 최신 상태로 다시 불러왔어요.'
+    : error.message;
 }
 
 export function getAvailableTransitions(status: ChangeRequestStatus): ChangeRequestTransition[] {

@@ -7,11 +7,12 @@ import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
+import { DeploymentEmptyState } from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { MessageRequestMenu } from '@/features/create-request-from-message';
 import { usePostMessage } from '@/features/send-message';
 import { SharePinButton } from '@/features/share-pin';
-import { SideChatPanel } from '@/widgets/side-chat';
+import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
 import { type PinPosition, SiteViewer } from '@/widgets/site-viewer';
 
 import {
@@ -31,7 +32,7 @@ interface SiteViewerViewProps {
 const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
 
   const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
@@ -81,7 +82,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   // 지금은 배포 사이트의 한 경로만 보여 줘서 경로 이동 없이 핀만 강조합니다.
   // 여러 경로를 보여 주게 되면 `pagePath`로 뷰어를 옮깁니다.
-  const handleSelectPin = (pinId: string) => setSelectedPinId(pinId);
+  // 같은 핀을 다시 눌러도 이동하도록 `seq`를 올립니다.
+  const handleSelectPin = (pinId: string) =>
+    setSelectedPin((prev) => ({ id: pinId, seq: (prev?.seq ?? 0) + 1 }));
 
   // 배포 URL과 초안이 모두 없으면 백엔드가 409를 돌려줍니다.
   const pinErrorMessage = postPin.error
@@ -96,8 +99,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         <SiteViewer
           url={project?.deployment_url ?? '배포 사이트가 아직 연결되지 않았어요'}
           pins={toViewerPins(pins)}
-          selectedPinId={selectedPinId}
+          selectedPinId={selectedPin?.id ?? null}
           onPlacePin={handlePlacePin}
+          onSelectPin={handleSelectPin}
           draftPin={draftPin}
           draftPinContent={
             <PinCommentPopover
@@ -107,7 +111,12 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
               errorMessage={pinErrorMessage}
             />
           }
-        />
+        >
+          {/* `false`를 넘기면 URL 문구 대신 빈칸이 되므로 undefined로 둡니다. */}
+          {project && !project.deployment_url ? (
+            <DeploymentEmptyState projectId={projectId} />
+          ) : undefined}
+        </SiteViewer>
         {notice && (
           <p
             role="alert"
@@ -118,10 +127,11 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         )}
       </main>
       <SideChatPanel
+        projectId={projectId}
+        selectedPin={selectedPin}
         messages={toMessages(messages, pins, members, me)}
         pinThreads={toPinThreads(pins, commentsByPin, members, me)}
         onSendMessage={(content) => postMessage.mutate({ content })}
-        selectedPinId={selectedPinId}
         onSelectPin={handleSelectPin}
         renderPinThreadAction={({ id }) => (
           <SharePinButton projectId={projectId} pinId={Number(id)} />
@@ -139,6 +149,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
             />
           );
         }}
+        role={project?.my_role}
       />
     </div>
   );

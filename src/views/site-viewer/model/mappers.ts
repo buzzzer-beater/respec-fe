@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@/entities/message';
-import type { PinComment, PinWithRequest } from '@/entities/pin';
+import { isDeletedPinComment, type PinComment, type PinWithRequest } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
 import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
 import type { ProjectRole, User } from '@/entities/user';
@@ -102,6 +102,7 @@ export const toPinThreads = (
     id: String(pin.id),
     pinNumber: pinNumber.get(pin.id) ?? 0,
     status: pin.request_status,
+    changeRequestId: pin.change_request_id,
     comments: [...(commentsByPin.get(pin.id) ?? [])]
       .sort((a, b) => a.id - b.id)
       .map((comment) => ({
@@ -112,6 +113,8 @@ export const toPinThreads = (
         content: comment.content,
         plainText: comment.ai_plain_text,
         timeLabel: formatRelativeTime(comment.created_at),
+        parentId: comment.parent_comment_id === null ? null : String(comment.parent_comment_id),
+        isDeleted: isDeletedPinComment(comment),
       })),
   }));
 };

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 import { isSiteType, type SiteType, useGetProject, useGetProjectDraft } from '@/entities/project';
 import { can } from '@/entities/user';
+import { DownloadDraftButton } from '@/features/download-draft';
 import { usePutProjectDraft } from '@/features/generate-draft';
 import { formatRelativeTime } from '@/shared/lib';
 
@@ -52,6 +53,10 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
             <Link href={viewerHref} className="text-ink font-semibold underline">
               작업 화면에서 보기
             </Link>
+            <DownloadDraftButton
+              projectId={projectId}
+              className="bg-ink hover:bg-ink mt-1 h-10 border-transparent px-4 text-white"
+            />
           </>
         ) : (
           '고객이 초안을 만들면 작업 화면에서 확인할 수 있어요.'
@@ -101,6 +106,8 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
             <Link href={viewerHref} className="text-ink font-semibold underline">
               작업 화면에서 보기
             </Link>
+            {' · '}
+            <DownloadDraftButton projectId={projectId} variant="link" />
           </p>
         )
       }

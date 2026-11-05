@@ -23,18 +23,30 @@ export const getPagePath = (deploymentUrl: string | null | undefined) => {
   }
 };
 
-/** 핀 번호는 생성 순서(id 오름차순)입니다. */
-export const toViewerPins = (pins: PinWithRequest[]): ViewerPin[] =>
-  pins.map((pin, index) => ({
-    id: String(pin.id),
-    number: index + 1,
-    pagePath: pin.page_path,
-    x: pin.relative_x * 100,
-    y: pin.relative_y * 100,
-    // 해결됐거나 요청이 없는 핀은 연하게 보여 줍니다.
-    muted: pin.request_status === null || pin.request_status === 'resolved',
-    anchor: pin,
-  }));
+/** 완료된 요청의 핀. "완료 보기"를 켜야 보입니다. */
+const isHiddenPin = (pin: PinWithRequest) =>
+  pin.request_status !== null && isHiddenByDefault(pin.request_status);
+
+/** 핀 번호는 생성 순서(id 오름차순)입니다. 번호를 먼저 매기고 숨길 핀을 뺍니다. */
+export const toViewerPins = (pins: PinWithRequest[], showResolved = false): ViewerPin[] =>
+  pins.flatMap((pin, index) =>
+    !showResolved && isHiddenPin(pin)
+      ? []
+      : [
+          {
+            id: String(pin.id),
+            number: index + 1,
+            pagePath: pin.page_path,
+            x: pin.relative_x * 100,
+            y: pin.relative_y * 100,
+            // 해결됐거나 요청이 없는 핀은 작게 보여 줍니다.
+            muted: pin.request_status === null || pin.request_status === 'resolved',
+            status: pin.request_status,
+            preview: pin.request_preview,
+            anchor: pin,
+          },
+        ],
+  );
 
 /** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
 const createAuthorName = (members: ProjectMember[], me: User | undefined) => {
@@ -79,11 +91,11 @@ const toSharedPin = (pinId: number, pins: PinWithRequest[]): SharedPin => {
 export const toRequestPinOptions = (pins: PinWithRequest[]) =>
   pins.map((pin, index) => ({ id: pin.id, number: index + 1, preview: pin.request_preview }));
 
-/** 스레드로 보여 줄 핀. 수정 요청이 없거나 해결된 핀은 기본 화면에서 뺍니다. */
-export const getThreadPins = (pins: PinWithRequest[]) =>
+/** 스레드로 보여 줄 핀. 수정 요청이 없는 핀은 빼고, 해결된 핀은 `showResolved`일 때만 넣습니다. */
+export const getThreadPins = (pins: PinWithRequest[], showResolved = false) =>
   pins.filter(
     (pin): pin is PinWithRequest & { request_status: ChangeRequestStatus } =>
-      pin.request_status !== null && !isHiddenByDefault(pin.request_status),
+      pin.request_status !== null && (showResolved || !isHiddenByDefault(pin.request_status)),
   );
 
 /** 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서 찾습니다. */
@@ -92,6 +104,7 @@ export const toPinThreads = (
   commentsByPin: Map<number, PinComment[]>,
   members: ProjectMember[],
   me: User | undefined,
+  showResolved = false,
 ): PinThread[] => {
   const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
   const authorName = createAuthorName(members, me);
@@ -99,7 +112,7 @@ export const toPinThreads = (
   // 참여자 목록을 아직 못 받았으면 개발자로 둡니다.
   const roleOf = (authorId: number): ProjectRole => roles.get(authorId) ?? 'developer';
 
-  return getThreadPins(pins).map((pin) => ({
+  return getThreadPins(pins, showResolved).map((pin) => ({
     id: String(pin.id),
     pinNumber: pinNumber.get(pin.id) ?? 0,
     status: pin.request_status,

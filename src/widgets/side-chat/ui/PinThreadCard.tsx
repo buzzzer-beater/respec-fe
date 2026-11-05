@@ -114,7 +114,7 @@ const PinThreadCard = ({
         <h3 className="text-base font-extrabold">{pinNumber}번 요청</h3>
         <span className="ml-auto flex items-center gap-2">
           {action}
-          <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} />
+          <RequestStatusBadge label={CHANGE_REQUEST_STATUS_LABEL[status]} status={status} />
         </span>
         {changeRequestId !== null && (
           <>

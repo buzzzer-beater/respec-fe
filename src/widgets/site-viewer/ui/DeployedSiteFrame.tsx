@@ -10,7 +10,6 @@ import {
 } from 'react';
 
 import { NumberedPin } from '@/entities/pin';
-import { cn } from '@/shared/lib';
 import {
   type BridgePin,
   type ParentMessage,
@@ -20,6 +19,7 @@ import {
 } from '@/shared/lib/pin-bridge';
 
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
+import PinMarkerLayer from './PinMarkerLayer';
 
 /** 이 시간 안에 `respec:ready`가 오지 않으면 핀 스크립트가 없다고 보고 영역 좌표로 핀을 남깁니다. */
 export const PIN_SCRIPT_READY_TIMEOUT_MS = 3000;
@@ -223,29 +223,11 @@ const DeployedSiteFrame = ({
           className="absolute inset-0 cursor-crosshair"
         />
       )}
-      {fallbackPins.map((pin) => {
-        const isSelected = pin.id === selectedPinId;
-        return (
-          <button
-            key={pin.id}
-            type="button"
-            aria-label={`${pin.number}번 핀`}
-            aria-pressed={isSelected}
-            onClick={() => onSelectPin?.(pin.id)}
-            className={cn(
-              'group absolute -translate-y-full hover:z-20',
-              isSelected ? 'z-20' : 'z-10',
-            )}
-            style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-          >
-            <NumberedPin
-              number={pin.number}
-              muted={pin.muted && !isSelected}
-              className={cn(isSelected && 'ring-brand/30 scale-110 ring-4')}
-            />
-          </button>
-        );
-      })}
+      <PinMarkerLayer
+        markers={fallbackPins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
+        selectedPinId={selectedPinId}
+        onSelectPin={onSelectPin}
+      />
       {draftPin && (
         <div
           className="absolute z-20 flex items-start gap-2"

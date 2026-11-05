@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
+import { retryQuery } from '@/shared/api';
+
 const TanStackProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   const [queryClient] = useState(
     () =>
@@ -12,7 +14,7 @@ const TanStackProvider = ({ children }: Readonly<{ children: React.ReactNode }>)
         defaultOptions: {
           queries: {
             staleTime: 60 * 1000,
-            retry: 1,
+            retry: retryQuery,
           },
         },
       }),

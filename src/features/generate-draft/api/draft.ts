@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { ProjectDraft } from '@/entities/project';
+import { draftQueryKeys, type ProjectDraft } from '@/entities/project';
 import { put } from '@/shared/api';
 
 export interface DraftCreateReqType {
@@ -15,8 +15,13 @@ const DRAFT_TIMEOUT_MS = 130_000;
 export const putProjectDraft = (projectId: number, body: DraftCreateReqType) =>
   put<ProjectDraft>(`/projects/${projectId}/draft`, body, { timeout: DRAFT_TIMEOUT_MS });
 
-export const usePutProjectDraft = () =>
-  useMutation({
+export const usePutProjectDraft = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
     mutationFn: ({ projectId, ...body }: DraftCreateReqType & { projectId: number }) =>
       putProjectDraft(projectId, body),
+    // 재생성하면 미리보기 접근 키가 바뀌므로 초안을 다시 받습니다.
+    onSuccess: (_, { projectId }) =>
+      queryClient.invalidateQueries({ queryKey: draftQueryKeys.getDraft(projectId) }),
   });
+};

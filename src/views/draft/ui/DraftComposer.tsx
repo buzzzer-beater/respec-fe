@@ -11,6 +11,8 @@ import DraftProgress from './DraftProgress';
 
 interface DraftComposerProps {
   description: ReactNode;
+  projectName?: string;
+  onProjectNameChange?: (value: string) => void;
   siteType: SiteType | null;
   onSiteTypeChange: (value: SiteType | null) => void;
   onSubmit: (prompt: string) => void;
@@ -32,6 +34,8 @@ interface DraftComposerProps {
 // 초안 생성 화면의 제목, 사이트 유형, 설명 입력, 진행/오류 안내를 묶습니다.
 const DraftComposer = ({
   description,
+  projectName,
+  onProjectNameChange,
   siteType,
   onSiteTypeChange,
   onSubmit,
@@ -58,10 +62,10 @@ const DraftComposer = ({
       {/* 실패하면 쓰던 설명을 그대로 다시 보낼 수 있도록 입력 화면은 숨기기만 합니다. */}
       <div
         hidden={isPending || isDone}
-        className="flex w-full max-w-2xl flex-col items-center gap-10 py-10 pb-20"
+        className="flex w-full max-w-[1200px] flex-col gap-8 py-10 pb-20"
       >
         <div className="flex flex-col items-center gap-3">
-          <h1 className="text-[28px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-[40px]">
+          <h1 className="text-center text-[28px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-[32px]">
             어떤 사이트를 만들까요?
           </h1>
           <p className="text-muted w-min min-w-full text-center text-base leading-relaxed">
@@ -69,12 +73,32 @@ const DraftComposer = ({
           </p>
         </div>
         {header}
-        <SiteTypeSelect
-          value={siteType}
-          onChange={onSiteTypeChange}
-          disabled={isPending || disabled}
-        />
-        <DraftPromptForm onSubmit={handleSubmit} disabled={isPending || disabled} />
+        <div className="grid w-full grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
+          <div className="flex min-w-0 flex-col gap-6">
+            {projectName !== undefined && onProjectNameChange && (
+              <label className="flex w-full flex-col gap-2">
+                <span className="text-text text-sm font-semibold">프로젝트 이름</span>
+                <input
+                  value={projectName}
+                  onChange={(event) => onProjectNameChange(event.target.value)}
+                  maxLength={40}
+                  placeholder="예) MORROW 쇼핑몰"
+                  disabled={isPending || disabled}
+                  className="border-field focus:border-ink h-[52px] rounded-xl border px-4 outline-none"
+                />
+              </label>
+            )}
+            <DraftPromptForm onSubmit={handleSubmit} disabled={isPending || disabled} />
+          </div>
+          <div className="bg-stage h-fit rounded-2xl p-5 lg:mt-0">
+            <SiteTypeSelect
+              value={siteType}
+              onChange={onSiteTypeChange}
+              disabled={isPending || disabled}
+              layout="cards"
+            />
+          </div>
+        </div>
         {footer}
         {error && !isPending && (
           <p role="alert" className="text-warn text-sm font-semibold">

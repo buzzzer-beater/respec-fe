@@ -106,12 +106,23 @@ const InviteContent = ({ token }: { token: string }) => {
   };
 
   return (
-    <div className="flex w-full max-w-sm flex-col gap-7">
+    <div className="flex w-full max-w-[520px] flex-col gap-7">
+      <div className="bg-stage h-[180px] overflow-hidden rounded-2xl px-8 pt-6" aria-hidden>
+        <div className="flex h-full flex-col gap-2 rounded-t-lg bg-white px-5 pt-4 shadow-[0_0_0_1px_rgba(24,24,27,0.05)]">
+          <i className="bg-hover h-2 w-2/5 rounded" />
+          <i className="h-[52px] rounded-md bg-[#f1efe9]" />
+          <span className="grid flex-1 grid-cols-3 gap-2">
+            <i className="bg-hover rounded" />
+            <i className="bg-hover rounded" />
+            <i className="bg-hover rounded" />
+          </span>
+        </div>
+      </div>
       <div className="flex flex-col gap-2">
         <p className="text-brand text-sm font-bold">프로젝트 초대</p>
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em] break-all">{project.name}</h1>
       </div>
-      <dl className="border-divider flex flex-col gap-3 rounded-2xl border p-5 text-sm">
+      <dl className="bg-stage flex flex-col gap-3 rounded-2xl p-5 text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-muted shrink-0">초대한 사람</dt>
           <dd className="text-ink truncate font-semibold">{invited_by.email}</dd>

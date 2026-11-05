@@ -7,6 +7,7 @@ import type { Device } from '@/features/switch-device';
 import { cn } from '@/shared/lib';
 
 import type { PinPosition, ViewerMode, ViewerPin } from '../model/types';
+import { clampZoom } from '../model/zoom';
 import PinMarkerLayer from './PinMarkerLayer';
 import ViewerToolbar from './ViewerToolbar';
 
@@ -65,6 +66,8 @@ const SiteViewer = ({
   const ownsPinLayer = !renderSite;
   const [device, setDevice] = useState<Device>('desktop');
   const [isFull, setIsFull] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const scale = zoom / 100;
 
   // F로 전체 화면, Esc로 나갑니다. 입력 중일 때는 무시합니다.
   useEffect(() => {
@@ -113,39 +116,49 @@ const SiteViewer = ({
               : 'shadow-[0_0_0_2px_var(--color-ink),0_8px_30px_rgba(24,24,27,0.08)]'),
         )}
       >
-        {renderSite?.(mode) ?? children ?? (
-          <p className="text-faint absolute inset-0 grid place-items-center px-6 text-center text-sm">
-            {url}
-          </p>
-        )}
-        {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
-        {ownsPinLayer && isPinMode && (
-          <button
-            type="button"
-            aria-label="핀 추가할 위치 선택"
-            onClick={handlePlacePin}
-            className="absolute inset-0 cursor-crosshair"
-          />
-        )}
-        {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
-        {ownsPinLayer && (
-          <PinMarkerLayer
-            markers={pins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
-            selectedPinId={selectedPinId}
-            onSelectPin={onSelectPin}
-          />
-        )}
-        {ownsPinLayer && draftPin && (
-          <div
-            className="absolute z-20 flex items-start gap-2"
-            style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
-          >
-            <span className="-translate-y-full">
-              <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
-            </span>
-            {draftPinContent}
-          </div>
-        )}
+        {/* 브라우저 확대처럼 사이트를 넓게 그린 뒤 줄여서(또는 좁게 그린 뒤 키워서) 맞춥니다. */}
+        <div
+          className="absolute top-0 left-0 origin-top-left"
+          style={{
+            width: `${100 / scale}%`,
+            height: `${100 / scale}%`,
+            transform: scale === 1 ? undefined : `scale(${scale})`,
+          }}
+        >
+          {renderSite?.(mode) ?? children ?? (
+            <p className="text-faint absolute inset-0 grid place-items-center px-6 text-center text-sm">
+              {url}
+            </p>
+          )}
+          {/* 핀 모드에서는 사이트 쪽 클릭이 동작하지 않도록 위를 덮습니다. */}
+          {ownsPinLayer && isPinMode && (
+            <button
+              type="button"
+              aria-label="핀 추가할 위치 선택"
+              onClick={handlePlacePin}
+              className="absolute inset-0 cursor-crosshair"
+            />
+          )}
+          {/* 초안 미리보기는 핀을 미리보기 안에서 직접 그립니다. */}
+          {ownsPinLayer && (
+            <PinMarkerLayer
+              markers={pins.map((pin) => ({ pin, x: pin.x, y: pin.y }))}
+              selectedPinId={selectedPinId}
+              onSelectPin={onSelectPin}
+            />
+          )}
+          {ownsPinLayer && draftPin && (
+            <div
+              className="absolute z-20 flex items-start gap-2"
+              style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
+            >
+              <span className="-translate-y-full">
+                <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} draft />
+              </span>
+              {draftPinContent}
+            </div>
+          )}
+        </div>
       </div>
 
       {pagePath && !isFull && (
@@ -197,6 +210,8 @@ const SiteViewer = ({
           mode={mode}
           onModeChange={setMode}
           pinDisabledReason={pinDisabledReason}
+          zoom={zoom}
+          onZoomChange={(value) => setZoom(clampZoom(value))}
           device={device}
           onDeviceChange={setDevice}
           isFull={isFull}

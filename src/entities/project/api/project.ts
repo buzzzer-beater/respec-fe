@@ -2,17 +2,21 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { get, post } from '@/shared/api';
 
-import type { Project } from '../model/project';
+import type { Project, ProjectMember } from '../model/project';
 
 export const projectQueryKeys = {
   all: () => ['projects'] as const,
   getProjects: () => ['projects', 'list'] as const,
   getProject: (projectId: number) => ['projects', 'detail', projectId] as const,
+  getProjectMembers: (projectId: number) => ['projects', 'detail', projectId, 'members'] as const,
 } as const;
 
 export const getProjects = () => get<Project[]>('/projects');
 
 export const getProject = (projectId: number) => get<Project>(`/projects/${projectId}`);
+
+export const getProjectMembers = (projectId: number) =>
+  get<ProjectMember[]>(`/projects/${projectId}/members`);
 
 export interface ProjectCreateReqType {
   name: string;
@@ -27,6 +31,12 @@ export const useGetProject = (projectId: number) =>
   useQuery({
     queryKey: projectQueryKeys.getProject(projectId),
     queryFn: () => getProject(projectId),
+  });
+
+export const useGetProjectMembers = (projectId: number) =>
+  useQuery({
+    queryKey: projectQueryKeys.getProjectMembers(projectId),
+    queryFn: () => getProjectMembers(projectId),
   });
 
 export const usePostProject = () => {

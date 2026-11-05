@@ -22,7 +22,7 @@ const ProjectSidebar = ({ projectId }: ProjectSidebarProps) => {
       ]}
       project={{
         name: project?.name ?? '',
-        plan: project?.my_role && PROJECT_ROLE_LABEL[project.my_role],
+        plan: project && PROJECT_ROLE_LABEL[project.my_role],
       }}
     />
   );

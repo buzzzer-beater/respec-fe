@@ -12,6 +12,8 @@ import { toDraftErrorMessage } from '../model/error';
 import DraftProgress from './DraftProgress';
 
 interface DraftComposerProps {
+  projectName?: string;
+  onProjectNameChange?: (value: string) => void;
   siteType: SiteType | null;
   onSiteTypeChange: (value: SiteType | null) => void;
   onSubmit: (prompt: string) => void;
@@ -32,8 +34,10 @@ interface DraftComposerProps {
   footer?: ReactNode;
 }
 
-// 초안 생성 화면의 제목, 사이트 유형, 설명 입력, 진행/오류 안내를 묶습니다.
+// 초안 생성 화면의 제목, 프로젝트 이름, 설명 입력, 사이트 유형, 진행/실패/결과 화면을 묶습니다.
 const DraftComposer = ({
+  projectName,
+  onProjectNameChange,
   siteType,
   onSiteTypeChange,
   onSubmit,
@@ -95,18 +99,38 @@ const DraftComposer = ({
       {/* 실패하거나 다시 만들 때 쓰던 내용을 그대로 쓸 수 있도록 입력 화면은 숨기기만 합니다. */}
       <div
         hidden={isPending || showResult || showFailure}
-        className="flex w-full max-w-2xl flex-col items-center gap-10 py-10 pb-20"
+        className="flex w-full max-w-[1200px] flex-col gap-8 py-10 pb-20"
       >
-        <h1 className="text-[28px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-[40px]">
+        <h1 className="text-center text-[28px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-[32px]">
           어떤 사이트를 만들까요?
         </h1>
         {header}
-        <SiteTypeSelect
-          value={siteType}
-          onChange={onSiteTypeChange}
-          disabled={isPending || disabled}
-        />
-        <DraftPromptForm onSubmit={handleSubmit} disabled={isPending || disabled} />
+        <div className="grid w-full grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
+          <div className="flex min-w-0 flex-col gap-6">
+            {projectName !== undefined && onProjectNameChange && (
+              <label className="flex w-full flex-col gap-2">
+                <span className="text-text text-sm font-semibold">프로젝트 이름</span>
+                <input
+                  value={projectName}
+                  onChange={(event) => onProjectNameChange(event.target.value)}
+                  maxLength={40}
+                  placeholder="예) MORROW 쇼핑몰"
+                  disabled={isPending || disabled}
+                  className="border-field focus:border-ink h-[52px] rounded-xl border px-4 outline-none"
+                />
+              </label>
+            )}
+            <DraftPromptForm onSubmit={handleSubmit} disabled={isPending || disabled} />
+          </div>
+          <div className="bg-stage h-fit rounded-2xl p-5 lg:mt-0">
+            <SiteTypeSelect
+              value={siteType}
+              onChange={onSiteTypeChange}
+              disabled={isPending || disabled}
+              layout="cards"
+            />
+          </div>
+        </div>
         {footer}
       </div>
     </main>

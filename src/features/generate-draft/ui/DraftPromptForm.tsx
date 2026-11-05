@@ -35,20 +35,20 @@ const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) =
     <div className="flex w-full flex-col items-center gap-5">
       <form
         onSubmit={handleSubmit}
-        className="border-field focus-within:border-ink flex w-full flex-col gap-6 rounded-2xl border bg-white px-6 pt-5 pb-4 transition-colors"
+        className="border-field focus-within:border-ink flex w-full flex-col gap-6 rounded-2xl border bg-white px-5 pt-5 pb-4 transition-colors"
       >
         <label htmlFor="draft-prompt" className="sr-only">
           만들고 싶은 사이트 설명
         </label>
         <textarea
           id="draft-prompt"
-          rows={1}
+          rows={6}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder="Ex. 노트핏, 팀 회의록 SaaS를 소개하는 깔끔한 랜딩 페이지"
-          className="text-ink placeholder:text-faint field-sizing-content max-h-60 min-h-12 w-full resize-none text-base leading-normal outline-none"
+          placeholder="예) 신발 편집숍이에요. 상품 사진이 크게 보이고, 사이즈를 고르기 쉬웠으면 좋겠어요."
+          className="text-ink placeholder:text-faint min-h-[160px] w-full resize-y text-base leading-relaxed outline-none"
         />
         {/* 파일 첨부는 백엔드 업로드 API가 없어 숨겼습니다. (#52) */}
         <div className="flex w-full items-center justify-end">

@@ -56,8 +56,11 @@ const ViewerToolbar = ({
           );
         })}
       </div>
-      <span aria-hidden className="bg-divider h-[22px] w-px" />
-      <DeviceToggle value={device} onChange={onDeviceChange} />
+      {/* 좁은 화면에서는 화면이 이미 작아서 크기 선택을 숨깁니다. */}
+      <div className="hidden items-center gap-1.5 lg:flex">
+        <span aria-hidden className="bg-divider h-[22px] w-px" />
+        <DeviceToggle value={device} onChange={onDeviceChange} />
+      </div>
       <span aria-hidden className="bg-divider h-[22px] w-px" />
       <button
         type="button"
@@ -66,7 +69,9 @@ const ViewerToolbar = ({
         className="text-text hover:bg-hover h-10 rounded-[10px] px-3.5 text-sm font-semibold whitespace-nowrap"
       >
         {isFull ? '나가기' : '전체 화면'}
-        <kbd className="ml-1.5 font-sans text-[11px] opacity-50">{isFull ? 'Esc' : 'F'}</kbd>
+        <kbd className="ml-1.5 hidden font-sans text-[11px] opacity-50 lg:inline">
+          {isFull ? 'Esc' : 'F'}
+        </kbd>
       </button>
     </div>
   );

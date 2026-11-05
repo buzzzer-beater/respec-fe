@@ -1,16 +1,16 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-import { CHANGE_REQUEST_STATUS_TONE, type ChangeRequestStatus } from '@/entities/request/@x/pin';
 import { cn } from '@/shared/lib';
 
+import type { PinTone } from '../model/tone';
 import NumberedPin from './NumberedPin';
 
 interface PinMarkerButtonProps {
   number: number;
-  /** 연결된 수정 요청 상태. 마커 색을 정합니다. */
-  status?: ChangeRequestStatus | null;
-  /** 해결됐거나 요청이 없는 핀. 작은 점으로 그립니다(선택하면 원래 크기). */
-  muted?: boolean;
+  /** 차례에 따른 색(`getPinLook`) */
+  tone?: PinTone;
+  /** 내가 움직일 차례라 빨간 점을 붙이는 핀 */
+  alert?: boolean;
   selected?: boolean;
   /** 요소를 다시 찾지 못한 핀. 저장된 좌표에 흐린 점선 핀으로 그립니다. */
   needsCheck?: boolean;
@@ -27,8 +27,8 @@ interface PinMarkerButtonProps {
 /** 사이트 위에 그리는 핀 마커 하나. 배포 사이트와 초안 미리보기가 같이 씁니다. */
 const PinMarkerButton = ({
   number,
-  status,
-  muted = false,
+  tone,
+  alert = false,
   selected = false,
   needsCheck = false,
   preview,
@@ -40,7 +40,7 @@ const PinMarkerButton = ({
   return (
     <button
       type="button"
-      aria-label={[`${number}번 핀`, needsCheck && '위치 확인 필요', preview]
+      aria-label={[`${number}번 핀`, alert && '내 차례', needsCheck && '위치 확인 필요', preview]
         .filter(Boolean)
         .join(', ')}
       aria-pressed={selected}
@@ -54,12 +54,10 @@ const PinMarkerButton = ({
     >
       <NumberedPin
         number={number}
-        muted={muted && !selected}
-        tone={status ? CHANGE_REQUEST_STATUS_TONE[status] : 'brand'}
-        className={cn(
-          selected && 'ring-brand/30 scale-110 ring-4',
-          needsCheck && 'border-2 border-dashed border-current opacity-60',
-        )}
+        tone={tone}
+        alert={alert}
+        selected={selected}
+        className={cn(needsCheck && 'border-2 border-dashed border-current opacity-60')}
       />
       {preview && (
         <span

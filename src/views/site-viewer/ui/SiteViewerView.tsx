@@ -22,28 +22,34 @@ import {
   DeploymentEmptyState,
   PIN_SCRIPT_MISSING_MESSAGE,
   PinScriptMissingNotice,
+  toDeploymentHost,
 } from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { MessageRequestMenu } from '@/features/create-request-from-message';
 import { usePostMessage } from '@/features/send-message';
 import { SharePinButton } from '@/features/share-pin';
 import { useViewerSite } from '@/features/switch-site';
+import { formatRelativeTime } from '@/shared/lib';
 import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
 import {
   DeployedSiteFrame,
   DraftPreviewFrame,
   type PinPosition,
   type PinScriptStatus,
+  type SiteAddress,
+  type SiteHistoryControls,
   SiteViewer,
 } from '@/widgets/site-viewer';
 import { WorkspaceLayout } from '@/widgets/workspace-layout';
 
+import { canMoveHistory, EMPTY_SITE_HISTORY, moveHistory, visitPath } from '../model/history';
 import {
   getPagePath,
   getThreadPins,
   toMessages,
   toPinThreads,
   toRequestPinOptions,
+  toSitePages,
   toViewerPins,
 } from '../model/mappers';
 
@@ -60,6 +66,14 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   // 핀 스크립트가 알려 준 배포 사이트의 지금 경로와 연결 상태
   const [deployedPath, setDeployedPath] = useState<string | null>(null);
   const [scriptStatus, setScriptStatus] = useState<PinScriptStatus>('connecting');
+  // 배포 사이트 안 이동 기록(뒤로/앞으로)과, 주소창·뒤로/앞으로로 옮겨 갈 경로
+  const [siteHistory, setSiteHistory] = useState(EMPTY_SITE_HISTORY);
+  const [navigation, setNavigation] = useState<{ path: string; seq: number } | null>(null);
+  // 새로고침: 미리보기를 다시 마운트합니다. 배포 사이트는 보고 있던 경로를 다시 엽니다.
+  const [reload, setReload] = useState<{ key: number; path: string | null }>({
+    key: 0,
+    path: null,
+  });
 
   const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
@@ -80,6 +94,9 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   if (site !== prevSite) {
     setPrevSite(site);
     setDraftPin(null);
+    setDeployedPath(null);
+    setSiteHistory(EMPTY_SITE_HISTORY);
+    setReload({ key: 0, path: null });
   }
   const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
   const commentsByPin = useGetPinCommentsByPin(
@@ -159,6 +176,52 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const handlePinMissing = reportsLocation ? (id: string) => reportMissing(Number(id)) : undefined;
   const handlePinFound = reportsLocation ? (id: string) => reportFound(Number(id)) : undefined;
 
+  const viewerPins = toViewerPins(pins, project?.my_role, showResolved);
+  const isScriptConnected = showDeployed && scriptStatus === 'connected';
+
+  const handlePathChange = (path: string) => {
+    setDeployedPath(path);
+    setSiteHistory((history) => visitPath(history, path));
+  };
+  const goToPath = (path: string) => setNavigation((prev) => ({ path, seq: (prev?.seq ?? 0) + 1 }));
+  const moveSiteHistory = (step: number) => {
+    const next = moveHistory(siteHistory, step);
+    if (!next) return;
+    setSiteHistory(next);
+    goToPath(next.entries[next.index]);
+  };
+  // 핀 스크립트가 있어야 사이트 안 경로를 알고 옮길 수 있습니다.
+  const history: SiteHistoryControls | undefined = showDeployed
+    ? {
+        canGoBack: isScriptConnected && canMoveHistory(siteHistory, -1),
+        canGoForward: isScriptConnected && canMoveHistory(siteHistory, 1),
+        onBack: () => moveSiteHistory(-1),
+        onForward: () => moveSiteHistory(1),
+      }
+    : undefined;
+
+  const frameUrl =
+    deploymentUrl && reload.path ? new URL(reload.path, deploymentUrl).href : deploymentUrl;
+  const currentPath = deployedPath ?? getPagePath(frameUrl);
+  // 초안은 한 페이지만 미리 보여 주므로 페이지 목록이 없습니다.
+  const address: SiteAddress | undefined =
+    showDeployed && deploymentUrl
+      ? {
+          host: toDeploymentHost(deploymentUrl),
+          path: currentPath,
+          ...(isScriptConnected && { pages: toSitePages(viewerPins), onSelectPage: goToPath }),
+        }
+      : showDraft
+        ? { host: '초안 미리보기', path: '/' }
+        : undefined;
+  const handleReload =
+    showDeployed || showDraft
+      ? () => setReload((prev) => ({ key: prev.key + 1, path: showDeployed ? currentPath : null }))
+      : undefined;
+  // 배포본의 "마지막 배포 · N일 전"은 백엔드 `deployment_updated_at`이 생기면 붙입니다.
+  const footnote =
+    showDraft && draft ? `초안 생성 · ${formatRelativeTime(draft.updated_at)}` : undefined;
+
   const startRelocate = (pinId: number) => {
     setDraftPin(null);
     relocatePin.start(pinId);
@@ -219,7 +282,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
       <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
         <SiteViewer
           url={deploymentUrl ?? '배포 사이트가 아직 연결되지 않았어요'}
-          pins={toViewerPins(pins, showResolved)}
+          pins={viewerPins}
           selectedPinId={selectedPin?.id ?? null}
           onPlacePin={handlePlacePin}
           onSelectPin={handleSelectPin}
@@ -227,13 +290,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
           pinDisabledNotice={pinDisabledNotice}
-          pagePath={
-            showDeployed
-              ? (deployedPath ?? getPagePath(deploymentUrl))
-              : showDraft
-                ? '/'
-                : undefined
-          }
+          address={address}
+          history={history}
+          onReload={handleReload}
+          footnote={footnote}
           pinPrompt={
             relocatingNumber > 0 ? (
               <RelocatePinPrompt
@@ -247,19 +307,20 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           showResolved={showResolved}
           onShowResolvedChange={setShowResolved}
           renderSite={
-            showDeployed && deploymentUrl
+            showDeployed && frameUrl
               ? (mode) => (
                   <DeployedSiteFrame
-                    key={deploymentUrl}
-                    url={deploymentUrl}
+                    key={`${deploymentUrl}#${reload.key}`}
+                    url={frameUrl}
                     mode={mode}
-                    pins={toViewerPins(pins, showResolved)}
+                    pins={viewerPins}
                     focusPin={selectedPin}
+                    navigateTo={navigation}
                     onPlacePin={handlePlacePin}
                     onSelectPin={handleSelectPin}
                     onPinMissing={handlePinMissing}
                     onPinFound={handlePinFound}
-                    onPathChange={setDeployedPath}
+                    onPathChange={handlePathChange}
                     onStatusChange={setScriptStatus}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}
@@ -268,10 +329,11 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
               : showDraft
                 ? (mode) => (
                     <DraftPreviewFrame
+                      key={reload.key}
                       html={draftPreview.data}
                       error={draftPreview.error}
                       mode={mode}
-                      pins={toViewerPins(pins, showResolved)}
+                      pins={viewerPins}
                       onPlacePin={handlePlacePin}
                       onSelectPin={handleSelectPin}
                       selectedPinId={selectedPin?.id ?? null}

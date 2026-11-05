@@ -12,6 +12,9 @@ export const PIN_COLORS = {
   muted: '#84848c',
   faint: '#b4b4bb',
   warn: '#c4670f',
+  'brand-quiet': '#b7b0f2',
+  'pin-done': '#c4c4cc',
+  alert: '#e5484d',
 } as const;
 
 /** `globals.css`의 `--ease-spring`, `--ease-out-soft` */
@@ -20,13 +23,9 @@ export const PIN_EASING = {
   'out-soft': 'cubic-bezier(0.22, 1, 0.36, 1)',
 } as const;
 
-/**
- * 톤별 채우기 색과 마우스를 올렸을 때 색. `NumberedPin`의 `TONE_CLASS`와 같습니다.
- * `hover`가 `null`이면 같은 색을 조금 어둡게(`brightness(0.9)`) 합니다.
- */
-export const PIN_TONE_COLORS: Record<BridgePinTone, { fill: string; hover: string | null }> = {
-  brand: { fill: PIN_COLORS.brand, hover: PIN_COLORS['brand-strong'] },
-  ink: { fill: PIN_COLORS.ink, hover: PIN_COLORS.text },
-  warn: { fill: PIN_COLORS.warn, hover: null },
-  faint: { fill: PIN_COLORS.faint, hover: PIN_COLORS.muted },
+/** 톤별 채우기 색. `NumberedPin`의 `TONE_CLASS`와 같습니다. 고른 핀은 `brand-strong`입니다. */
+export const PIN_TONE_COLORS: Record<BridgePinTone, string> = {
+  brand: PIN_COLORS.brand,
+  quiet: PIN_COLORS['brand-quiet'],
+  done: PIN_COLORS['pin-done'],
 };

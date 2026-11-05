@@ -106,7 +106,7 @@ export function startPinScript({ win, parent, allowedOrigins }: PinScriptOptions
         clientX: position.clientX,
         clientY: position.clientY,
         tone: pin.tone,
-        muted: pin.muted,
+        alert: pin.alert,
         selected: pin.id === selectedPinId,
         needsCheck: result.status === 'missing',
         preview: pin.request_preview,

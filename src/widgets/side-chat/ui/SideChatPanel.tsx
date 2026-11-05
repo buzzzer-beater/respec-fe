@@ -1,21 +1,21 @@
 'use client';
 
-import { type ComponentProps, useState } from 'react';
+import { useState } from 'react';
 
 import Image from 'next/image';
 
 import type { Message } from '@/entities/message';
-import { RequestCard } from '@/entities/request';
 import { MessageInput } from '@/features/send-message';
 
 import chatIcon from '../assets/chat.svg';
 import chatActiveIcon from '../assets/chat-active.svg';
 import pinIcon from '../assets/pin.svg';
 import pinActiveIcon from '../assets/pin-active.svg';
+import type { PinThread } from '../model/types';
 import ChatMessageList from './ChatMessageList';
+import PinThreadCard from './PinThreadCard';
 
 type Tab = 'chat' | 'pins';
-type SideChatRequest = ComponentProps<typeof RequestCard> & { id: string };
 
 const TABS = [
   { value: 'chat', label: '채팅', icon: chatIcon, activeIcon: chatActiveIcon },
@@ -24,11 +24,11 @@ const TABS = [
 
 interface SideChatPanelProps {
   messages: Message[];
-  requests: SideChatRequest[];
+  pinThreads: PinThread[];
   onSendMessage: (content: string) => void;
 }
 
-const SideChatPanel = ({ messages, requests, onSendMessage }: SideChatPanelProps) => {
+const SideChatPanel = ({ messages, pinThreads, onSendMessage }: SideChatPanelProps) => {
   const [tab, setTab] = useState<Tab>('chat');
 
   return (
@@ -65,10 +65,10 @@ const SideChatPanel = ({ messages, requests, onSendMessage }: SideChatPanelProps
         {tab === 'chat' ? (
           <ChatMessageList messages={messages} />
         ) : (
-          <ul className="flex w-full flex-col gap-4 px-7">
-            {requests.map(({ id, ...request }) => (
+          <ul className="flex w-full flex-col gap-7 px-7">
+            {pinThreads.map(({ id, ...thread }) => (
               <li key={id}>
-                <RequestCard {...request} />
+                <PinThreadCard {...thread} />
               </li>
             ))}
           </ul>

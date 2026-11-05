@@ -1,8 +1,13 @@
 import type { ChatMessage, Message } from '@/entities/message';
-import type { PinWithRequest } from '@/entities/pin';
-import { CHANGE_REQUEST_STATUS_LABEL, type ChangeRequest } from '@/entities/request';
-import type { SessionUser } from '@/entities/user';
+import type { PinComment, PinWithRequest } from '@/entities/pin';
+import {
+  type ChangeRequest,
+  type ChangeRequestStatus,
+  isHiddenByDefault,
+} from '@/entities/request';
+import type { ProjectRole, SessionUser } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
+import type { PinThread } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
 import type { WorkspaceParticipant } from '@/widgets/workspace-header';
 
@@ -62,22 +67,45 @@ export const toMessages = (
   });
 };
 
-export const toRequestCards = (
-  requests: ChangeRequest[],
-  pins: PinWithRequest[],
-  me: SessionUser | null,
-) => {
-  const pinPreview = new Map(pins.map((pin) => [pin.id, pin.request_preview]));
+/** 스레드로 보여 줄 핀. 수정 요청이 없거나 해결된 핀은 기본 화면에서 뺍니다. */
+export const getThreadPins = (pins: PinWithRequest[]) =>
+  pins.filter(
+    (pin): pin is PinWithRequest & { request_status: ChangeRequestStatus } =>
+      pin.request_status !== null && !isHiddenByDefault(pin.request_status),
+  );
 
-  return requests.map((request) => ({
-    id: String(request.id),
-    title:
-      request.ai_summary ??
-      (request.pin_id === null ? null : pinPreview.get(request.pin_id)) ??
-      `수정 요청 #${request.id}`,
-    statusLabel: CHANGE_REQUEST_STATUS_LABEL[request.status],
-    // 수정 요청은 고객만 만들 수 있습니다.
-    authorName: request.created_by === me?.id ? '나' : '고객',
+/**
+ * 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다.
+ * 댓글 작성자 역할을 주는 API가 없어서, 수정 요청을 만든 사람(고객만 가능)은 고객, 나머지는 개발자로 봅니다.
+ */
+export const toPinThreads = (
+  pins: PinWithRequest[],
+  commentsByPin: Map<number, PinComment[]>,
+  requests: ChangeRequest[],
+  me: SessionUser | null,
+  myRole: ProjectRole | undefined,
+): PinThread[] => {
+  const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
+  const clientIds = new Set(requests.map((request) => request.created_by));
+  const roleOf = (authorId: number): ProjectRole => {
+    if (authorId === me?.id && myRole) return myRole;
+    return clientIds.has(authorId) ? 'client' : 'developer';
+  };
+
+  return getThreadPins(pins).map((pin) => ({
+    id: String(pin.id),
+    pinNumber: pinNumber.get(pin.id) ?? 0,
+    status: pin.request_status,
+    comments: [...(commentsByPin.get(pin.id) ?? [])]
+      .sort((a, b) => a.id - b.id)
+      .map((comment) => ({
+        id: String(comment.id),
+        authorName: authorName(comment.author_id, me),
+        authorRole: roleOf(comment.author_id),
+        content: comment.content,
+        plainText: comment.ai_plain_text,
+        timeLabel: formatRelativeTime(comment.created_at),
+      })),
   }));
 };
 

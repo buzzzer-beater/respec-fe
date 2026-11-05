@@ -2,10 +2,6 @@
 
 import { type FormEvent, type KeyboardEvent, useState } from 'react';
 
-import Image from 'next/image';
-
-import plusIcon from '../assets/plus.svg';
-
 const EXAMPLES = ['브랜드 소개 사이트', '이커머스 랜딩', 'SaaS 제품 소개', '포트폴리오'];
 
 interface DraftPromptFormProps {
@@ -54,10 +50,8 @@ const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) =
           placeholder="Ex. 노트핏, 팀 회의록 SaaS를 소개하는 깔끔한 랜딩 페이지"
           className="text-ink placeholder:text-faint field-sizing-content max-h-60 min-h-12 w-full resize-none text-base leading-normal outline-none"
         />
-        <div className="flex w-full items-center justify-between">
-          <button type="button" aria-label="파일 첨부" className="shrink-0">
-            <Image src={plusIcon} alt="" unoptimized />
-          </button>
+        {/* 파일 첨부는 백엔드 업로드 API가 없어 숨겼습니다. (#52) */}
+        <div className="flex w-full items-center justify-end">
           <button
             type="submit"
             aria-label="초안 만들기"

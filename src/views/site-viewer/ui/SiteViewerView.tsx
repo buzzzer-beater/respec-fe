@@ -238,6 +238,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     onPlacePin={handlePlacePin}
                     onSelectPin={handleSelectPin}
                     onPinMissing={(id) => reportMissing(Number(id))}
+                    onPinFound={(id) => reportFound(Number(id))}
                     onPathChange={setDeployedPath}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}

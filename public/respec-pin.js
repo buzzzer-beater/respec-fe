@@ -7,7 +7,7 @@ function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const runtime_1 = __require(1);
-const script_origin_1 = __require(12);
+const script_origin_1 = __require(13);
 function main(win) {
     if (win.parent === win || win.__respecPin)
         return;
@@ -27,13 +27,13 @@ main(window);
 function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MISSING_CHECK_DELAY_MS = void 0;
+exports.LOCATION_CHECK_DELAY_MS = void 0;
 exports.startPinScript = startPinScript;
 const pin_bridge_1 = __require(2);
 const pin_engine_1 = __require(4);
 const history_1 = __require(10);
 const overlay_1 = __require(11);
-exports.MISSING_CHECK_DELAY_MS = 2000;
+exports.LOCATION_CHECK_DELAY_MS = 2000;
 const BLOCKED_EVENTS = [
     'click',
     'dblclick',
@@ -60,28 +60,42 @@ function startPinScript({ win, parent, allowedOrigins }) {
     let pins = [];
     let selectedPinId = null;
     let pendingScrollPinId = null;
-    const reportedMissing = new Set();
+    const locationStates = new Map();
     let frame = 0;
-    let missingTimer;
+    let checkTimer;
     const post = (message) => {
         for (const origin of allowedOrigins)
             parent.postMessage(message, origin);
     };
     const currentPins = () => pins.filter((pin) => pin.page_path === path);
+    const getLocationState = (pin) => { var _a; return (_a = locationStates.get(pin.id)) !== null && _a !== void 0 ? _a : (pin.location_status === 'needs_check' ? 'missing' : 'found'); };
+    const getSavedPosition = (pin, fallback) => {
+        var _a, _b;
+        const root = doc.documentElement;
+        const pageX = (_a = fallback === null || fallback === void 0 ? void 0 : fallback.pageX) !== null && _a !== void 0 ? _a : pin.relative_x * root.scrollWidth;
+        const pageY = (_b = fallback === null || fallback === void 0 ? void 0 : fallback.pageY) !== null && _b !== void 0 ? _b : pin.relative_y * root.scrollHeight;
+        return { clientX: pageX - win.scrollX, clientY: pageY - win.scrollY };
+    };
     const render = () => {
         frame = 0;
         const markers = [];
         for (const pin of currentPins()) {
             const result = (0, pin_engine_1.restoreAnchor)(doc, pin);
-            if (result.status !== 'found')
+            if (result.status === 'hidden')
                 continue;
+            if (result.status === 'missing' && getLocationState(pin) !== 'missing')
+                continue;
+            const position = result.status === 'found' ? result.position : getSavedPosition(pin, result.fallback);
             markers.push({
                 pinId: pin.id,
                 number: pin.number,
-                clientX: result.position.clientX,
-                clientY: result.position.clientY,
+                clientX: position.clientX,
+                clientY: position.clientY,
+                tone: pin.tone,
                 muted: pin.muted,
                 selected: pin.id === selectedPinId,
+                needsCheck: result.status === 'missing',
+                preview: pin.request_preview,
             });
         }
         overlay.render(markers);
@@ -90,19 +104,33 @@ function startPinScript({ win, parent, allowedOrigins }) {
         if (!frame)
             frame = win.requestAnimationFrame(render);
     };
-    const scheduleMissingCheck = () => {
-        win.clearTimeout(missingTimer);
-        missingTimer = win.setTimeout(() => {
-            for (const pin of currentPins()) {
-                const key = `${path}\n${pin.id}`;
-                if (reportedMissing.has(key))
-                    continue;
-                if ((0, pin_engine_1.restoreAnchor)(doc, pin).status !== 'missing')
-                    continue;
-                reportedMissing.add(key);
-                post({ type: 'respec:pin-missing', pinId: pin.id });
-            }
-        }, exports.MISSING_CHECK_DELAY_MS);
+    const checkLocations = () => {
+        checkTimer = undefined;
+        let changed = false;
+        for (const pin of currentPins()) {
+            const { status } = (0, pin_engine_1.restoreAnchor)(doc, pin);
+            if (status === 'hidden' || status === getLocationState(pin))
+                continue;
+            locationStates.set(pin.id, status);
+            changed = true;
+            post({
+                type: status === 'missing' ? 'respec:pin-missing' : 'respec:pin-found',
+                pinId: pin.id,
+            });
+        }
+        if (changed)
+            scheduleRender();
+    };
+    const scheduleLocationCheck = (restart) => {
+        if (checkTimer !== undefined && !restart)
+            return;
+        win.clearTimeout(checkTimer);
+        checkTimer = win.setTimeout(checkLocations, exports.LOCATION_CHECK_DELAY_MS);
+    };
+    const handleMutation = () => {
+        scheduleRender();
+        if (pins.length > 0)
+            scheduleLocationCheck(false);
     };
     const scrollToPin = (pinId) => {
         const pin = currentPins().find((item) => item.id === pinId);
@@ -132,7 +160,7 @@ function startPinScript({ win, parent, allowedOrigins }) {
                 pins = message.pins;
                 selectedPinId = message.selectedPinId;
                 scheduleRender();
-                scheduleMissingCheck();
+                scheduleLocationCheck(true);
                 if (pendingScrollPinId && scrollToPin(pendingScrollPinId))
                     pendingScrollPinId = null;
                 break;
@@ -177,7 +205,7 @@ function startPinScript({ win, parent, allowedOrigins }) {
         scheduleRender();
         post({ type: 'respec:path-changed', path });
     });
-    const observer = new MutationObserver(scheduleRender);
+    const observer = new MutationObserver(handleMutation);
     observer.observe(doc.documentElement, {
         subtree: true,
         childList: true,
@@ -198,7 +226,7 @@ function startPinScript({ win, parent, allowedOrigins }) {
         win.removeEventListener('resize', scheduleRender);
         for (const type of BLOCKED_EVENTS)
             win.removeEventListener(type, handlePointer, true);
-        win.clearTimeout(missingTimer);
+        win.clearTimeout(checkTimer);
         if (frame)
             win.cancelAnimationFrame(frame);
         overlay.destroy();
@@ -209,8 +237,10 @@ function startPinScript({ win, parent, allowedOrigins }) {
 function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toOrigin = exports.PIN_SCRIPT_PATH = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_BRIDGE_VERSION = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = void 0;
+exports.toOrigin = exports.PIN_SCRIPT_PATH = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_BRIDGE_VERSION = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PREVIEW_MAX_LENGTH = exports.BRIDGE_PIN_TONES = void 0;
 var protocol_1 = __require(3);
+Object.defineProperty(exports, "BRIDGE_PIN_TONES", { enumerable: true, get: function () { return protocol_1.BRIDGE_PIN_TONES; } });
+Object.defineProperty(exports, "BRIDGE_PREVIEW_MAX_LENGTH", { enumerable: true, get: function () { return protocol_1.BRIDGE_PREVIEW_MAX_LENGTH; } });
 Object.defineProperty(exports, "isPagePath", { enumerable: true, get: function () { return protocol_1.isPagePath; } });
 Object.defineProperty(exports, "parseParentMessage", { enumerable: true, get: function () { return protocol_1.parseParentMessage; } });
 Object.defineProperty(exports, "parseSiteMessage", { enumerable: true, get: function () { return protocol_1.parseSiteMessage; } });
@@ -223,11 +253,13 @@ Object.defineProperty(exports, "toOrigin", { enumerable: true, get: function () 
 function (module, exports, __require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.toOrigin = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_SCRIPT_PATH = exports.PIN_BRIDGE_VERSION = void 0;
-exports.PIN_BRIDGE_VERSION = 1;
+exports.toOrigin = exports.parseSiteMessage = exports.parseParentMessage = exports.isPagePath = exports.BRIDGE_PREVIEW_MAX_LENGTH = exports.BRIDGE_PIN_TONES = exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = exports.PIN_SCRIPT_PATH = exports.PIN_BRIDGE_VERSION = void 0;
+exports.PIN_BRIDGE_VERSION = 2;
 exports.PIN_SCRIPT_PATH = '/respec-pin.js';
 exports.PIN_SCRIPT_ORIGIN_ATTRIBUTE = 'data-respec-origin';
 const PREFIX = 'respec:';
+exports.BRIDGE_PIN_TONES = ['brand', 'ink', 'warn', 'faint'];
+exports.BRIDGE_PREVIEW_MAX_LENGTH = 200;
 const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 const isRatio = (value) => isFiniteNumber(value) && value >= 0 && value <= 1;
@@ -264,11 +296,13 @@ const toAnchor = (value) => {
         anchor.location_context = context;
     return anchor;
 };
+const isTone = (value) => exports.BRIDGE_PIN_TONES.includes(value);
+const toPreview = (value) => isNonEmptyString(value) ? value.slice(0, exports.BRIDGE_PREVIEW_MAX_LENGTH) : null;
 const toBridgePin = (value) => {
     var _a;
     if (!isRecord(value))
         return null;
-    const { id, number, page_path, element_selector, relative_x, relative_y, muted } = value;
+    const { id, number, page_path, element_selector, relative_x, relative_y, tone, muted } = value;
     if (!isNonEmptyString(id) || !isFiniteNumber(number) || !(0, exports.isPagePath)(page_path))
         return null;
     if (!isNonEmptyString(element_selector))
@@ -283,7 +317,10 @@ const toBridgePin = (value) => {
         relative_x,
         relative_y,
         location_context: (_a = toLocationContext(value.location_context)) !== null && _a !== void 0 ? _a : null,
+        tone: isTone(tone) ? tone : 'brand',
         muted: muted === true,
+        request_preview: toPreview(value.request_preview),
+        location_status: value.location_status === 'needs_check' ? 'needs_check' : 'located',
     };
 };
 const parseParentMessage = (data) => {
@@ -334,6 +371,7 @@ const parseSiteMessage = (data) => {
         }
         case 'respec:pin-clicked':
         case 'respec:pin-missing':
+        case 'respec:pin-found':
             return isNonEmptyString(data.pinId) ? { type: data.type, pinId: data.pinId } : null;
         default:
             return null;
@@ -716,8 +754,18 @@ function (module, exports, __require) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OVERLAY_TAG = void 0;
 exports.createOverlay = createOverlay;
+const theme_1 = __require(12);
 exports.OVERLAY_TAG = 'respec-pin-root';
 const MARKER_ATTRIBUTE = 'data-pin-id';
+const FONT = `'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
+const TONE_STYLE = Object.keys(theme_1.PIN_TONE_COLORS)
+    .map((tone) => {
+    const { fill, hover } = theme_1.PIN_TONE_COLORS[tone];
+    const hoverRule = hover ? `background: ${hover};` : 'filter: brightness(0.9);';
+    return `.marker[data-tone='${tone}'] .pin { background: ${fill}; }
+.marker[data-tone='${tone}']:hover .pin { ${hoverRule} }`;
+})
+    .join('\n');
 const STYLE = `
 :host { all: initial; }
 .layer {
@@ -726,16 +774,39 @@ const STYLE = `
 }
 .layer[data-active] { display: block; }
 .marker {
-  all: initial; position: fixed; box-sizing: border-box; pointer-events: auto; cursor: pointer;
-  display: grid; place-items: center; width: 30px; height: 30px;
-  transform: translateY(-100%); border-radius: 50% 50% 50% 6px;
-  background: #5647e0; color: #fff;
-  font: 800 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  all: initial; position: fixed; display: block; box-sizing: border-box; z-index: 1;
+  pointer-events: auto; cursor: pointer; transform: translateY(-100%);
+  font: 800 13px/1 ${FONT}; color: #fff; text-align: left;
 }
-.marker:hover { background: #3f31c9; z-index: 1; }
-.marker[data-muted] { width: 12px; height: 12px; font-size: 0; }
-.marker[data-muted]:hover { width: 28px; height: 28px; font-size: 12px; }
-.marker[data-selected] { box-shadow: 0 0 0 4px rgba(86, 71, 224, 0.3); z-index: 2; }
+.marker[data-selected] { z-index: 2; }
+.marker:hover, .marker:focus-visible { z-index: 3; }
+.marker:focus-visible { outline: 2px solid ${theme_1.PIN_COLORS.ink}; outline-offset: 2px; }
+.pin {
+  box-sizing: border-box; display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 50% 50% 50% 6px; font-size: 13px;
+  transition-property: width, height, scale, background-color;
+  transition-duration: 300ms; transition-timing-function: ${theme_1.PIN_EASING.spring};
+  animation: pin-drop 0.45s ${theme_1.PIN_EASING['out-soft']} both;
+}
+${TONE_STYLE}
+.marker:hover .pin { scale: 1.1; }
+.marker[data-muted] .pin { width: 12px; height: 12px; font-size: 0; }
+.marker[data-muted]:hover .pin { width: 28px; height: 28px; font-size: 12px; scale: 1; }
+.marker[data-selected] .pin {
+  scale: 1.1; box-shadow: 0 0 0 4px color-mix(in oklab, ${theme_1.PIN_COLORS.brand} 30%, transparent);
+}
+.marker[data-needs-check] .pin { border: 2px dashed currentColor; opacity: 0.6; }
+.tip {
+  position: absolute; top: 0; left: 100%; margin-left: 8px; box-sizing: border-box;
+  width: max-content; max-width: 240px; padding: 8px 12px; border-radius: 10px;
+  background: ${theme_1.PIN_COLORS.ink}; color: #fff; font: 600 13px/1.375 ${FONT};
+  overflow-wrap: anywhere; word-break: keep-all; white-space: normal;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  pointer-events: none; visibility: hidden; opacity: 0; transition: opacity 150ms;
+}
+.tip:empty { display: none; }
+.marker:hover .tip, .marker:focus-visible .tip { visibility: visible; opacity: 1; }
+@keyframes pin-drop { from { opacity: 0; translate: 0 -20px; } }
 `;
 function createOverlay(doc) {
     const host = doc.createElement(exports.OVERLAY_TAG);
@@ -749,23 +820,41 @@ function createOverlay(doc) {
     root.append(style, layer, markers);
     doc.documentElement.append(host);
     const buttons = new Map();
+    const createMarker = (pinId) => {
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = 'marker';
+        button.setAttribute(MARKER_ATTRIBUTE, pinId);
+        const pin = doc.createElement('span');
+        pin.className = 'pin';
+        const tip = doc.createElement('span');
+        tip.className = 'tip';
+        tip.setAttribute('aria-hidden', 'true');
+        button.append(pin, tip);
+        return button;
+    };
     const render = (items) => {
+        var _a;
         const seen = new Set();
         for (const item of items) {
             seen.add(item.pinId);
             let button = buttons.get(item.pinId);
             if (!button) {
-                button = doc.createElement('button');
-                button.type = 'button';
-                button.className = 'marker';
-                button.setAttribute(MARKER_ATTRIBUTE, item.pinId);
+                button = createMarker(item.pinId);
                 buttons.set(item.pinId, button);
                 markers.append(button);
             }
-            button.textContent = String(item.number);
-            button.setAttribute('aria-label', `${item.number}번 핀`);
+            const [pin, tip] = button.children;
+            pin.textContent = String(item.number);
+            tip.textContent = (_a = item.preview) !== null && _a !== void 0 ? _a : '';
+            button.setAttribute('aria-label', [`${item.number}번 핀`, item.needsCheck && '위치 확인 필요', item.preview]
+                .filter(Boolean)
+                .join(', '));
+            button.setAttribute('aria-pressed', String(item.selected));
+            button.setAttribute('data-tone', item.tone);
             button.toggleAttribute('data-muted', item.muted && !item.selected);
             button.toggleAttribute('data-selected', item.selected);
+            button.toggleAttribute('data-needs-check', item.needsCheck);
             button.style.left = `${item.clientX}px`;
             button.style.top = `${item.clientY}px`;
         }
@@ -797,6 +886,31 @@ function createOverlay(doc) {
         destroy: () => host.remove(),
     };
 }
+},
+// src/shared/lib/pin-script/theme.ts
+function (module, exports, __require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PIN_TONE_COLORS = exports.PIN_EASING = exports.PIN_COLORS = void 0;
+exports.PIN_COLORS = {
+    brand: '#5647e0',
+    'brand-strong': '#3f31c9',
+    ink: '#18181b',
+    text: '#3f3f46',
+    muted: '#84848c',
+    faint: '#b4b4bb',
+    warn: '#c4670f',
+};
+exports.PIN_EASING = {
+    spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    'out-soft': 'cubic-bezier(0.22, 1, 0.36, 1)',
+};
+exports.PIN_TONE_COLORS = {
+    brand: { fill: exports.PIN_COLORS.brand, hover: exports.PIN_COLORS['brand-strong'] },
+    ink: { fill: exports.PIN_COLORS.ink, hover: exports.PIN_COLORS.text },
+    warn: { fill: exports.PIN_COLORS.warn, hover: null },
+    faint: { fill: exports.PIN_COLORS.faint, hover: exports.PIN_COLORS.muted },
+};
 },
 // src/shared/lib/pin-script/script-origin.ts
 function (module, exports, __require) {

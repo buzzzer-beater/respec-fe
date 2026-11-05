@@ -99,7 +99,10 @@ const RequestBoardView = ({ projectId }: RequestBoardViewProps) => {
                       <p className="mt-2.5 line-clamp-3 text-[15px] font-semibold">
                         {request.title}
                       </p>
-                      <p className="text-muted mt-3 text-xs">요청 #{request.id}</p>
+                      <p className="text-muted mt-3 text-xs">
+                        요청 #{request.id} ·{' '}
+                        {request.source_pin_comment_id !== null ? '핀' : '채팅'}
+                      </p>
                     </button>
                   ))}
                 </div>

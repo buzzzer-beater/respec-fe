@@ -6,6 +6,8 @@ import {
   RequestStatusBadge,
 } from '@/entities/request';
 import type { ReviewItem } from '@/entities/review';
+import type { ProjectRole } from '@/entities/user';
+import { ResolveRequestButtons } from '@/features/resolve-request';
 import { PlainTextExplanation } from '@/shared/ui';
 
 interface ReviewItemCardProps {
@@ -15,9 +17,16 @@ interface ReviewItemCardProps {
   request?: ChangeRequest;
   /** 고객이 쓴 요청 원문 (핀 댓글 또는 채팅 메시지) */
   requestContent?: string | null;
+  role?: ProjectRole;
 }
 
-const ReviewItemCard = ({ projectId, item, request, requestContent }: ReviewItemCardProps) => {
+const ReviewItemCard = ({
+  projectId,
+  item,
+  request,
+  requestContent,
+  role,
+}: ReviewItemCardProps) => {
   const summary = request?.ai_summary ?? null;
   const pinHref =
     request?.pin_id != null && request.status !== 'resolved'
@@ -65,7 +74,17 @@ const ReviewItemCard = ({ projectId, item, request, requestContent }: ReviewItem
         />
       </div>
 
-      {/* Resolve / 재수정 요청 버튼 자리 (#38 머지 후 연결) */}
+      {/* 고객에게만, 검수 대기일 때만 보입니다. */}
+      {request && (
+        <div className="mt-4 flex justify-end">
+          <ResolveRequestButtons
+            projectId={projectId}
+            requestId={request.id}
+            status={request.status}
+            role={role}
+          />
+        </div>
+      )}
     </li>
   );
 };

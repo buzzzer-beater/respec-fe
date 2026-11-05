@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
 import { useGetPinCommentsByPin } from '@/entities/pin';
+import { useGetProject } from '@/entities/project';
 import { useGetChangeRequests } from '@/entities/request';
 import { useGetReviewRequest, useGetReviewRequests } from '@/entities/review';
 import { formatRelativeTime } from '@/shared/lib';
@@ -28,6 +29,7 @@ const ReviewView = ({ projectId }: ReviewViewProps) => {
   const reviews = useGetReviewRequests(projectId);
   const currentId = selectedId ?? reviews.data?.[0]?.id;
   const review = useGetReviewRequest(projectId, currentId);
+  const { data: project } = useGetProject(projectId);
 
   // 요청 원문과 현재 상태를 보여 주려고 수정 요청, 핀 댓글, 채팅을 함께 받습니다.
   const requests = useGetChangeRequests(projectId, 'all');
@@ -134,6 +136,7 @@ const ReviewView = ({ projectId }: ReviewViewProps) => {
                   item={item}
                   request={itemRequests.find((each) => each.id === item.change_request_id)}
                   requestContent={getRequestContent(item.change_request_id)}
+                  role={project?.my_role}
                 />
               ))}
             </ul>

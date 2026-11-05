@@ -3,9 +3,8 @@
 import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
-import { useGetPins } from '@/entities/pin';
+import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
 import { useGetProject, useGetProjectMembers } from '@/entities/project';
-import { useGetChangeRequests } from '@/entities/request';
 import { useGetMe } from '@/entities/user';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { usePostMessage } from '@/features/send-message';
@@ -16,9 +15,10 @@ import { WorkspaceHeader } from '@/widgets/workspace-header';
 
 import {
   getPagePath,
+  getThreadPins,
   toMessages,
   toParticipants,
-  toRequestCards,
+  toPinThreads,
   toViewerPins,
   VIEWER_ANCHOR_SELECTOR,
 } from '../model/mappers';
@@ -37,7 +37,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const { data: members = [] } = useGetProjectMembers(projectId);
   const { data: pins = [] } = useGetPins(projectId);
   const { data: messages = [] } = useGetMessages(projectId);
-  const { data: requests = [] } = useGetChangeRequests(projectId);
+  const commentsByPin = useGetPinCommentsByPin(
+    projectId,
+    getThreadPins(pins).map((pin) => pin.id),
+  );
   const postPin = usePostPin(projectId);
   const postMessage = usePostMessage(projectId);
 
@@ -114,7 +117,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
       </main>
       <SideChatPanel
         messages={toMessages(messages, pins, members, me)}
-        requests={toRequestCards(requests, pins, members, me)}
+        pinThreads={toPinThreads(pins, commentsByPin, members, me)}
         onSendMessage={(content) => postMessage.mutate({ content })}
       />
     </div>

@@ -1,9 +1,10 @@
 import type { ChatMessage, Message } from '@/entities/message';
-import type { PinWithRequest } from '@/entities/pin';
+import type { PinComment, PinWithRequest } from '@/entities/pin';
 import type { ProjectMember } from '@/entities/project';
-import { CHANGE_REQUEST_STATUS_LABEL, type ChangeRequest } from '@/entities/request';
-import { PROJECT_ROLE_LABEL, type User } from '@/entities/user';
+import { type ChangeRequestStatus, isHiddenByDefault } from '@/entities/request';
+import { PROJECT_ROLE_LABEL, type ProjectRole, type User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
+import type { PinThread } from '@/widgets/side-chat';
 import type { ViewerPin } from '@/widgets/site-viewer';
 import type { WorkspaceParticipant } from '@/widgets/workspace-header';
 
@@ -67,23 +68,40 @@ export const toMessages = (
   });
 };
 
-export const toRequestCards = (
-  requests: ChangeRequest[],
+/** 스레드로 보여 줄 핀. 수정 요청이 없거나 해결된 핀은 기본 화면에서 뺍니다. */
+export const getThreadPins = (pins: PinWithRequest[]) =>
+  pins.filter(
+    (pin): pin is PinWithRequest & { request_status: ChangeRequestStatus } =>
+      pin.request_status !== null && !isHiddenByDefault(pin.request_status),
+  );
+
+/** 수정 요청이 걸린 핀을 코멘트 스레드로 바꿉니다. 작성자 이름과 역할은 참여자 목록에서 찾습니다. */
+export const toPinThreads = (
   pins: PinWithRequest[],
+  commentsByPin: Map<number, PinComment[]>,
   members: ProjectMember[],
   me: User | undefined,
-) => {
-  const pinPreview = new Map(pins.map((pin) => [pin.id, pin.request_preview]));
+): PinThread[] => {
+  const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
   const authorName = createAuthorName(members, me);
+  const roles = new Map(members.map((member) => [member.id, member.role]));
+  // 참여자 목록을 아직 못 받았으면 개발자로 둡니다.
+  const roleOf = (authorId: number): ProjectRole => roles.get(authorId) ?? 'developer';
 
-  return requests.map((request) => ({
-    id: String(request.id),
-    title:
-      request.ai_summary ??
-      (request.pin_id === null ? null : pinPreview.get(request.pin_id)) ??
-      `수정 요청 #${request.id}`,
-    statusLabel: CHANGE_REQUEST_STATUS_LABEL[request.status],
-    authorName: authorName(request.created_by),
+  return getThreadPins(pins).map((pin) => ({
+    id: String(pin.id),
+    pinNumber: pinNumber.get(pin.id) ?? 0,
+    status: pin.request_status,
+    comments: [...(commentsByPin.get(pin.id) ?? [])]
+      .sort((a, b) => a.id - b.id)
+      .map((comment) => ({
+        id: String(comment.id),
+        authorName: authorName(comment.author_id),
+        authorRole: roleOf(comment.author_id),
+        content: comment.content,
+        plainText: comment.ai_plain_text,
+        timeLabel: formatRelativeTime(comment.created_at),
+      })),
   }));
 };
 

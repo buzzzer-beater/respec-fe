@@ -4,7 +4,12 @@ import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
 import { useGetPinCommentsByPin, useGetPins } from '@/entities/pin';
-import { useGetProject, useGetProjectMembers } from '@/entities/project';
+import {
+  useGetDraftPreviewHtml,
+  useGetProject,
+  useGetProjectDraft,
+  useGetProjectMembers,
+} from '@/entities/project';
 import { useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
 import { DeploymentEmptyState } from '@/features/connect-deployment';
@@ -13,7 +18,7 @@ import { MessageRequestMenu } from '@/features/create-request-from-message';
 import { usePostMessage } from '@/features/send-message';
 import { SharePinButton } from '@/features/share-pin';
 import { type SelectedPin, SideChatPanel } from '@/widgets/side-chat';
-import { type PinPosition, SiteViewer } from '@/widgets/site-viewer';
+import { DraftPreviewFrame, type PinPosition, SiteViewer } from '@/widgets/site-viewer';
 
 import {
   getPagePath,
@@ -39,6 +44,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const { data: members = [] } = useGetProjectMembers(projectId);
   const { data: pins = [] } = useGetPins(projectId);
   const { data: messages = [] } = useGetMessages(projectId);
+  const { data: draft } = useGetProjectDraft(projectId);
+  // 배포 URL이 없고 초안이 있으면 초안을 띄웁니다.
+  const showDraft = !!project && !project.deployment_url && !!draft;
+  const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
   const commentsByPin = useGetPinCommentsByPin(
     projectId,
     getThreadPins(pins).map((pin) => pin.id),
@@ -52,15 +61,15 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
 
   const handleSubmitPin = (content: string) => {
     if (!draftPin || !project) return;
+    // 초안은 요소 기준 앵커가 있고, 배포 사이트는 아직 영역 기준 좌표만 저장합니다.
+    const anchor = draftPin.anchor ?? {
+      page_path: getPagePath(project.deployment_url),
+      element_selector: VIEWER_ANCHOR_SELECTOR,
+      relative_x: draftPin.x / 100,
+      relative_y: draftPin.y / 100,
+    };
     postPin.mutate(
-      {
-        role: project.my_role,
-        page_path: getPagePath(project.deployment_url),
-        element_selector: VIEWER_ANCHOR_SELECTOR,
-        relative_x: draftPin.x / 100,
-        relative_y: draftPin.y / 100,
-        request_content: content,
-      },
+      { role: project.my_role, ...anchor, request_content: content },
       {
         onSuccess: ({ requestFailed }) => {
           setDraftPin(null);
@@ -93,6 +102,21 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
       : postPin.error.message
     : null;
 
+  // 초안도 배포 URL도 없으면 핀 생성이 409이므로 핀 모드를 미리 막습니다.
+  const pinDisabledReason =
+    project && !project.deployment_url && draft === null
+      ? '초안을 만들거나 배포 사이트를 연결하면 핀을 남길 수 있어요'
+      : null;
+
+  const pinPopover = (
+    <PinCommentPopover
+      onSubmit={handleSubmitPin}
+      onCancel={() => setDraftPin(null)}
+      isPending={postPin.isPending}
+      errorMessage={pinErrorMessage}
+    />
+  );
+
   return (
     <div className="flex h-full min-w-0 flex-1">
       <main className="relative flex h-full min-w-0 flex-1 flex-col">
@@ -103,13 +127,23 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
           onPlacePin={handlePlacePin}
           onSelectPin={handleSelectPin}
           draftPin={draftPin}
-          draftPinContent={
-            <PinCommentPopover
-              onSubmit={handleSubmitPin}
-              onCancel={() => setDraftPin(null)}
-              isPending={postPin.isPending}
-              errorMessage={pinErrorMessage}
-            />
+          draftPinContent={pinPopover}
+          pinDisabledReason={pinDisabledReason}
+          renderSite={
+            showDraft
+              ? (mode) => (
+                  <DraftPreviewFrame
+                    html={draftPreview.data}
+                    error={draftPreview.error}
+                    mode={mode}
+                    pins={toViewerPins(pins)}
+                    onPlacePin={handlePlacePin}
+                    onSelectPin={handleSelectPin}
+                    draftPin={draftPin}
+                    draftPinContent={pinPopover}
+                  />
+                )
+              : undefined
           }
         >
           {/* `false`를 넘기면 URL 문구 대신 빈칸이 되므로 undefined로 둡니다. */}

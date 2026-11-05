@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type ProjectDraft, projectQueryKeys } from '@/entities/project';
+import { draftQueryKeys, type ProjectDraft } from '@/entities/project';
 import { put } from '@/shared/api';
 
 export interface DraftCreateReqType {
@@ -22,6 +22,6 @@ export const usePutProjectDraft = () => {
       putProjectDraft(projectId, body),
     // 새 초안은 미리보기 URL이 바뀌므로 응답으로 바로 덮어씁니다.
     onSuccess: (draft, { projectId }) =>
-      queryClient.setQueryData(projectQueryKeys.getProjectDraft(projectId), draft),
+      queryClient.setQueryData(draftQueryKeys.getDraft(projectId), draft),
   });
 };

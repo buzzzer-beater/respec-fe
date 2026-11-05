@@ -33,6 +33,7 @@ export const toViewerPins = (pins: PinWithRequest[]): ViewerPin[] =>
     y: pin.relative_y * 100,
     // 해결됐거나 요청이 없는 핀은 연하게 보여 줍니다.
     muted: pin.request_status === null || pin.request_status === 'resolved',
+    anchor: pin,
   }));
 
 /** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */

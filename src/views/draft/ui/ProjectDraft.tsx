@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { isSiteType, type SiteType, useGetProject, useGetProjectDraft } from '@/entities/project';
 import { can } from '@/entities/user';
 import { usePutProjectDraft } from '@/features/generate-draft';
-import { isApiError } from '@/shared/api';
 import { formatRelativeTime } from '@/shared/lib';
 
 import DraftComposer from './DraftComposer';
@@ -47,7 +46,7 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
     return (
       <StatusMessage>
         <span className="text-ink block text-lg font-bold">초안은 고객만 만들 수 있어요.</span>
-        {draft.isSuccess ? (
+        {draft.data ? (
           <>
             고객이 만든 초안이 있어요.{' '}
             <Link href={viewerHref} className="text-ink font-semibold underline">
@@ -64,8 +63,8 @@ const ProjectDraft = ({ projectId }: ProjectDraftProps) => {
   const draftSiteType = draft.data?.site_type;
   const existingSiteType = isSiteType(draftSiteType) ? draftSiteType : null;
   const siteType = pickedSiteType === undefined ? existingSiteType : pickedSiteType;
-  // 초안이 없다고 확인된 경우에만 바로 만들고, 그 밖에는 덮어쓰기를 확인합니다.
-  const needsConfirm = !isApiError(draft.error, 'DRAFT_NOT_FOUND');
+  // 초안이 없다고 확인된 경우(`null`)에만 바로 만들고, 그 밖에는 덮어쓰기를 확인합니다.
+  const needsConfirm = draft.data !== null;
 
   const generate = (prompt: string) => {
     setPendingPrompt(null);

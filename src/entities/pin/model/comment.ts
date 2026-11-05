@@ -1,3 +1,5 @@
+import type { AiStatus } from '@/shared/api';
+
 /** `GET`/`POST .../pins/{pin_id}/comments` 응답 */
 export interface PinComment {
   id: number;
@@ -8,6 +10,8 @@ export interface PinComment {
   content: string;
   /** AI 변환본. 변환 실패나 삭제된 댓글은 `null` */
   ai_plain_text: string | null;
+  /** 작성·수정 직후에는 `pending`입니다. */
+  ai_status: AiStatus;
   /** ISO 8601 */
   created_at: string;
 }

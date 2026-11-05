@@ -1,92 +1,90 @@
 'use client';
 
-import { type FormEvent, type KeyboardEvent, useState } from 'react';
+import { type KeyboardEvent, type RefObject } from 'react';
 
-const EXAMPLES = ['브랜드 소개 사이트', '이커머스 랜딩', 'SaaS 제품 소개', '포트폴리오'];
+/** 설명은 500자까지 받습니다. */
+export const DRAFT_PROMPT_MAX_LENGTH = 500;
+
+const EXAMPLES = [
+  '신발 편집숍, 사진이 크게 보이게',
+  '동네 카페 예약, 따뜻한 느낌',
+  '필라테스 스튜디오 소개와 수업 안내',
+];
 
 interface DraftPromptFormProps {
-  onSubmit?: (prompt: string) => void;
-  /** 생성 중에는 입력과 제출을 막습니다. */
+  value: string;
+  onChange: (value: string) => void;
+  /** 예시를 누르면 설명을 채우고, 프로젝트 이름이 비어 있으면 첫 쉼표 앞을 이름으로 씁니다. */
+  onPickExample: (example: string) => void;
+  /** Enter로 보낼 때. 보낼 수 없으면 부르지 않습니다. */
+  onSubmit: () => void;
+  canSubmit: boolean;
   disabled?: boolean;
+  textareaRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
-const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) => {
-  const [prompt, setPrompt] = useState('');
-  const trimmed = prompt.trim();
-
-  const submit = () => {
-    if (!trimmed || disabled) return;
-    onSubmit?.(trimmed);
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    submit();
-  };
-
-  // Enter로 보내고 Shift+Enter로 줄바꿈합니다. 한글 조합 중 Enter는 무시합니다.
+/** demo-design `.composer` + `.examples`: 원하는 방향을 적는 칸과 예시 */
+const DraftPromptForm = ({
+  value,
+  onChange,
+  onPickExample,
+  onSubmit,
+  canSubmit,
+  disabled = false,
+  textareaRef,
+}: DraftPromptFormProps) => {
+  // Enter로 만들고 Shift+Enter로 줄바꿈합니다. 한글 조합 중 Enter는 무시합니다.
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
-    submit();
+    if (canSubmit) onSubmit();
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-5">
-      <form
-        onSubmit={handleSubmit}
-        className="border-field focus-within:border-ink flex w-full flex-col gap-6 rounded-2xl border bg-white px-5 pt-5 pb-4 transition-colors"
-      >
-        <label htmlFor="draft-prompt" className="sr-only">
-          만들고 싶은 사이트 설명
-        </label>
+    <div className="grid gap-3">
+      <label htmlFor="draft-prompt" className="flex items-baseline gap-2 text-base font-extrabold">
+        원하는 방향{' '}
+        <em className="text-faint text-[13px] font-semibold not-italic">
+          자세할수록 초안이 정확해요
+        </em>
+      </label>
+      <div className="border-field focus-within:border-ink grid gap-3 rounded-2xl border pt-[18px] pr-[18px] pb-3.5 pl-5 transition-colors duration-200">
         <textarea
+          ref={textareaRef}
           id="draft-prompt"
-          rows={6}
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
+          value={value}
+          onChange={(event) => onChange(event.target.value.slice(0, DRAFT_PROMPT_MAX_LENGTH))}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder="예) 신발 편집숍이에요. 상품 사진이 크게 보이고, 사이즈를 고르기 쉬웠으면 좋겠어요."
-          className="text-ink placeholder:text-faint min-h-[160px] w-full resize-y text-base leading-relaxed outline-none"
+          className="placeholder:text-faint min-h-[200px] w-full resize-none text-base leading-[1.6] outline-none"
         />
-        {/* 파일 첨부는 백엔드 업로드 API가 없어 숨겼습니다. (#52) */}
-        <div className="flex w-full items-center justify-end">
+        <div className="flex items-center gap-2.5">
+          <span className="text-faint text-xs">
+            {value.length} / {DRAFT_PROMPT_MAX_LENGTH}
+          </span>
           <button
             type="submit"
-            aria-label="초안 만들기"
-            disabled={!trimmed || disabled}
-            className="bg-ink disabled:bg-divider grid size-9 shrink-0 place-items-center rounded-[10px] text-white transition-transform active:scale-90"
+            disabled={!canSubmit || disabled}
+            className="bg-ink hover:bg-ink-hover disabled:bg-divider disabled:text-faint ease-spring ml-auto inline-flex h-11 items-center rounded-xl px-5 text-sm font-semibold text-white transition-[transform,background-color] duration-300 active:scale-[0.96] disabled:cursor-default"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 19V5M5 12l7-7 7 7"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            초안 만들기
           </button>
         </div>
-      </form>
-
-      <div className="flex flex-col items-center gap-3">
-        <p className="text-muted text-[13px]">이렇게 시작해 보세요</p>
-        <ul className="flex flex-wrap justify-center gap-1.5">
-          {EXAMPLES.map((example) => (
-            <li key={example}>
-              <button
-                type="button"
-                onClick={() => setPrompt(example)}
-                disabled={disabled}
-                className="border-field text-text hover:border-ink h-[30px] rounded-full border bg-white px-3 text-[13px] whitespace-nowrap transition-colors"
-              >
-                {example}
-              </button>
-            </li>
-          ))}
-        </ul>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <span className="text-muted mr-1 self-center text-[13px]">이렇게 시작해 보세요</span>
+        {EXAMPLES.map((example) => (
+          <button
+            key={example}
+            type="button"
+            onClick={() => onPickExample(example)}
+            disabled={disabled}
+            className="border-field text-text hover:border-ink h-[30px] rounded-full border bg-white px-3 text-[13px] whitespace-nowrap transition-colors duration-200"
+          >
+            {example}
+          </button>
+        ))}
       </div>
     </div>
   );

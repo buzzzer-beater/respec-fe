@@ -4,7 +4,7 @@ import { get, post } from '@/shared/api';
 import { POLLING_INTERVAL_MS } from '@/shared/config';
 
 import type { PinComment } from '../model/comment';
-import type { CreatedPin, PinPosition, PinWithRequest } from '../model/pin';
+import type { CreatedPin, PinPosition, PinSource, PinWithRequest } from '../model/pin';
 
 export const pinQueryKeys = {
   all: (projectId: number) => ['projects', projectId, 'pins'] as const,
@@ -21,6 +21,8 @@ export const getPinComments = (projectId: number, pinId: number) =>
 export interface PinCreateReqType extends PinPosition {
   /** 첫 댓글(요청 내용) */
   request_content: string;
+  /** 핀을 남긴 사이트. 생략하면 `draft` */
+  source?: PinSource;
 }
 
 export const postPin = (projectId: number, body: PinCreateReqType) =>

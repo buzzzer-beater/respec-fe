@@ -116,15 +116,6 @@ const RequestDetailDrawer = ({ projectId, requestId, onClose }: RequestDetailDra
                 )}
               </Section>
 
-              {request.latest_review_item && (
-                <Section title="최근 반영 설명">
-                  <PlainTextExplanation
-                    original={request.latest_review_item.implementation_note}
-                    plainText={request.latest_review_item.ai_plain_text}
-                  />
-                </Section>
-              )}
-
               <Section title="상태 이력">
                 {history.isPending ? (
                   <p className="text-muted text-sm">이력을 불러오고 있습니다.</p>

@@ -11,4 +11,5 @@ export const userQueryKeys = {
 
 export const getMe = () => get<User>('/auth/me');
 
-export const useGetMe = () => useQuery({ queryKey: userQueryKeys.getMe(), queryFn: getMe });
+export const useGetMe = ({ enabled = true }: { enabled?: boolean } = {}) =>
+  useQuery({ queryKey: userQueryKeys.getMe(), queryFn: getMe, enabled });

@@ -3,7 +3,7 @@ import { TopBar } from '@/widgets/top-bar';
 
 const ProjectsPage = () => (
   <div className="flex h-screen flex-col">
-    <TopBar />
+    <TopBar title="내 프로젝트" />
     <ProjectListView />
   </div>
 );

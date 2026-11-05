@@ -1,8 +1,15 @@
 /**
  * - `review_requested`: 고객에게, 개발자가 검수를 요청함
  * - `change_reopened`: 개발자에게, 고객이 재수정을 요청함
+ * - `change_created`: 개발자에게, 고객이 새 요청을 남김
+ * - `change_resolved`: 개발자에게, 고객이 요청을 승인함
  */
-export const NOTIFICATION_TYPES = ['review_requested', 'change_reopened'] as const;
+export const NOTIFICATION_TYPES = [
+  'review_requested',
+  'change_reopened',
+  'change_created',
+  'change_resolved',
+] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -23,7 +30,7 @@ export type NotificationItem =
       change_request_id: null;
     })
   | (NotificationBase & {
-      type: 'change_reopened';
+      type: 'change_reopened' | 'change_created' | 'change_resolved';
       review_request_id: null;
       change_request_id: number;
     });

@@ -2,11 +2,12 @@
 
 import {
   canTransition,
+  CHANGE_REQUEST_STATUS_LABEL,
   type ChangeRequestStatus,
   getTransitionErrorMessage,
 } from '@/entities/request';
 import { can, type ProjectAction, type ProjectRole } from '@/entities/user';
-import { Button, type ButtonSize, type ButtonVariant } from '@/shared/ui';
+import { Button, type ButtonSize, type ButtonVariant, toast } from '@/shared/ui';
 
 import { type DeveloperTransition, useChangeRequestTransition } from '../api/change-request-status';
 
@@ -23,6 +24,9 @@ interface ChangeRequestStatusButtonsProps {
   size?: ButtonSize;
   /** 카드 목록처럼 버튼이 반복되는 곳에서는 외곽선(`secondary`)으로 씁니다. */
   variant?: ButtonVariant;
+  /** 바꾼 뒤 "핀 N · 확인 중" 안내에 씁니다. 핀이 없으면 생략합니다. */
+  pinNumber?: number | null;
+  className?: string;
 }
 
 /** 개발자용 확인/착수 버튼. 역할과 상태에 맞는 버튼만 보여 줍니다. */
@@ -33,6 +37,8 @@ const ChangeRequestStatusButtons = ({
   role,
   size = 'md',
   variant = 'primary',
+  pinNumber = null,
+  className,
 }: ChangeRequestStatusButtonsProps) => {
   const mutation = useChangeRequestTransition(projectId);
   const actions = ACTIONS.filter(
@@ -50,7 +56,18 @@ const ChangeRequestStatusButtons = ({
           size={size}
           variant={variant}
           disabled={mutation.isPending}
-          onClick={() => mutation.mutate({ requestId, transition })}
+          className={className}
+          onClick={() =>
+            mutation.mutate(
+              { requestId, transition },
+              {
+                onSuccess: ({ status: next }) =>
+                  toast(
+                    `${pinNumber === null ? '요청' : `핀 ${pinNumber}`} · ${CHANGE_REQUEST_STATUS_LABEL[next]}`,
+                  ),
+              },
+            )
+          }
         >
           {label}
         </Button>

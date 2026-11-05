@@ -1,10 +1,13 @@
-/** 검수 제출에 포함된 요청 하나와 반영 설명 */
+import type { PinPosition } from '@/entities/pin/@x/review';
+
+/** 검수 제출에 포함된 요청 하나 */
 export interface ReviewItem {
   change_request_id: number;
-  /** 개발자가 쓴 반영 설명 원문 */
-  implementation_note: string;
-  /** 고객용 쉬운 설명. 변환에 실패하면 `null` */
-  ai_plain_text: string | null;
+  /**
+   * 개발자가 배포본에 다시 찍은 반영 위치. 원본 핀은 옮기지 않고 따로 저장합니다.
+   * 찍지 않았으면 `null`
+   */
+  location: PinPosition | null;
 }
 
 /** `POST /review-requests`, `GET /review-requests/{id}` 응답 */

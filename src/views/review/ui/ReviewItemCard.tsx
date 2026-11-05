@@ -69,16 +69,6 @@ const ReviewItemCard = ({
         )}
       </div>
 
-      <div className="border-divider mt-4 border-t pt-4">
-        <h3 className="mb-2 text-sm font-bold">반영 설명</h3>
-        <PlainTextExplanation
-          original={item.implementation_note}
-          plainText={item.ai_plain_text}
-          originalLabel="개발자 원문"
-          plainTextLabel="AI 쉬운 설명"
-        />
-      </div>
-
       {/* 고객에게만, 검수 대기일 때만 보입니다. */}
       {request && (
         <div className="mt-4 flex justify-end">

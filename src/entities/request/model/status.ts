@@ -12,11 +12,11 @@ export type ChangeRequestStatus = (typeof CHANGE_REQUEST_STATUSES)[number];
 /** `GET .../change-requests?status=` 값. 생략하면 `resolved`를 뺀 목록, `all`이면 전체입니다. */
 export type ChangeRequestStatusFilter = ChangeRequestStatus | 'all';
 
-/** 상태 뱃지와 요청 관리 칸반 열 제목에 쓰는 라벨 */
+/** 상태 뱃지와 요청 관리 칸반 열 제목에 쓰는 라벨 (demo-design `STATUS`) */
 export const CHANGE_REQUEST_STATUS_LABEL: Record<ChangeRequestStatus, string> = {
-  open: '미해결',
-  reviewing: '확인함',
-  in_progress: '진행 중',
+  open: '요청 대기',
+  reviewing: '확인 중',
+  in_progress: '작업 중',
   pending_review: '검수 대기',
   resolved: '해결됨',
 };

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useGetProject } from '@/entities/project';
 import type { ChangeRequest } from '@/entities/request';
 import { can } from '@/entities/user';
+import { buttonClassName } from '@/shared/ui';
 
 import RequestReviewDialog from './RequestReviewDialog';
 
@@ -27,7 +28,7 @@ const RequestReviewButton = ({ projectId, requests }: RequestReviewButtonProps) 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-ink h-10 shrink-0 rounded-[10px] px-4 text-sm font-bold text-white transition-transform active:scale-95"
+        className={buttonClassName({ size: 'sm', className: 'shrink-0' })}
       >
         {candidates.length > 0 ? `검수 요청 만들기 · ${candidates.length}` : '검수 요청 만들기'}
       </button>
@@ -35,7 +36,7 @@ const RequestReviewButton = ({ projectId, requests }: RequestReviewButtonProps) 
         <RequestReviewDialog
           projectId={projectId}
           candidates={candidates}
-          defaultDeploymentUrl={project.deployment_url ?? ''}
+          hasDeployment={!!project.deployment_url}
           onClose={() => setOpen(false)}
         />
       )}

@@ -1,3 +1,5 @@
+import type { AiStatus } from '@/shared/api';
+
 /** `GET`/`POST /projects/{id}/messages` 응답 */
 export interface ChatMessage {
   id: number;
@@ -7,6 +9,8 @@ export interface ChatMessage {
   shared_pin_id: number | null;
   /** AI 변환본. 본문이 없거나 변환에 실패하면 `null` */
   ai_plain_text: string | null;
+  /** 작성 직후에는 `pending`, 핀 카드만 공유하면 `skipped`입니다. */
+  ai_status: AiStatus;
   /** ISO 8601 */
   created_at: string;
 }

@@ -12,6 +12,7 @@ import {
 
 import { cn } from '@/shared/lib';
 
+import { buttonClassName } from './Button';
 import { type DialogClosePolicy, isOwnDialogEvent, shouldCloseDialog } from './dialog-close';
 
 interface DialogContextValue {
@@ -29,8 +30,9 @@ const useDialogContext = () => {
 };
 
 const SIDE_CLASS = {
+  // demo-design `.modal`: 460px, 둥글기 20px, 아래에서 살짝 떠오르며 열립니다.
   center:
-    'm-auto w-[440px] max-w-[calc(100vw-32px)] rounded-2xl shadow-[0_12px_32px_rgba(24,24,27,0.14)] backdrop:bg-ink/40',
+    'm-auto w-[460px] max-w-[calc(100vw-32px)] rounded-[20px] shadow-modal animate-[modal-in_0.35s_var(--ease-spring)] backdrop:bg-[rgba(24,24,27,0.32)] backdrop:animate-[fade-in_0.2s]',
   right:
     'fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[480px] max-w-full animate-[slide-in_0.3s_var(--ease-out-soft)] shadow-[0_0_0_1px_var(--color-divider),0_12px_32px_rgba(24,24,27,0.14)] backdrop:bg-black/30',
 } as const;
@@ -116,16 +118,59 @@ export const Dialog = ({
   );
 };
 
+/**
+ * 가운데 모달의 내용 틀(여백 32px, 간격 20px). 바깥 클릭을 알아보려면 여백을 `<dialog>`가 아니라 이 안에 둡니다.
+ */
+export const DialogContent = ({ className, ...props }: ComponentProps<'div'>) => (
+  <div className={cn('grid gap-5 p-8', className)} {...props} />
+);
+
 export const DialogTitle = ({ className, ...props }: ComponentProps<'h2'>) => {
   const { titleId } = useDialogContext();
   return (
-    <h2 id={titleId} className={cn('text-ink text-lg font-extrabold', className)} {...props} />
+    <h2
+      id={titleId}
+      className={cn('text-ink text-[22px] font-extrabold tracking-[-0.01em]', className)}
+      {...props}
+    />
   );
 };
 
 export const DialogDescription = ({ className, ...props }: ComponentProps<'p'>) => (
-  <p className={cn('text-muted text-sm leading-relaxed', className)} {...props} />
+  <p className={cn('text-muted mt-1.5 text-sm leading-[1.6]', className)} {...props} />
 );
+
+/** 모달 아래 버튼 줄. 오른쪽에 붙습니다. */
+export const DialogFooter = ({ className, ...props }: ComponentProps<'div'>) => (
+  <div className={cn('flex justify-end gap-2', className)} {...props} />
+);
+
+/** 모달 위 회색 안내 (`.modal-banner`) */
+export const DialogBanner = ({ className, ...props }: ComponentProps<'p'>) => (
+  <p
+    className={cn('bg-hover text-ink rounded-xl px-3.5 py-3 text-[13px] font-semibold', className)}
+    {...props}
+  />
+);
+
+/** 아래 "닫기"처럼 글자로 된 닫기 버튼. `preventClose`면 닫지 않습니다. */
+export const DialogCloseButton = ({
+  className,
+  children = '닫기',
+  ...props
+}: ComponentProps<'button'>) => {
+  const { close } = useDialogContext();
+  return (
+    <button
+      type="button"
+      onClick={close}
+      className={buttonClassName({ variant: 'secondary', className })}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+};
 
 /** 오른쪽 위 × 버튼 */
 export const DialogClose = ({ className, ...props }: ComponentProps<'button'>) => {

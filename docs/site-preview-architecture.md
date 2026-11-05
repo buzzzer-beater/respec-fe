@@ -1,6 +1,6 @@
-# 사이트 미리보기와 핀 구현 방식 (제안)
+# 사이트 미리보기와 핀 구현 방식
 
-> 상태: **제안**. CLAUDE.md "결정이 필요한 것"의 _외부 배포 사이트 미리보기 방식_, _AI 초안 미리보기 렌더링 방식_ 에 대한 안입니다. 팀에서 확정하면 이 줄을 바꿔 주세요.
+> 상태: **확정** (팀 결정 2026-11-05). CLAUDE.md "결정이 필요한 것"의 _외부 배포 사이트 미리보기 방식_ 은 **핀 스크립트(`respec-pin.js`) + postMessage**, _AI 초안 미리보기 렌더링 방식_ 은 **같은 출처 `srcdoc` + `sandbox`** 로 정했습니다.
 >
 > 백엔드 현황은 respec-be main `b8db2f2` 기준으로 확인했습니다 (2026-11-05).
 
@@ -51,60 +51,93 @@
 
 ## 연결 사이트 (외부 배포)
 
+> 상태: **확정** (#21). 구현: `src/shared/lib/pin-script/`(스크립트), `src/shared/lib/pin-bridge/`(메시지 규격), `src/widgets/site-viewer/ui/DeployedSiteFrame.tsx`(부모)
+
 ```text
-[워크스페이스]  ← 핀 목록, 스레드 UI, 채팅
-  └ <iframe src="https://고객사이트.vercel.app">
+[워크스페이스]  ← 핀 목록, 스레드 UI, 채팅, 핀 저장(Bearer)
+  └ <iframe src="https://고객사이트.vercel.app" sandbox="allow-scripts allow-same-origin ...">
        └ respec-pin.js (개발자가 한 줄 추가)
-          - 핀 엔진 실행 (앵커 계산/복원, 마커 표시)
+          - 핀 엔진 실행 (앵커 계산/복원, Shadow DOM 마커)
           - 핀 모드: 투명 레이어로 클릭을 막고 아래 요소 찾기
-          - 페이지 이동 감지 → parent로 전송
+          - pushState/replaceState/popstate 감지 → parent로 전송
 ```
 
-개발자가 넣을 것:
+### 설치 방법 (개발자, 시연 사이트 #22)
 
-```html
-<script async src="https://<RE:SPEC 도메인>/respec-pin.js"></script>
-```
+배포 연결 대화상자의 "핀 스크립트 설치"에 RE:SPEC 주소가 채워진 코드와 복사 버튼이 있습니다.
 
-```json
-// vercel.json
-{
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://<RE:SPEC 도메인>"
-        }
-      ]
-    }
-  ]
-}
-```
+1. 사이트 `<head>`에 스크립트 한 줄을 넣습니다.
 
-- 스크립트는 iframe 안일 때(`window.parent !== window`)만 동작하고, `async`로 불러와 우리 서버 장애가 사이트 로딩에 영향을 주지 않게 합니다.
-- 마커는 iframe 안에서 Shadow DOM으로 그립니다. 부모에서 그리면 스크롤마다 메시지 지연으로 핀이 흔들립니다.
-- `respec:ready`를 3초 안에 못 받으면 "핀 스크립트가 연결되지 않았어요" 안내 후 좌표만 저장하는 오버레이로 폴백합니다. iframe `onload`는 에러 화면에도 발생하므로 판정에 쓰지 않습니다.
+   ```html
+   <script async src="https://<RE:SPEC 도메인>/respec-pin.js"></script>
+   ```
 
-### 메시지 규격 (초안)
+   Next.js App Router는 루트 `layout.tsx`의 `<head>`에 그대로 넣거나 `next/script`(`strategy="afterInteractive"`)를 씁니다. 스크립트를 다른 주소에서 내려줄 때(로컬 개발 등)는 `data-respec-origin="http://localhost:3000"`으로 RE:SPEC origin을 따로 적습니다. 공백이나 쉼표로 여러 개를 적을 수 있습니다.
+
+2. RE:SPEC 화면 안에서 열리도록 응답 헤더를 넣습니다. Vercel은 `vercel.json`:
+
+   ```json
+   {
+     "headers": [
+       {
+         "source": "/(.*)",
+         "headers": [
+           {
+             "key": "Content-Security-Policy",
+             "value": "frame-ancestors 'self' https://<RE:SPEC 도메인>"
+           }
+         ]
+       }
+     ]
+   }
+   ```
+
+   Next.js는 `next.config`의 `headers()`로 같은 헤더를 넣어도 됩니다. `X-Frame-Options: DENY/SAMEORIGIN`이 있으면 지워야 합니다.
+
+3. 다시 배포하고, 개발자가 프로젝트에 프로덕션 도메인을 연결합니다. 워크스페이스에서 "핀 스크립트가 연결되지 않았어요"가 보이지 않으면 연결된 것입니다.
+
+주의: RE:SPEC이 `http://localhost`일 때 `https` 사이트는 mixed content로 스크립트를 막습니다. 로컬에서 확인할 때는 스크립트를 배포된 RE:SPEC에서 받고 `data-respec-origin`에 로컬 주소를 적습니다.
+
+### 동작
+
+- 스크립트는 iframe 안일 때(`window.parent !== window`)만 동작하고, `async`로 불러와 우리 서버 장애가 사이트 로딩에 영향을 주지 않게 합니다. 두 번 넣어도 한 번만 실행합니다.
+- 허용 origin은 스크립트 주소(`src`)의 origin입니다. `data-respec-origin`이 있으면 그 값을 씁니다.
+- 마커는 iframe 안에서 Shadow DOM(`<respec-pin-root>`)으로 그립니다. 부모에서 그리면 스크롤마다 메시지 지연으로 핀이 흔들립니다. 스크롤, 창 크기, DOM 변경 때 `requestAnimationFrame`으로 위치를 다시 계산합니다.
+- 핀 모드: Shadow DOM 안의 투명 레이어가 화면을 덮고, `window` capture 단계에서 마우스·포인터·터치 이벤트를 멈춰 사이트 리스너로 가지 않게 합니다. 스크롤(`wheel`)은 막지 않습니다. 누른 위치는 `elementsFromPoint`로 레이어를 건너뛰고 아래 요소를 찾습니다.
+- 경로: `location.pathname`만 `page_path`로 씁니다(쿼리, 해시 제외). 경로가 바뀌면 이전 경로 마커를 지우고 `path-changed`를 보냅니다. 부모는 현재 경로의 핀만 다시 보냅니다.
+- 다른 경로의 핀을 고르면(`navigate`) 스크립트가 `location.assign`으로 새로 불러옵니다. 새 문서가 `ready`를 보내면 부모가 같은 경로로 `navigate`를 다시 보내 핀으로 스크롤합니다.
+- `pin-missing`: 핀 목록을 받고 2초 뒤에도 DOM에 요소가 **아예 없는** 핀만, 경로·핀마다 한 번 보냅니다. 숨겨진 요소는 보내지 않습니다. 부모는 `onPinMissing(pinId)` 콜백만 열어 두고, `location-status` 보고는 #25에서 연결합니다.
+- `respec:ready`를 3초 안에 못 받으면 "핀 스크립트가 연결되지 않았어요" 안내 후 영역 좌표만 저장하는 오버레이로 폴백합니다. 늦게라도 `ready`가 오면 스크립트 방식으로 바뀝니다. iframe `onload`는 에러 화면에도 발생하므로 판정에 쓰지 않습니다.
+- iframe `sandbox`에 `allow-top-navigation`을 넣지 않아 사이트가 워크스페이스 주소를 바꾸지 못합니다. `allow-same-origin`은 사이트가 자기 origin(쿠키, 저장소)을 유지하도록 넣습니다. cross-origin이라 워크스페이스에는 접근할 수 없습니다.
+
+### 빌드
+
+- `public/respec-pin.js`는 `pnpm build:pin-script`(`scripts/build-pin-script.mjs`)로 만들고 저장소에 커밋합니다. 새 의존성 없이 이미 있는 `typescript`의 `transpileModule`로 파일마다 CommonJS로 바꾸고, 작은 `require` 함수와 함께 IIFE 하나로 묶습니다. 상대 경로 import만 따라가므로 `pin-engine`, `pin-bridge`, `pin-script`는 서로 상대 경로로 import합니다.
+- `src/shared/lib/pin-script/bundle.test.ts`가 커밋된 파일과 지금 소스로 만든 결과를 비교합니다. 핀 엔진이나 규격을 바꾸고 다시 만들지 않으면 `pnpm test`가 실패합니다.
+- Next.js가 `public/`을 `Cache-Control: public, max-age=0`으로 내려주므로 다시 배포하면 바로 반영됩니다. 규격을 바꾸면 `PIN_BRIDGE_VERSION`을 올립니다. 부모는 버전이 다르면 경고만 남깁니다.
+- 축소(minify)는 하지 않습니다(약 33KB). 필요해지면 esbuild 같은 번들러를 개발 의존성으로 넣는 안을 검토합니다.
+
+### 메시지 규격
+
+타입과 검증 함수는 `src/shared/lib/pin-bridge/protocol.ts` 한 곳에 있고 양쪽이 같이 씁니다. 받는 쪽은 `parseParentMessage`/`parseSiteMessage`로 모양을 확인하고, 모르는 필드는 지웁니다(백엔드 `extra="forbid"`).
 
 ```ts
 // 부모 → iframe
 { type: 'respec:set-mode', mode: 'browse' | 'pin' }
-{ type: 'respec:show-pins', pins }
-{ type: 'respec:navigate', path, pinId } // 채팅 핀 카드 클릭 시
+{ type: 'respec:show-pins', pins: BridgePin[], selectedPinId } // 현재 경로의 핀만
+{ type: 'respec:navigate', path, pinId } // 채팅 핀 카드, 패널에서 핀 선택 시
 
 // iframe → 부모
-{ type: 'respec:ready', version }
+{ type: 'respec:ready', version, path }
 { type: 'respec:path-changed', path }
-{ type: 'respec:pin-created', anchor }
+{ type: 'respec:pin-created', anchor, x, y } // x, y: 누른 지점의 iframe 화면 기준 %
 { type: 'respec:pin-clicked', pinId }
-{ type: 'respec:pin-missing', pinId } // DOM에 요소가 없음 → needs_check 보고
+{ type: 'respec:pin-missing', pinId } // DOM에 요소가 없음 → needs_check 보고 대상
 ```
 
-- 양쪽 모두 `event.origin`을 검사합니다. 부모는 프로젝트의 `deployment_url` origin만, 스크립트는 RE:SPEC origin만 받습니다.
-- 인증 토큰이나 사용자 정보는 iframe으로 보내지 않습니다.
+- `BridgePin`: `id`, `number`, `page_path`, `element_selector`, `relative_x`, `relative_y`, `location_context`, `muted`만 보냅니다. 요청 내용, 작성자, 인증 토큰은 iframe으로 보내지 않습니다.
+- 양쪽 모두 `event.origin`과 `event.source`를 검사합니다. 부모는 프로젝트 `deployment_url`의 origin과 자기 iframe에서 온 메시지만, 스크립트는 허용 origin과 `window.parent`에서 온 메시지만 받습니다. 보낼 때도 `targetOrigin`을 그 origin으로 지정합니다.
+- 부모는 `pin-created`의 앵커로 `POST /pins`를 보내고, `pin-clicked`로 오른쪽 패널의 핀을 고르며, `ready`/`path-changed`로 현재 `page_path`를 관리합니다.
 
 ## 핀 앵커
 
@@ -208,4 +241,4 @@ type PinAnchor = {
 - 경로 기준: `/products/3`과 `/products/4`를 같은 페이지로 볼지, 쿼리를 경로에 포함할지
 - 초안 체험 범위: 정적 HTML 한계를 받아들일지
 - 초안 코드 전달 방식: 백엔드에 ZIP 다운로드(`GET /draft/zip`)가 있음. GitHub 저장소 생성까지 할지
-- 핀 스크립트 배포 위치와 버전 관리 방식
+- ~~핀 스크립트 배포 위치와 버전 관리 방식~~ → RE:SPEC `public/respec-pin.js`에서 내려주고 `PIN_BRIDGE_VERSION`으로 규격 버전을 확인 (#21)

@@ -10,6 +10,7 @@ import {
   isVercelAppUrl,
   validateDeploymentUrl,
 } from '../model/deployment-url';
+import PinScriptGuide from './PinScriptGuide';
 
 const getServerErrorMessage = (error: ApiError) => {
   if (error.status === 422) {
@@ -18,16 +19,6 @@ const getServerErrorMessage = (error: ApiError) => {
   if (error.status === 403) return '배포 사이트는 이 프로젝트의 개발자만 연결할 수 있어요.';
   return error.message;
 };
-
-// 핀 스크립트는 #21에서 만듭니다. 준비되면 설치 방법을 여기에 채웁니다.
-const PinScriptGuide = () => (
-  <section className="bg-ai flex flex-col gap-1 rounded-xl px-4 py-3.5">
-    <h3 className="text-ink text-sm font-bold">핀 스크립트 설치</h3>
-    <p className="text-muted text-[13px] leading-normal">
-      준비 중이에요. 배포 사이트에 넣을 스크립트가 준비되면 설치 방법을 여기에서 안내할게요.
-    </p>
-  </section>
-);
 
 interface ConnectDeploymentDialogProps {
   projectId: number;

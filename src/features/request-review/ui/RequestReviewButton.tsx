@@ -20,6 +20,7 @@ const RequestReviewButton = ({ projectId, requests }: RequestReviewButtonProps) 
   const [open, setOpen] = useState(false);
 
   if (!project || !can(project.my_role, 'request-review')) return null;
+  const candidates = requests.filter((request) => request.status === 'in_progress');
 
   return (
     <>
@@ -28,12 +29,12 @@ const RequestReviewButton = ({ projectId, requests }: RequestReviewButtonProps) 
         onClick={() => setOpen(true)}
         className="bg-ink h-10 shrink-0 rounded-[10px] px-4 text-sm font-bold text-white transition-transform active:scale-95"
       >
-        검수 요청
+        {candidates.length > 0 ? `검수 요청 만들기 · ${candidates.length}` : '검수 요청 만들기'}
       </button>
       {open && (
         <RequestReviewDialog
           projectId={projectId}
-          candidates={requests.filter((request) => request.status === 'in_progress')}
+          candidates={candidates}
           defaultDeploymentUrl={project.deployment_url ?? ''}
           onClose={() => setOpen(false)}
         />

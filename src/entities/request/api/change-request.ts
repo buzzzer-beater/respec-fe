@@ -38,11 +38,19 @@ export type ChangeRequestCreateReqType =
 export const postChangeRequest = (projectId: number, body: ChangeRequestCreateReqType) =>
   post<ChangeRequest>(`/projects/${projectId}/change-requests`, body);
 
-export const useGetChangeRequests = (projectId: number, status?: ChangeRequestStatusFilter) =>
+/**
+ * 기본으로 주기적으로 다시 받습니다. 프로젝트 목록처럼 여러 프로젝트를 한 화면에 보여 줄 때는
+ * `polling: false`로 한 번만 받습니다.
+ */
+export const useGetChangeRequests = (
+  projectId: number,
+  status?: ChangeRequestStatusFilter,
+  { polling = true }: { polling?: boolean } = {},
+) =>
   useQuery({
     queryKey: changeRequestQueryKeys.getChangeRequests(projectId, status),
     queryFn: () => getChangeRequests(projectId, status),
-    refetchInterval: POLLING_INTERVAL_MS,
+    refetchInterval: polling ? POLLING_INTERVAL_MS : false,
   });
 
 export const useGetChangeRequest = (projectId: number, requestId: number) =>

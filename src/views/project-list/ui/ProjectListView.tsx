@@ -13,6 +13,11 @@ const ProjectListView = () => {
   const router = useRouter();
   const projects = useGetProjects();
   const [isCreating, setIsCreating] = useState(false);
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
+  const visibleProjects = (projects.data ?? []).filter(
+    (project) => !query || project.name.toLowerCase().includes(query),
+  );
 
   // 프로젝트를 만들면 바로 초안 생성으로 이어집니다.
   const handleCreated = (project: Project) => {
@@ -40,7 +45,17 @@ const ProjectListView = () => {
               전체 <strong className="text-ink">{projects.data.length}</strong>개
             </p>
           )}
-          <div className="ml-auto">{createButton}</div>
+          <label className="border-divider focus-within:border-ink ml-auto flex h-10 w-[240px] max-w-full items-center rounded-[10px] border px-3 transition-colors">
+            <span className="sr-only">프로젝트 검색</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="프로젝트 검색"
+              className="min-w-0 flex-1 outline-none"
+            />
+          </label>
+          {createButton}
         </div>
 
         {projects.isPending ? (
@@ -64,9 +79,11 @@ const ProjectListView = () => {
             </p>
             <div className="mt-2">{createButton}</div>
           </div>
+        ) : visibleProjects.length === 0 ? (
+          <p className="text-muted py-10 text-center text-sm">찾는 프로젝트가 없어요.</p>
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-4">
-            {projects.data.map((project) => (
+            {visibleProjects.map((project) => (
               <li key={project.id}>
                 <ProjectCard project={project} />
               </li>

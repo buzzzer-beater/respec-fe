@@ -1,129 +1,114 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-import { type Project, useGetProjects } from '@/entities/project';
-import { CreateProjectDialog } from '@/features/create-project';
+import { useQueries } from '@tanstack/react-query';
+
+import { useGetProjects } from '@/entities/project';
+import { changeRequestQueryKeys, getChangeRequests, isMyTurn } from '@/entities/request';
+import { buttonClassName, Icon } from '@/shared/ui';
 
 import ProjectCard from './ProjectCard';
 
+/**
+ * demo-design `projects.html`. 카드를 누르면 작업 화면, 마지막 칸은 새 프로젝트(초안 생성)입니다.
+ * 백엔드에 `my_turn_count`가 없어서 프로젝트마다 요청 목록을 받아 내 차례를 셉니다(카드와 같은 캐시를 씁니다).
+ */
 const ProjectListView = () => {
-  const router = useRouter();
   const projects = useGetProjects();
-  const [isCreating, setIsCreating] = useState(false);
   const [search, setSearch] = useState('');
-  const filteredProjects = useMemo(
-    () =>
-      (projects.data ?? []).filter((project) =>
-        project.name.toLowerCase().includes(search.trim().toLowerCase()),
-      ),
-    [projects.data, search],
-  );
+  const all = projects.data ?? [];
+  const query = search.trim().toLowerCase();
+  const list = query ? all.filter((project) => project.name.toLowerCase().includes(query)) : all;
 
-  // 프로젝트를 만들면 바로 초안 생성으로 이어집니다.
-  const handleCreated = (project: Project) => {
-    setIsCreating(false);
-    router.push(`/projects/${project.id}/draft`);
-  };
-
-  const createButton = (
-    <button
-      type="button"
-      onClick={() => setIsCreating(true)}
-      className="bg-ink h-10 shrink-0 rounded-[10px] px-4 text-sm font-semibold text-white"
-    >
-      새 프로젝트
-    </button>
+  const requestQueries = useQueries({
+    queries: all.map((project) => ({
+      queryKey: changeRequestQueryKeys.getChangeRequests(project.id),
+      queryFn: () => getChangeRequests(project.id),
+    })),
+  });
+  const myTurnByProject = new Map(
+    all.map((project, index) => [
+      project.id,
+      requestQueries[index]?.data?.filter((request) => isMyTurn(request.status, project.my_role))
+        .length ?? 0,
+    ]),
   );
+  const totalMyTurn = [...myTurnByProject.values()].reduce((sum, count) => sum + count, 0);
 
   return (
-    <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-white">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-7 px-5 py-9 sm:px-10">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-[22px] font-extrabold">내 프로젝트</h1>
+    <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-white">
+      <title>RE:SPEC — 내 프로젝트</title>
+      <div className="mx-auto max-w-[1280px] px-5 pt-12 pb-20 sm:px-10">
+        <div className="mb-7 flex flex-wrap items-center gap-3.5">
+          <h2 className="text-[28px] font-extrabold tracking-[-0.02em]">프로젝트</h2>
           {projects.data && (
-            <p className="text-muted text-sm">
-              전체 <strong className="text-ink">{projects.data.length}</strong>개
-            </p>
+            <span className="text-muted text-sm">
+              참여 중 <b className="text-ink">{all.length}</b> · 내 차례 요청{' '}
+              <b className="text-ink">{totalMyTurn}</b>
+            </span>
           )}
-          {!projects.isPending && projects.data && projects.data.length > 0 && (
-            <label className="border-divider focus-within:border-ink ml-auto flex h-10 w-full items-center gap-2 rounded-[10px] border px-3 sm:w-[240px]">
-              <svg
-                aria-hidden
-                viewBox="0 0 20 20"
-                className="text-muted size-4 fill-none stroke-current"
-                strokeWidth="1.7"
-              >
-                <circle cx="8.8" cy="8.8" r="5.7" />
-                <path d="m13 13 4 4" />
-              </svg>
-              <span className="sr-only">프로젝트 검색</span>
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="프로젝트 검색"
-                className="placeholder:text-faint min-w-0 flex-1 bg-transparent text-sm outline-none"
-              />
-            </label>
-          )}
-          {createButton}
+          <span className="flex-1" />
+          <label className="border-divider text-muted focus-within:border-ink flex h-10 w-full items-center gap-2 rounded-[10px] border px-3 sm:w-[240px]">
+            <Icon name="search" size={15} />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="프로젝트 검색"
+              aria-label="프로젝트 검색"
+              className="text-ink min-w-0 flex-1 bg-transparent text-sm outline-none"
+            />
+          </label>
+          <Link href="/" className={buttonClassName({ className: 'rounded-xl' })}>
+            <Icon name="plus" size={16} />새 프로젝트
+          </Link>
         </div>
 
         {projects.isPending ? (
-          <p role="status" className="text-muted text-sm">
-            프로젝트를 불러오고 있어요.
+          <p role="status" className="text-muted py-[60px] text-center">
+            프로젝트를 불러오고 있어요
           </p>
         ) : projects.isError ? (
-          <p role="alert" className="text-sm">
+          <p role="alert" className="text-muted py-[60px] text-center">
             프로젝트를 불러오지 못했어요.{' '}
-            <button type="button" className="underline" onClick={() => projects.refetch()}>
+            <button type="button" className="text-ink underline" onClick={() => projects.refetch()}>
               다시 시도
             </button>
           </p>
-        ) : projects.data.length === 0 ? (
-          <div className="bg-stage flex flex-col items-center gap-3 rounded-2xl px-8 py-16 text-center">
-            <p className="text-lg font-bold">아직 참여 중인 프로젝트가 없어요.</p>
-            <p className="text-muted text-sm leading-relaxed">
-              새 프로젝트를 만들고 AI 초안부터 시작해 보세요.
-              <br />
-              개발자라면 고객에게 받은 초대 링크로 참여할 수 있어요.
-            </p>
-            <div className="mt-2">{createButton}</div>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="bg-stage rounded-2xl px-6 py-12 text-center text-sm">
-            <p className="font-bold">검색한 프로젝트가 없어요.</p>
-            <p className="text-muted mt-1">다른 이름으로 검색해 주세요.</p>
-          </div>
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-5">
-            {filteredProjects.map((project) => (
-              <li key={project.id}>
-                <ProjectCard project={project} />
+            {list.map((project, index) => (
+              <li key={project.id} className="flex">
+                <ProjectCard
+                  project={project}
+                  index={index}
+                  myTurnCount={myTurnByProject.get(project.id) ?? 0}
+                />
               </li>
             ))}
-            <li>
-              <button
-                type="button"
-                onClick={() => setIsCreating(true)}
-                className="border-divider text-muted hover:border-ink hover:bg-hover hover:text-ink flex h-full min-h-[320px] w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed font-bold transition-colors"
-              >
-                <span className="bg-ink grid size-11 place-items-center rounded-xl text-2xl font-normal text-white">
-                  +
-                </span>
-                새 프로젝트 만들기
-              </button>
-            </li>
+            {list.length === 0 ? (
+              <li className="text-muted col-span-full py-[60px] text-center">
+                {query ? '찾는 프로젝트가 없어요' : '아직 참여한 프로젝트가 없어요'}
+              </li>
+            ) : (
+              <li className="flex">
+                <Link
+                  href="/"
+                  className="group text-muted hover:border-ink hover:bg-hover hover:text-ink border-dash grid min-h-[320px] w-full place-content-center justify-items-center gap-3 rounded-2xl border-[1.5px] border-dashed text-[15px] font-bold transition-colors duration-200"
+                >
+                  <span className="bg-ink ease-spring grid size-11 place-items-center rounded-xl text-white transition-transform duration-300 group-hover:rotate-90">
+                    <Icon name="plus" size={20} />
+                  </span>
+                  새 프로젝트 만들기
+                </Link>
+              </li>
+            )}
           </ul>
         )}
       </div>
-
-      {isCreating && (
-        <CreateProjectDialog onClose={() => setIsCreating(false)} onCreated={handleCreated} />
-      )}
     </main>
   );
 };

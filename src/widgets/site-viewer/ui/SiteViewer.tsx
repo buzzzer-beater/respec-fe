@@ -19,8 +19,12 @@ const ZOOM_FIT = 100;
 interface SiteViewerProps {
   url: string;
   pins: ViewerPin[];
-  lastUpdatedLabel: string;
+  /** 없으면 "마지막 업데이트" 문구를 숨깁니다. */
+  lastUpdatedLabel?: string;
   onPlacePin?: (position: PinPosition) => void;
+  /** 저장 전인 새 핀 위치와, 그 옆에 띄울 입력창 */
+  draftPin?: PinPosition | null;
+  draftPinContent?: ReactNode;
   onSelectPin?: (pinId: string) => void;
   // 배포 사이트 미리보기 자리. 미리보기 방식이 정해지면 채웁니다.
   children?: ReactNode;
@@ -32,6 +36,8 @@ const SiteViewer = ({
   lastUpdatedLabel,
   onPlacePin,
   onSelectPin,
+  draftPin,
+  draftPinContent,
   children,
 }: SiteViewerProps) => {
   const [mode, setMode] = useState<ViewerMode>('pin');
@@ -81,12 +87,25 @@ const SiteViewer = ({
                 <NumberedPin number={pin.number} muted={pin.muted} showBadge={pin.showBadge} />
               </button>
             ))}
+            {draftPin && (
+              <div
+                className="absolute z-20 flex items-start gap-2"
+                style={{ left: `${draftPin.x}%`, top: `${draftPin.y}%` }}
+              >
+                <span className="-translate-y-full">
+                  <NumberedPin number={Math.max(0, ...pins.map((pin) => pin.number)) + 1} />
+                </span>
+                {draftPinContent}
+              </div>
+            )}
           </BrowserFrame>
         </div>
 
-        <p className="text-ink-450 self-end text-sm leading-[normal] whitespace-nowrap">
-          마지막 업데이트 - {lastUpdatedLabel}
-        </p>
+        {lastUpdatedLabel && (
+          <p className="text-ink-450 self-end text-sm leading-[normal] whitespace-nowrap">
+            마지막 업데이트 - {lastUpdatedLabel}
+          </p>
+        )}
       </div>
 
       <div className="absolute bottom-[31px] left-1/2 -translate-x-1/2">

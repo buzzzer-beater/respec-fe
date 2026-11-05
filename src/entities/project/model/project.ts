@@ -1,13 +1,14 @@
-/**
- * `GET /projects`, `GET /projects/{id}`, `POST /projects` 응답.
- *
- * 현재 사용자의 프로젝트 역할(`client` | `developer`)은 응답에 없습니다.
- * 역할을 알 수 있는 곳은 초대 미리보기(`InvitationPreview.me.role`)와 수락 응답뿐이라
- * 백엔드에 필드 추가를 요청해야 합니다. 프론트에서 임의로 채우지 않습니다.
- */
+import type { ProjectRole } from '@/entities/user/@x/project';
+
+/** `GET /projects`, `GET /projects/{id}`, `POST /projects` 응답 */
 export interface Project {
   id: number;
   name: string;
+  /**
+   * 현재 사용자의 프로젝트 역할. 백엔드에 추가를 요청한 필드라 아직 오지 않을 수 있습니다.
+   * 없으면 역할을 모르는 것으로 보고 프론트에서 임의로 채우지 않습니다.
+   */
+  my_role?: ProjectRole;
   /** 연결된 배포 사이트. 연결 전에는 `null` */
   deployment_url: string | null;
   /** `resolved`가 아닌 수정 요청 수 */

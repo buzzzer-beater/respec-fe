@@ -11,14 +11,16 @@ const EXAMPLES = ['브랜드 소개 사이트', '이커머스 랜딩', 'SaaS 제
 
 interface DraftPromptFormProps {
   onSubmit?: (prompt: string) => void;
+  /** 생성 중에는 입력과 제출을 막습니다. */
+  disabled?: boolean;
 }
 
-const DraftPromptForm = ({ onSubmit }: DraftPromptFormProps) => {
+const DraftPromptForm = ({ onSubmit, disabled = false }: DraftPromptFormProps) => {
   const [prompt, setPrompt] = useState('');
   const trimmed = prompt.trim();
 
   const submit = () => {
-    if (!trimmed) return;
+    if (!trimmed || disabled) return;
     onSubmit?.(trimmed);
   };
 
@@ -49,6 +51,7 @@ const DraftPromptForm = ({ onSubmit }: DraftPromptFormProps) => {
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={disabled}
           placeholder="Ex. 노트핏, 팀 회의록 SaaS를 소개하는 깔끔한 랜딩 페이지"
           className="text-ink-900 placeholder:text-ink-300 field-sizing-content max-h-60 w-full resize-none leading-[normal] font-medium outline-none"
         />
@@ -59,7 +62,7 @@ const DraftPromptForm = ({ onSubmit }: DraftPromptFormProps) => {
           <button
             type="submit"
             aria-label="초안 만들기"
-            disabled={!trimmed}
+            disabled={!trimmed || disabled}
             className="flex size-8 shrink-0 items-center justify-center"
           >
             <Image src={submitArrowIcon} alt="" unoptimized className="-scale-y-100" />
@@ -75,6 +78,7 @@ const DraftPromptForm = ({ onSubmit }: DraftPromptFormProps) => {
               <button
                 type="button"
                 onClick={() => setPrompt(example)}
+                disabled={disabled}
                 className="border-chip-line text-chip-text rounded-full border-[0.55px] bg-white px-2 py-1.5 text-sm leading-[normal] whitespace-nowrap"
               >
                 {example}

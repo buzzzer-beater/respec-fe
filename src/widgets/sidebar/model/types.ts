@@ -5,6 +5,7 @@ export interface SidebarNavLink {
 
 export interface SidebarProject {
   name: string;
-  plan: string;
+  /** 이름 아래 작은 글씨. 없으면 비웁니다. */
+  plan?: string;
   imageUrl?: string;
 }

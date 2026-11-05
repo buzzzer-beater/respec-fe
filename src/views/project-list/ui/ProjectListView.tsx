@@ -32,7 +32,7 @@ const ProjectListView = () => {
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-10 py-9">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-9 sm:px-10">
         <div className="flex flex-wrap items-center gap-4">
           <h1 className="text-[22px] font-extrabold">내 프로젝트</h1>
           {projects.data && (
@@ -65,7 +65,7 @@ const ProjectListView = () => {
             <div className="mt-2">{createButton}</div>
           </div>
         ) : (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-4">
             {projects.data.map((project) => (
               <li key={project.id}>
                 <ProjectCard project={project} />

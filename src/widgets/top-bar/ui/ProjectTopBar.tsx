@@ -29,7 +29,7 @@ const ProjectTopBar = ({ projectId }: ProjectTopBarProps) => {
     >
       <ConnectDeploymentButton projectId={projectId} />
       {members.length > 0 && (
-        <ul aria-label="참여자" className="flex">
+        <ul aria-label="참여자" className="hidden sm:flex">
           {members.map((member) => (
             <li
               key={member.id}

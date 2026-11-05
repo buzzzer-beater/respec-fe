@@ -10,7 +10,7 @@ import {
   useGetProjectDraft,
   useGetProjectMembers,
 } from '@/entities/project';
-import { useGetChangeRequests } from '@/entities/request';
+import { isHiddenByDefault, useGetChangeRequests } from '@/entities/request';
 import { can, useGetMe } from '@/entities/user';
 import { DeploymentEmptyState } from '@/features/connect-deployment';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
@@ -38,6 +38,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedPin, setSelectedPin] = useState<SelectedPin | null>(null);
+  // "완료 보기": 해결된 핀 마커와 스레드를 함께 보이고 숨깁니다.
+  const [showResolved, setShowResolved] = useState(false);
 
   const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
@@ -50,7 +52,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const draftPreview = useGetDraftPreviewHtml(projectId, showDraft ? draft : null);
   const commentsByPin = useGetPinCommentsByPin(
     projectId,
-    getThreadPins(pins).map((pin) => pin.id),
+    getThreadPins(pins, showResolved).map((pin) => pin.id),
   );
   const canCreateRequest = can(project?.my_role, 'create-request-from-message');
   // 이미 수정 요청으로 등록된 메시지는 메뉴 대신 "등록됨"으로 표시합니다.
@@ -92,8 +94,12 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   // 지금은 배포 사이트의 한 경로만 보여 줘서 경로 이동 없이 핀만 강조합니다.
   // 여러 경로를 보여 주게 되면 `pagePath`로 뷰어를 옮깁니다.
   // 같은 핀을 다시 눌러도 이동하도록 `seq`를 올립니다.
-  const handleSelectPin = (pinId: string) =>
+  // 숨겨 둔 해결된 핀을 고르면(채팅의 핀 카드 등) "완료 보기"를 켭니다.
+  const handleSelectPin = (pinId: string) => {
+    const status = pins.find((pin) => String(pin.id) === pinId)?.request_status;
+    if (status && isHiddenByDefault(status)) setShowResolved(true);
     setSelectedPin((prev) => ({ id: pinId, seq: (prev?.seq ?? 0) + 1 }));
+  };
 
   // 배포 URL과 초안이 모두 없으면 백엔드가 409를 돌려줍니다.
   const pinErrorMessage = postPin.error
@@ -122,13 +128,15 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
       <main className="relative flex h-full min-w-0 flex-1 flex-col">
         <SiteViewer
           url={project?.deployment_url ?? '배포 사이트가 아직 연결되지 않았어요'}
-          pins={toViewerPins(pins)}
+          pins={toViewerPins(pins, showResolved)}
           selectedPinId={selectedPin?.id ?? null}
           onPlacePin={handlePlacePin}
           onSelectPin={handleSelectPin}
           draftPin={draftPin}
           draftPinContent={pinPopover}
           pinDisabledReason={pinDisabledReason}
+          showResolved={showResolved}
+          onShowResolvedChange={setShowResolved}
           renderSite={
             showDraft
               ? (mode) => (
@@ -136,9 +144,10 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
                     html={draftPreview.data}
                     error={draftPreview.error}
                     mode={mode}
-                    pins={toViewerPins(pins)}
+                    pins={toViewerPins(pins, showResolved)}
                     onPlacePin={handlePlacePin}
                     onSelectPin={handleSelectPin}
+                    selectedPinId={selectedPin?.id ?? null}
                     draftPin={draftPin}
                     draftPinContent={pinPopover}
                   />
@@ -164,7 +173,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         projectId={projectId}
         selectedPin={selectedPin}
         messages={toMessages(messages, pins, members, me)}
-        pinThreads={toPinThreads(pins, commentsByPin, members, me)}
+        pinThreads={toPinThreads(pins, commentsByPin, members, me, showResolved)}
         onSendMessage={(content) => postMessage.mutate({ content })}
         onSelectPin={handleSelectPin}
         renderPinThreadAction={({ id }) => (

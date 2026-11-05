@@ -48,7 +48,10 @@ const PinThreadCommentItem = ({
 
   return (
     <div
-      className={cn('flex flex-col gap-1.5', depth === 1 && 'border-divider ml-3 border-l-2 pl-4')}
+      className={cn(
+        'group/comment flex flex-col gap-1.5',
+        depth === 1 && 'border-divider ml-3 border-l-2 pl-4',
+      )}
     >
       {isEditing ? (
         <PinCommentForm
@@ -72,7 +75,14 @@ const PinThreadCommentItem = ({
       )}
 
       {canWrite && !isEditing && (
-        <div className={cn('flex gap-3 text-xs', isMine ? 'self-end pr-9' : 'pl-9')}>
+        // 마우스를 쓰는 화면에서는 댓글에 올렸을 때(또는 키보드로 들어왔을 때)만 보여 줍니다.
+        <div
+          className={cn(
+            'flex gap-3 text-xs transition-opacity [@media(hover:hover)]:opacity-0',
+            'group-focus-within/comment:opacity-100 group-hover/comment:opacity-100',
+            isMine ? 'self-end pr-9' : 'pl-9',
+          )}
+        >
           <button type="button" onClick={onStartReply} className={actionClassName}>
             답글
           </button>

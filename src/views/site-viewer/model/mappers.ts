@@ -1,7 +1,8 @@
 import type { ChatMessage, Message } from '@/entities/message';
 import type { PinWithRequest } from '@/entities/pin';
+import type { ProjectMember } from '@/entities/project';
 import { CHANGE_REQUEST_STATUS_LABEL, type ChangeRequest } from '@/entities/request';
-import type { SessionUser } from '@/entities/user';
+import { PROJECT_ROLE_LABEL, type User } from '@/entities/user';
 import { formatRelativeTime } from '@/shared/lib';
 import type { ViewerPin } from '@/widgets/site-viewer';
 import type { WorkspaceParticipant } from '@/widgets/workspace-header';
@@ -34,16 +35,20 @@ export const toViewerPins = (pins: PinWithRequest[]): ViewerPin[] =>
     muted: pin.request_status === null || pin.request_status === 'resolved',
   }));
 
-// 참여자/내 정보 API가 없어서 이름 대신 "나"와 "참여자"로만 구분합니다.
-const authorName = (authorId: number, me: SessionUser | null) =>
-  authorId === me?.id ? '나' : '참여자';
+/** 작성자 id를 "나" 또는 이메일로 바꿉니다. 참여자 목록을 못 받으면 "참여자"입니다. */
+const createAuthorName = (members: ProjectMember[], me: User | undefined) => {
+  const emails = new Map(members.map((member) => [member.id, member.email]));
+  return (authorId: number) => (authorId === me?.id ? '나' : (emails.get(authorId) ?? '참여자'));
+};
 
 export const toMessages = (
   messages: ChatMessage[],
   pins: PinWithRequest[],
-  me: SessionUser | null,
+  members: ProjectMember[],
+  me: User | undefined,
 ): Message[] => {
   const pinNumber = new Map(pins.map((pin, index) => [pin.id, index + 1]));
+  const authorName = createAuthorName(members, me);
 
   return messages.map((message) => {
     const sharedPin =
@@ -54,7 +59,7 @@ export const toMessages = (
 
     return {
       id: String(message.id),
-      authorName: authorName(message.author_id, me),
+      authorName: authorName(message.author_id),
       content,
       plainText: message.ai_plain_text,
       timeLabel: formatRelativeTime(message.created_at),
@@ -65,9 +70,11 @@ export const toMessages = (
 export const toRequestCards = (
   requests: ChangeRequest[],
   pins: PinWithRequest[],
-  me: SessionUser | null,
+  members: ProjectMember[],
+  me: User | undefined,
 ) => {
   const pinPreview = new Map(pins.map((pin) => [pin.id, pin.request_preview]));
+  const authorName = createAuthorName(members, me);
 
   return requests.map((request) => ({
     id: String(request.id),
@@ -76,21 +83,19 @@ export const toRequestCards = (
       (request.pin_id === null ? null : pinPreview.get(request.pin_id)) ??
       `수정 요청 #${request.id}`,
     statusLabel: CHANGE_REQUEST_STATUS_LABEL[request.status],
-    // 수정 요청은 고객만 만들 수 있습니다.
-    authorName: request.created_by === me?.id ? '나' : '고객',
+    authorName: authorName(request.created_by),
   }));
 };
 
-/** 참여자 API가 없어서 나와 채팅에 등장한 사람만 보여 줍니다. */
+/** 참여자 목록을 못 받으면 나만 보여 줍니다. */
 export const toParticipants = (
-  messages: ChatMessage[],
-  me: SessionUser | null,
+  members: ProjectMember[],
+  me: User | undefined,
 ): WorkspaceParticipant[] => {
-  const ids = new Set(messages.map((message) => message.author_id));
-  if (me) ids.delete(me.id);
+  if (members.length === 0) return me ? [{ id: String(me.id), name: me.email }] : [];
 
-  return [
-    ...(me ? [{ id: String(me.id), name: me.email ?? '나' }] : []),
-    ...[...ids].map((id) => ({ id: String(id), name: '참여자' })),
-  ];
+  return members.map((member) => ({
+    id: String(member.id),
+    name: `${member.email} (${PROJECT_ROLE_LABEL[member.role]})`,
+  }));
 };

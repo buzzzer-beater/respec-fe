@@ -4,9 +4,9 @@ import { useState } from 'react';
 
 import { useGetMessages } from '@/entities/message';
 import { useGetPins } from '@/entities/pin';
-import { useGetProject } from '@/entities/project';
+import { useGetProject, useGetProjectMembers } from '@/entities/project';
 import { useGetChangeRequests } from '@/entities/request';
-import { useSessionUser } from '@/entities/user';
+import { useGetMe } from '@/entities/user';
 import { PinCommentPopover, usePostPin } from '@/features/create-pin';
 import { usePostMessage } from '@/features/send-message';
 import type { Device } from '@/features/switch-device';
@@ -32,19 +32,21 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
   const [draftPin, setDraftPin] = useState<PinPosition | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const me = useSessionUser();
+  const { data: me } = useGetMe();
   const { data: project } = useGetProject(projectId);
+  const { data: members = [] } = useGetProjectMembers(projectId);
   const { data: pins = [] } = useGetPins(projectId);
   const { data: messages = [] } = useGetMessages(projectId);
   const { data: requests = [] } = useGetChangeRequests(projectId);
-  const postPin = usePostPin(projectId, project?.my_role);
+  const postPin = usePostPin(projectId);
   const postMessage = usePostMessage(projectId);
 
   const handleSubmitPin = (content: string) => {
-    if (!draftPin) return;
+    if (!draftPin || !project) return;
     postPin.mutate(
       {
-        page_path: getPagePath(project?.deployment_url),
+        role: project.my_role,
+        page_path: getPagePath(project.deployment_url),
         element_selector: VIEWER_ANCHOR_SELECTOR,
         relative_x: draftPin.x / 100,
         relative_y: draftPin.y / 100,
@@ -98,7 +100,7 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
             projectName={project?.name ?? ''}
             device={device}
             onDeviceChange={setDevice}
-            participants={toParticipants(messages, me)}
+            participants={toParticipants(members, me)}
           />
         </div>
         {notice && (
@@ -111,8 +113,8 @@ const SiteViewerView = ({ projectId }: SiteViewerViewProps) => {
         )}
       </main>
       <SideChatPanel
-        messages={toMessages(messages, pins, me)}
-        requests={toRequestCards(requests, pins, me)}
+        messages={toMessages(messages, pins, members, me)}
+        requests={toRequestCards(requests, pins, members, me)}
         onSendMessage={(content) => postMessage.mutate({ content })}
       />
     </div>
